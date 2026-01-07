@@ -3,6 +3,8 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
 import {FairSoilTokenA} from "../src/FairSoilTokenA.sol";
 import {SoilTreasury} from "../src/SoilTreasury.sol";
 
@@ -14,8 +16,13 @@ contract FairSoilTokenATest is Test {
     address internal bob = address(0xB0B);
 
     function setUp() public {
-        tokenA = new FairSoilTokenA();
-        tokenA.initialize(1e16); // 1% per second, exaggerated for tests
+        FairSoilTokenA implementation = new FairSoilTokenA();
+        bytes memory initData = abi.encodeCall(
+            FairSoilTokenA.initialize,
+            (1e16) // 1% per second, exaggerated for tests
+        );
+        ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
+        tokenA = FairSoilTokenA(address(proxy));
 
         treasury = new SoilTreasury(address(tokenA));
         tokenA.setTreasury(address(treasury));
@@ -25,6 +32,8 @@ contract FairSoilTokenATest is Test {
     }
 
     function testSurvivalBufferProtectedForPrimary() public {
+        treasury.setDailyUBIAmount(600e18);
+
         vm.prank(alice);
         treasury.claimUBI();
 

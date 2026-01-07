@@ -38,19 +38,15 @@ contract DecayingERC20 is ERC20 {
         return (raw * (ONE - decay)) / ONE;
     }
 
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal override {
-        super._beforeTokenTransfer(from, to, amount);
-
+    function _update(address from, address to, uint256 amount) internal override {
         if (from != address(0)) {
             _applyDecay(from);
         }
         if (to != address(0)) {
             _applyDecay(to);
         }
+
+        super._update(from, to, amount);
     }
 
     function _applyDecay(address account) internal {

@@ -26,7 +26,6 @@ contract FairSoilTokenA is ERC20Upgradeable, OwnableUpgradeable, UUPSUpgradeable
     function initialize(uint256 initialDecayRatePerSecond) external initializer {
         __ERC20_init("FairSoil Flow", "SOILA");
         __Ownable_init(msg.sender);
-        __UUPSUpgradeable_init();
         decayRatePerSecond = initialDecayRatePerSecond;
     }
 
@@ -102,19 +101,15 @@ contract FairSoilTokenA is ERC20Upgradeable, OwnableUpgradeable, UUPSUpgradeable
         return SURVIVAL_BUFFER;
     }
 
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal override {
-        super._beforeTokenTransfer(from, to, amount);
-
+    function _update(address from, address to, uint256 amount) internal override {
         if (from != address(0)) {
             _applyDecay(from);
         }
         if (to != address(0)) {
             _applyDecay(to);
         }
+
+        super._update(from, to, amount);
     }
 
     function _applyDecay(address account) internal {

@@ -26,7 +26,10 @@ contract SoilTreasury is Ownable {
     function claimUBI() external {
         require(tokenA.isPrimaryAddress(msg.sender), "Not World ID verified");
         uint256 lastClaim = lastClaimTimestamp[msg.sender];
-        require(block.timestamp >= lastClaim + 1 days, "Already claimed today");
+        require(
+            lastClaim == 0 || block.timestamp >= lastClaim + 1 days,
+            "Already claimed today"
+        );
 
         lastClaimTimestamp[msg.sender] = block.timestamp;
         tokenA.mint(msg.sender, dailyUBIAmount);
