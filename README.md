@@ -226,6 +226,13 @@ To create a digital economic foundation where:
 - **Recovery:** Resume only when multiple sources agree and audit logs stabilize.
 - **Effect:** Prevents supply runaway from oracle failure.
 
+## Adoption Path
+- **Phased rollout:** Start as regional currency, points, or evaluation system rather than replacing fiat immediately.
+- **Small wins:** Build track record in OSS development, cooperatives, disaster relief, and local pilots where transparency and trust matter most.
+- **UX first:** Assume World ID and gasless operations to minimize onboarding friction.
+- **Real-world integration:** Coordinate physical resources and enforcement through legal oracles and existing institutions.
+- **Incumbent conversion:** Encourage participation through contribution-based investment and risk reduction rather than exclusion.
+
 ## Tech Stack (Planned)
 - **Smart Contracts:** Solidity
 - **Development Framework:** Foundry or Hardhat
