@@ -179,11 +179,12 @@ To create a digital economic foundation where:
 - **Standard:** Adopt UUPS for lower execution cost and flexible upgrade rules.
 - **Modularization:** Separate surrounding logic (rule validation, resource pricing) into modules for targeted improvements.
 - **Timelock:** Require a 30-day waiting period before upgrade execution to allow review and exit.
-- **Authority:** Upgrade authority is limited to multisig or DAO decisions by high-integrity participants.
-- **Top-tier definition:** Top 20% integrity scores among active users, with no dishonest records for 1+ years.
+- **Authority:** Upgrade authority is limited to multisig or DAO decisions by participants above an integrity threshold selected via random sampling.
 - **Threshold:** Critical actions require 5 of 9 signatures from selected signers.
-- **Selection:** Signers are chosen randomly or by DAO election.
+- **Selection:** Signers are chosen randomly; thresholds and sampling logic are governance-adjustable.
 - **Transparency:** Selection and signatures are recorded in audit logs for public monitoring.
+- **Anti-collusion posture:** Not full prevention, but raise the cost of bribery/coercion. For high-risk decisions, apply additional defenses (e.g., anonymization, extra review) in stages.
+- **Delegation safety:** Delegation is always revocable, and more complex mechanisms are introduced in phases after validation.
 - **Dynamic adjustment:** These numeric thresholds can be updated via the governance in Spec 2.
 - **Migration criteria:** Allow migration only when proxy fixes are impossible (storage collision, base chain disappearance).
 - **Migration method:** Publish procedures and enforce timelock and exit rights (Spec 4).
