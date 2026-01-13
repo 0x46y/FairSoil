@@ -242,6 +242,24 @@ To create a digital economic foundation where:
 - **Recovery:** Resume only when multiple sources agree and audit logs stabilize.
 - **Effect:** Prevents supply runaway from oracle failure.
 
+#### 8. Data Pruning and State Compression (Data Pruning & State Compression)
+- **Post-prune verifiability:** Discard raw data after a fixed period, but keep hash chains and summarized ZK proofs so procedural correctness remains verifiable.
+- **Data lifecycle:** Keep raw logs short-term (e.g., 90 days), then retain only proof artifacts.
+- **Archival role:** Regular users prune for light clients; rewarded indexer nodes (record keepers) retain long-term archives and provide retrieval on demand.
+- **Effect:** Prevents unbounded storage growth while keeping devices within a few GB.
+
+#### 9. Non-Interest Financial Loop (Non-Interest Financial Loop)
+- **Risk sharing:** Funding projects trades upside distributions for shared slashing risk on failure or fraud.
+- **Layered incentives:** Rewards include monetary upside, integrity score boosts (governance influence), and priority access to supported services.
+- **Effect:** Eliminates passive interest while encouraging active, reviewed investment behavior.
+
+#### 10. Data Persistence and Freezing (Data Persistence & Freezing)
+- **Freeze flag:** Data tied to disputes, serious incidents, or historical value is exempted from automatic pruning.
+- **Storage target:** Frozen raw data moves to decentralized long-term storage; hashes remain on-chain permanently.
+- **Request and forced freeze:** Users can request preservation with staking; the DAO can force-freeze when concealment or severity is suspected.
+- **Abuse controls:** Require minimum escrow and periodic review windows to prevent overuse.
+- **Effect:** Preserves long-term evidentiary value for unresolved cases or context-heavy disputes.
+
 ## Adoption Path
 - **Phased rollout:** Start as regional currency, points, or evaluation system rather than replacing fiat immediately.
 - **Small wins:** Build track record in OSS development, cooperatives, disaster relief, and local pilots where transparency and trust matter most.
