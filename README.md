@@ -186,7 +186,7 @@ To create a digital economic foundation where:
 - **Design intent:** Avoid elite fixation and minority suppression, and allow participation beyond strict rational self-governance by using threshold + random sampling and revocable delegation.
 - **Anti-collusion posture:** Not full prevention, but raise the cost of bribery/coercion. For high-risk decisions, apply additional defenses (e.g., anonymization, extra review) in stages.
 - **Delegation safety:** Delegation is always revocable, and more complex mechanisms are introduced in phases after validation.
-- **Threshold flexibility:** 5 of 9 is an initial value; adjust quorum size and signer pool by risk level.
+- **Threshold flexibility:** Adjust quorum and signer pool by risk level. Routine changes target ~2/3 (e.g., 7 of 11 or 14 of 21), major changes target 2/3-3/4 with longer timelocks, and emergency halts can use 5 of 9.
 - **Non-response handling:** Treat non-response as abstention and use alternates to backfill.
 - **Abstain and delegate:** Delegation is time-bounded and revocable; abstention is a valid choice.
 - **Tiered participation:** Broad participation for high-impact decisions, representative flow plus audit logs for routine changes.
