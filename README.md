@@ -273,3 +273,15 @@ To create a digital economic foundation where:
 - **Frontend:** Next.js (React)
 - **Blockchain:** Ethereum L2 (Optimism / Polygon)
 - **Identity:** World ID SDK
+
+## Minimum Requirements (Planned)
+### Users (Light Clients)
+- **Device:** Smartphone or low-spec PC
+- **Storage:** A few hundred MB to a few GB free space
+- **Connectivity:** Intermittent sync-capable network access
+- **Verification:** Environment that supports identity checks (e.g., World ID)
+
+### Indexer Nodes (Record Keepers)
+- **Uptime:** Always-on, continuously operated
+- **Storage:** Capacity for long-term archives
+- **Role:** Able to respond to audit and retrieval requests
