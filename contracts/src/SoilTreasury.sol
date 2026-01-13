@@ -8,19 +8,37 @@ interface IFairSoilTokenA {
     function isPrimaryAddress(address account) external view returns (bool);
 }
 
+interface IFairSoilTokenB {
+    function mint(address to, uint256 amount) external;
+    function balanceOf(address account) external view returns (uint256);
+}
+
 // Soil Treasury: manages UBI distribution for Token A.
 contract SoilTreasury is Ownable {
     IFairSoilTokenA public immutable tokenA;
+    IFairSoilTokenB public immutable tokenB;
     uint256 public dailyUBIAmount = 100 * 1e18;
 
     mapping(address => uint256) public lastClaimTimestamp;
+    mapping(address => uint256) public integrityScore;
 
-    constructor(address tokenAAddress) Ownable(msg.sender) {
+    uint256 public governanceMinTokenB = 1 * 1e18;
+    uint256 public governanceMinIntegrity = 100;
+
+    event TaskCompleted(address indexed worker, uint256 tokenBReward, uint256 integrityPoints);
+
+    constructor(address tokenAAddress, address tokenBAddress) Ownable(msg.sender) {
         tokenA = IFairSoilTokenA(tokenAAddress);
+        tokenB = IFairSoilTokenB(tokenBAddress);
     }
 
     function setDailyUBIAmount(uint256 newAmount) external onlyOwner {
         dailyUBIAmount = newAmount;
+    }
+
+    function setGovernanceThresholds(uint256 minTokenB, uint256 minIntegrity) external onlyOwner {
+        governanceMinTokenB = minTokenB;
+        governanceMinIntegrity = minIntegrity;
     }
 
     function claimUBI() external {
@@ -33,5 +51,26 @@ contract SoilTreasury is Ownable {
 
         lastClaimTimestamp[msg.sender] = block.timestamp;
         tokenA.mint(msg.sender, dailyUBIAmount);
+    }
+
+    function reportTaskCompleted(
+        address worker,
+        uint256 tokenBReward,
+        uint256 integrityPoints
+    ) external onlyOwner {
+        require(tokenA.isPrimaryAddress(worker), "Worker not verified");
+        if (tokenBReward > 0) {
+            tokenB.mint(worker, tokenBReward);
+        }
+        if (integrityPoints > 0) {
+            integrityScore[worker] += integrityPoints;
+        }
+        emit TaskCompleted(worker, tokenBReward, integrityPoints);
+    }
+
+    function isEligibleForGovernance(address account) external view returns (bool) {
+        return
+            tokenB.balanceOf(account) >= governanceMinTokenB ||
+            integrityScore[account] >= governanceMinIntegrity;
     }
 }

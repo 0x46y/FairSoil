@@ -6,10 +6,12 @@ import "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {FairSoilTokenA} from "../src/FairSoilTokenA.sol";
+import {FairSoilTokenB} from "../src/FairSoilTokenB.sol";
 import {SoilTreasury} from "../src/SoilTreasury.sol";
 
 contract FairSoilTokenATest is Test {
     FairSoilTokenA internal tokenA;
+    FairSoilTokenB internal tokenB;
     SoilTreasury internal treasury;
 
     address internal alice = address(0xA11CE);
@@ -24,8 +26,10 @@ contract FairSoilTokenATest is Test {
         ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
         tokenA = FairSoilTokenA(address(proxy));
 
-        treasury = new SoilTreasury(address(tokenA));
+        tokenB = new FairSoilTokenB(address(0));
+        treasury = new SoilTreasury(address(tokenA), address(tokenB));
         tokenA.setTreasury(address(treasury));
+        tokenB.setTreasury(address(treasury));
 
         tokenA.setPrimaryAddress(alice, true);
         tokenA.setPrimaryAddress(bob, false);
