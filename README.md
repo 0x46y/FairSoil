@@ -183,6 +183,7 @@ To create a digital economic foundation where:
 - **Threshold:** Critical actions require 5 of 9 signatures from selected signers.
 - **Selection:** Signers are chosen randomly; thresholds and sampling logic are governance-adjustable.
 - **Transparency:** Selection and signatures are recorded in audit logs for public monitoring.
+- **Design intent:** Avoid elite fixation and minority suppression, and allow participation beyond strict rational self-governance by using threshold + random sampling and revocable delegation.
 - **Anti-collusion posture:** Not full prevention, but raise the cost of bribery/coercion. For high-risk decisions, apply additional defenses (e.g., anonymization, extra review) in stages.
 - **Delegation safety:** Delegation is always revocable, and more complex mechanisms are introduced in phases after validation.
 - **Dynamic adjustment:** These numeric thresholds can be updated via the governance in Spec 2.
