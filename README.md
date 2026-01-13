@@ -158,6 +158,13 @@ To create a digital economic foundation where:
 - **Distribution cap:** Cap total royalties per task and per template to prevent excessive take by trivial precursors.
 - **Effect:** Costs out valueless claims and protects genuine contributions.
 
+### Education and Reskilling
+#### 1. Nurture & Reskilling (Nurture & Reskilling)
+- **Eligibility:** Use objective signals (automation flags, demand shifts) to prioritize public support without restricting the freedom to try.
+- **Outcome-linked funding:** Soil Treasury pre-funds high-cost training; repayment is a capped share of future earnings with exemption rules.
+- **Knowledge commons rewards:** When shared procedures/materials lead to real-world success, creators receive ongoing royalties.
+- **Effect:** Reduces opportunity loss from industry shifts and high education costs while sustaining re-entry pathways.
+
 ### Governance and Audit
 #### 1. Rule Debugging Rights and Responsibility (Redefining Integrity)
 - **Spec:** Workers can file Issues against employer-provided procedures (rules).
