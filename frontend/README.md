@@ -1,24 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is the FairSoil MVP dashboard built with [Next.js](https://nextjs.org).
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies:
+
+```bash
+npm install
+```
+
+Set local contract addresses:
+
+```bash
+cp .env.example .env.local
+```
+
+Fill in the deployed addresses in `.env.local`:
+
+```
+NEXT_PUBLIC_TOKENA_ADDRESS=0x...
+NEXT_PUBLIC_TOKENB_ADDRESS=0x...
+NEXT_PUBLIC_TREASURY_ADDRESS=0x...
+```
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Local chain setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+In another terminal, run Anvil and deploy contracts from the `contracts` directory:
+
+```bash
+anvil
+```
+
+```bash
+forge script script/Deploy.s.sol --broadcast
+```
+
+Copy the printed contract addresses into `.env.local`.
+
+This project uses `next/font` to load Space Grotesk and Fraunces.
 
 ## Learn More
 
@@ -29,8 +55,6 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Deploy
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Use any Node hosting platform once you point to the correct RPC and contract addresses.

@@ -144,6 +144,14 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.ghostButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .primaryButton {
   background: linear-gradient(135deg, var(--soil-500), var(--soil-300));
   color: #1c1408;
@@ -242,6 +250,25 @@
   justify-content: space-between;
   color: var(--ink-500);
   font-size: 12px;
+}
+
+.warning {
+  padding: 18px 22px;
+  border-radius: 20px;
+  border: 1px solid rgba(155, 111, 47, 0.35);
+  background: rgba(244, 217, 157, 0.4);
+  color: var(--ink-900);
+  box-shadow: var(--shadow-soft);
+}
+
+.warning h2 {
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.warning p {
+  font-size: 14px;
+  color: var(--ink-700);
 }
 
 .timeline {
