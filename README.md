@@ -285,3 +285,20 @@ To create a digital economic foundation where:
 - **Uptime:** Always-on, continuously operated
 - **Storage:** Capacity for long-term archives
 - **Role:** Able to respond to audit and retrieval requests
+
+## Dev Environment (WSL2 + Foundry)
+### Prerequisites
+- On Windows, use WSL2 (Ubuntu)
+- Run commands inside WSL2
+
+### Setup
+```bash
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+```
+
+### Test
+```bash
+cd /workspaces/FairSoil/contracts
+forge test
+```

@@ -285,3 +285,20 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
 - **稼働:** 常時接続と継続運用
 - **ストレージ:** 長期アーカイブを保持できる容量
 - **役割:** 監査・検索要求への応答が可能であること
+
+## 開発環境（WSL2 + Foundry）
+### 前提
+- Windows では WSL2 (Ubuntu) を推奨
+- 以降のコマンドは WSL2 上で実行
+
+### セットアップ
+```bash
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+```
+
+### テスト
+```bash
+cd /workspaces/FairSoil/contracts
+forge test
+```
