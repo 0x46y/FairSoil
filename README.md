@@ -191,6 +191,8 @@ To create a digital economic foundation where:
 - **Abstain and delegate:** Delegation is time-bounded and revocable; abstention is a valid choice.
 - **Tiered participation:** Broad participation for high-impact decisions, representative flow plus audit logs for routine changes.
 - **Reconsideration triggers:** Allow reconsideration only when new information or material harm is demonstrated.
+- **Avoiding asset-only drift:** Prioritize livelihood security, integrity, and procedural legitimacy over pure token value optimization.
+- **Participation health:** Treat delegate concentration and participation decline as risks; include decentralization health as a governance KPI.
 - **Dynamic adjustment:** These numeric thresholds can be updated via the governance in Spec 2.
 - **Migration criteria:** Allow migration only when proxy fixes are impossible (storage collision, base chain disappearance).
 - **Migration method:** Publish procedures and enforce timelock and exit rights (Spec 4).
