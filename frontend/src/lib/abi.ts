@@ -142,4 +142,23 @@ export const covenantAbi = [
     inputs: [{ name: "covenantId", type: "uint256" }],
     outputs: [],
   },
+  {
+    type: "function",
+    name: "resolveDispute",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "covenantId", type: "uint256" },
+      { name: "workerPayoutBps", type: "uint256" },
+      { name: "integrityPoints", type: "uint256" },
+      { name: "slashingPenalty", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "disputeResolver",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
 ] as const;

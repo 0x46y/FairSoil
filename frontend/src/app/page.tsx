@@ -49,6 +49,9 @@ export default function Home() {
   >([]);
   const [isLoadingCovenants, setIsLoadingCovenants] = useState(false);
   const [issueClaims, setIssueClaims] = useState<Record<number, string>>({});
+  const [resolveClaims, setResolveClaims] = useState<Record<number, string>>({});
+  const [resolveIntegrity, setResolveIntegrity] = useState<Record<number, string>>({});
+  const [resolveSlashing, setResolveSlashing] = useState<Record<number, string>>({});
 
   const tokenAAddr = tokenAAddress ?? zeroAddress;
   const tokenBAddr = tokenBAddress ?? zeroAddress;
@@ -92,6 +95,15 @@ export default function Home() {
     args: [address],
     query: {
       enabled: Boolean(treasuryAddress && account.address),
+    },
+  });
+
+  const { data: disputeResolver } = useReadContract({
+    address: covenantAddr,
+    abi: covenantAbi,
+    functionName: "disputeResolver",
+    query: {
+      enabled: Boolean(covenantAddress),
     },
   });
 
@@ -273,6 +285,22 @@ export default function Home() {
       args: [BigInt(covenantId)],
     });
     await refreshCovenants();
+  };
+
+  const handleResolveDispute = async (covenantId: number) => {
+    if (!covenantAddress) return;
+    const payout = resolveClaims[covenantId] ?? "0";
+    const payoutPct = Math.min(100, Math.max(0, Number(payout)));
+    const integrity = Number.parseInt(resolveIntegrity[covenantId] ?? "0", 10);
+    const slashingAmount = resolveSlashing[covenantId] ?? "0";
+    const slashingPenalty = parseUnits(slashingAmount, 18);
+    await writeContractAsync({
+      address: covenantAddress,
+      abi: covenantAbi,
+      functionName: "resolveDispute",
+      args: [BigInt(covenantId), BigInt(payoutPct * 100), BigInt(integrity), slashingPenalty],
+    });
+    await Promise.all([refreshCovenants(), refetchTokenB(), refetchIntegrity(), refetchEligibility()]);
   };
 
   const covenantStatusLabels = [
@@ -639,6 +667,53 @@ export default function Home() {
                           Dispute
                         </button>
                       </>
+                    ) : null}
+    {item.status === 7 &&
+    account.address &&
+    disputeResolver &&
+    (disputeResolver as string).toLowerCase() === account.address.toLowerCase() ? (
+                      <div className={styles.resolveActions}>
+                        <input
+                          className={styles.issueInput}
+                          value={resolveClaims[item.id] ?? ""}
+                          onChange={(event) =>
+                            setResolveClaims((prev) => ({
+                              ...prev,
+                              [item.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Payout %"
+                        />
+                        <input
+                          className={styles.issueInput}
+                          value={resolveIntegrity[item.id] ?? ""}
+                          onChange={(event) =>
+                            setResolveIntegrity((prev) => ({
+                              ...prev,
+                              [item.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Integrity"
+                        />
+                        <input
+                          className={styles.issueInput}
+                          value={resolveSlashing[item.id] ?? ""}
+                          onChange={(event) =>
+                            setResolveSlashing((prev) => ({
+                              ...prev,
+                              [item.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Slash B"
+                        />
+                        <button
+                          className={styles.primaryButton}
+                          onClick={() => handleResolveDispute(item.id)}
+                          disabled={isWriting}
+                        >
+                          Resolve
+                        </button>
+                      </div>
                     ) : null}
                   </div>
                 </div>

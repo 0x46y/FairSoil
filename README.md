@@ -2,6 +2,11 @@
 
 FairSoil is a decentralized Universal Basic Income (UBI) protocol designed to cultivate a "fair soil" where integrity and honesty are rewarded, rather than short-term exploitation or cost externalization.
 
+## MVP Milestone (Phase 1)
+- Date: 2026/01/14
+- Completed: End-to-end tests across Token A (decay), Token B (asset), SoilTreasury, and Covenant.
+- Verified result: Covenant approvals automatically trigger reward payout and integrity score updates.
+
 ## Vision
 To create a digital economic foundation where:
 - Being "honest" and "reliable" is economically advantageous.
@@ -63,6 +68,7 @@ To create a digital economic foundation where:
 #### 6. Shift from "Completion Liability" to "Honest Process (Time)"
 - **Spec:** Pay for time spent correctly following agreed procedures, not just outcomes. If a task is structurally impossible, early discovery and reporting earns near-completion rewards.
 - **Effect:** Eliminates dishonest management such as "I didn't know" or "hide it until the end," and encourages early debugging.
+- **Issue reporting design:** Workers can claim a relief rate between 0–100% to cover both zero-effort cases and severe creator-side faults. Creators choose Accept or Dispute; Dispute only changes state today and is reserved for future DAO arbitration. Malice slashing is defined as a placeholder to deter information-asymmetry abuse and will be wired to arbitration later.
 
 #### 7. Incentives for "Building Things That Last"
 - **Spec:** As long as a product continues to be used (not replaced), the creator receives ongoing maintenance rewards from the Soil Treasury.

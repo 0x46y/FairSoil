@@ -434,6 +434,13 @@
   font-size: 12px;
 }
 
+.resolveActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .covenantActions .primaryButton,
 .covenantActions .secondaryButton,
 .covenantActions .ghostButton {
