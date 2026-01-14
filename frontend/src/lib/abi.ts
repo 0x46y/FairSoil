@@ -16,6 +16,16 @@ export const tokenBAbi = [
     inputs: [{ name: "account", type: "address" }],
     outputs: [{ name: "", type: "uint256" }],
   },
+  {
+    type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
 ] as const;
 
 export const treasuryAbi = [
@@ -50,5 +60,60 @@ export const treasuryAbi = [
     stateMutability: "view",
     inputs: [{ name: "account", type: "address" }],
     outputs: [{ name: "", type: "bool" }],
+  },
+] as const;
+
+export const covenantAbi = [
+  {
+    type: "function",
+    name: "createCovenant",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "worker", type: "address" },
+      { name: "tokenBReward", type: "uint256" },
+      { name: "integrityPoints", type: "uint256" },
+    ],
+    outputs: [{ name: "covenantId", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "nextId",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "covenants",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "uint256" }],
+    outputs: [
+      { name: "creator", type: "address" },
+      { name: "worker", type: "address" },
+      { name: "tokenBReward", type: "uint256" },
+      { name: "integrityPoints", type: "uint256" },
+      { name: "status", type: "uint8" },
+    ],
+  },
+  {
+    type: "function",
+    name: "submitWork",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "covenantId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "approveWork",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "covenantId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "rejectWork",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "covenantId", type: "uint256" }],
+    outputs: [],
   },
 ] as const;

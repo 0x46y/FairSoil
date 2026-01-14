@@ -9,6 +9,9 @@ export const tokenBAddress = process.env.NEXT_PUBLIC_TOKENB_ADDRESS as
 export const treasuryAddress = process.env.NEXT_PUBLIC_TREASURY_ADDRESS as
   | Address
   | undefined;
+export const covenantAddress = process.env.NEXT_PUBLIC_COVENANT_ADDRESS as
+  | Address
+  | undefined;
 
 export const missingEnv =
-  !tokenAAddress || !tokenBAddress || !treasuryAddress;
+  !tokenAAddress || !tokenBAddress || !treasuryAddress || !covenantAddress;

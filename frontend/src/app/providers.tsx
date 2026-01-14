@@ -4,7 +4,19 @@ import { useMemo, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { injected } from "wagmi/connectors";
-import { localhost } from "viem/chains";
+import type { Chain } from "viem";
+
+const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? "http://127.0.0.1:8545";
+
+const anvilChain: Chain = {
+  id: 31337,
+  name: "Anvil",
+  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+  rpcUrls: {
+    default: { http: [rpcUrl] },
+    public: { http: [rpcUrl] },
+  },
+};
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -12,10 +24,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const config = useMemo(
     () =>
       createConfig({
-        chains: [localhost],
+        chains: [anvilChain],
         connectors: [injected()],
         transports: {
-          [localhost.id]: http("http://127.0.0.1:8545"),
+          [anvilChain.id]: http(rpcUrl),
         },
         ssr: true,
       }),
