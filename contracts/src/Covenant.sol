@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IFairSoilTokenA {
     function isPrimaryAddress(address account) external view returns (bool);
@@ -13,7 +14,7 @@ interface ISoilTreasury {
 }
 
 // Covenant: escrowed Token B rewards released on approval after worker submission.
-contract Covenant {
+contract Covenant is Ownable {
     using SafeERC20 for IERC20;
 
     enum Status {
@@ -21,7 +22,10 @@ contract Covenant {
         Submitted,
         Approved,
         Rejected,
-        Cancelled
+        Cancelled,
+        IssueReported,
+        IssueResolved,
+        Disputed
     }
 
     struct CovenantData {
@@ -29,6 +33,8 @@ contract Covenant {
         address worker;
         uint256 tokenBReward;
         uint256 integrityPoints;
+        uint256 issueClaimBps;
+        uint256 milestoneProgress;
         Status status;
     }
 
@@ -36,6 +42,9 @@ contract Covenant {
     IFairSoilTokenA public immutable tokenA;
     ISoilTreasury public immutable treasury;
     uint256 public nextId;
+    uint256 public constant ISSUE_BPS_DENOMINATOR = 10_000;
+    uint256 public constant ISSUE_INTEGRITY_POINTS = 20;
+    address public disputeResolver;
 
     mapping(uint256 => CovenantData) public covenants;
 
@@ -50,11 +59,34 @@ contract Covenant {
     event CovenantApproved(uint256 indexed covenantId, address indexed creator);
     event CovenantRejected(uint256 indexed covenantId, address indexed creator);
     event CovenantCancelled(uint256 indexed covenantId, address indexed creator);
+    event IssueReported(uint256 indexed covenantId, address indexed worker, uint256 claimBps);
+    event IssueAccepted(uint256 indexed covenantId, address indexed creator, uint256 claimBps);
+    event IssueDisputed(uint256 indexed covenantId, address indexed creator);
+    event DisputeResolverSet(address indexed resolver);
+    event MaliceSlashed(
+        uint256 indexed covenantId,
+        address indexed creator,
+        address indexed worker,
+        uint256 penalty
+    );
 
-    constructor(address tokenBAddress, address tokenAAddress, address treasuryAddress) {
+    constructor(address tokenBAddress, address tokenAAddress, address treasuryAddress)
+        Ownable(msg.sender)
+    {
         tokenB = IERC20(tokenBAddress);
         tokenA = IFairSoilTokenA(tokenAAddress);
         treasury = ISoilTreasury(treasuryAddress);
+        disputeResolver = msg.sender;
+    }
+
+    modifier onlyDisputeResolver() {
+        require(msg.sender == disputeResolver, "Resolver only");
+        _;
+    }
+
+    function setDisputeResolver(address resolver) external onlyOwner {
+        disputeResolver = resolver;
+        emit DisputeResolverSet(resolver);
     }
 
     function createCovenant(
@@ -72,6 +104,8 @@ contract Covenant {
             worker: worker,
             tokenBReward: tokenBReward,
             integrityPoints: integrityPoints,
+            issueClaimBps: 0,
+            milestoneProgress: 0,
             status: Status.Open
         });
 
@@ -127,5 +161,75 @@ contract Covenant {
         tokenB.safeTransfer(data.creator, data.tokenBReward);
 
         emit CovenantCancelled(covenantId, msg.sender);
+    }
+
+    function reportIssue(uint256 covenantId, uint256 claimBps) external {
+        CovenantData storage data = covenants[covenantId];
+        require(data.creator != address(0), "Unknown covenant");
+        require(msg.sender == data.worker, "Worker only");
+        require(data.status == Status.Open || data.status == Status.Submitted, "Not active");
+        require(claimBps <= ISSUE_BPS_DENOMINATOR, "Invalid claim");
+
+        data.status = Status.IssueReported;
+        data.issueClaimBps = claimBps;
+        emit IssueReported(covenantId, msg.sender, claimBps);
+    }
+
+    function acceptIssue(uint256 covenantId) external {
+        CovenantData storage data = covenants[covenantId];
+        require(data.creator != address(0), "Unknown covenant");
+        require(msg.sender == data.creator, "Creator only");
+        require(data.status == Status.IssueReported, "Not reported");
+
+        data.status = Status.IssueResolved;
+        uint256 workerShare = (data.tokenBReward * data.issueClaimBps) / ISSUE_BPS_DENOMINATOR;
+        uint256 creatorShare = data.tokenBReward - workerShare;
+        if (workerShare > 0) {
+            tokenB.safeTransfer(data.worker, workerShare);
+        }
+        if (creatorShare > 0) {
+            tokenB.safeTransfer(data.creator, creatorShare);
+        }
+        treasury.addIntegrityFromCovenant(data.worker, ISSUE_INTEGRITY_POINTS);
+
+        emit IssueAccepted(covenantId, msg.sender, data.issueClaimBps);
+    }
+
+    function disputeIssue(uint256 covenantId) external {
+        CovenantData storage data = covenants[covenantId];
+        require(data.creator != address(0), "Unknown covenant");
+        require(msg.sender == data.creator, "Creator only");
+        require(data.status == Status.IssueReported, "Not reported");
+
+        data.status = Status.Disputed;
+        emit IssueDisputed(covenantId, msg.sender);
+    }
+
+    function resolveDispute(
+        uint256 covenantId,
+        uint256 workerPayoutBps,
+        uint256 integrityPoints,
+        uint256 slashingPenalty
+    ) external onlyDisputeResolver {
+        CovenantData storage data = covenants[covenantId];
+        require(data.creator != address(0), "Unknown covenant");
+        require(data.status == Status.Disputed, "Not disputed");
+        require(workerPayoutBps <= ISSUE_BPS_DENOMINATOR, "Invalid claim");
+
+        data.status = Status.IssueResolved;
+        uint256 workerShare = (data.tokenBReward * workerPayoutBps) / ISSUE_BPS_DENOMINATOR;
+        uint256 creatorShare = data.tokenBReward - workerShare;
+        if (workerShare > 0) {
+            tokenB.safeTransfer(data.worker, workerShare);
+        }
+        if (creatorShare > 0) {
+            tokenB.safeTransfer(data.creator, creatorShare);
+        }
+        if (integrityPoints > 0) {
+            treasury.addIntegrityFromCovenant(data.worker, integrityPoints);
+        }
+        if (slashingPenalty > 0) {
+            emit MaliceSlashed(covenantId, data.creator, data.worker, slashingPenalty);
+        }
     }
 }

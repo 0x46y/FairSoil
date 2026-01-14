@@ -392,7 +392,7 @@
 .covenantRowHeader,
 .covenantRow {
   display: grid;
-  grid-template-columns: 60px minmax(140px, 1.2fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(120px, 1fr) minmax(140px, 1fr);
+  grid-template-columns: 60px minmax(140px, 1.2fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(70px, 0.7fr) minmax(120px, 1fr) minmax(180px, 1fr);
   gap: 12px;
   align-items: center;
 }
@@ -417,6 +417,21 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.issueActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.issueInput {
+  width: 84px;
+  border-radius: 12px;
+  border: 1px solid var(--sand-200);
+  padding: 6px 8px;
+  font-size: 12px;
 }
 
 .covenantActions .primaryButton,

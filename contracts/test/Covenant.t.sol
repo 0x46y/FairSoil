@@ -82,4 +82,23 @@ contract CovenantTest is Test {
         vm.expectRevert("Worker not verified");
         covenant.createCovenant(unverified, 100e18, 0);
     }
+
+    function testIssueFlowAcceptsSplitAndIntegrity() public {
+        vm.prank(creator);
+        tokenB.approve(address(covenant), 300e18);
+
+        vm.prank(creator);
+        uint256 covenantId = covenant.createCovenant(worker, 300e18, 0);
+
+        vm.prank(worker);
+        covenant.reportIssue(covenantId, 2000);
+
+        uint256 creatorBefore = tokenB.balanceOf(creator);
+        vm.prank(creator);
+        covenant.acceptIssue(covenantId);
+
+        assertEq(tokenB.balanceOf(worker), 60e18);
+        assertEq(tokenB.balanceOf(creator), creatorBefore + 240e18);
+        assertEq(treasury.integrityScore(worker), 20);
+    }
 }

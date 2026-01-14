@@ -42,10 +42,13 @@ export default function Home() {
       worker: string;
       tokenBReward: bigint;
       integrityPoints: bigint;
+      issueClaimBps: bigint;
+      milestoneProgress: bigint;
       status: number;
     }[]
   >([]);
   const [isLoadingCovenants, setIsLoadingCovenants] = useState(false);
+  const [issueClaims, setIssueClaims] = useState<Record<number, string>>({});
 
   const tokenAAddr = tokenAAddress ?? zeroAddress;
   const tokenBAddr = tokenBAddress ?? zeroAddress;
@@ -131,7 +134,9 @@ export default function Home() {
             worker: data[1] as string,
             tokenBReward: data[2] as bigint,
             integrityPoints: data[3] as bigint,
-            status: Number(data[4]),
+            issueClaimBps: data[4] as bigint,
+            milestoneProgress: data[5] as bigint,
+            status: Number(data[6]),
           };
         })
       );
@@ -235,7 +240,51 @@ export default function Home() {
     await Promise.all([refreshCovenants(), refetchTokenB()]);
   };
 
-  const covenantStatusLabels = ["Open", "Submitted", "Approved", "Rejected", "Cancelled"];
+  const handleReportIssue = async (covenantId: number) => {
+    if (!covenantAddress) return;
+    const claim = issueClaims[covenantId] ?? "0";
+    const claimBps = Math.min(100, Math.max(0, Number(claim)));
+    await writeContractAsync({
+      address: covenantAddress,
+      abi: covenantAbi,
+      functionName: "reportIssue",
+      args: [BigInt(covenantId), BigInt(claimBps * 100)],
+    });
+    await refreshCovenants();
+  };
+
+  const handleAcceptIssue = async (covenantId: number) => {
+    if (!covenantAddress) return;
+    await writeContractAsync({
+      address: covenantAddress,
+      abi: covenantAbi,
+      functionName: "acceptIssue",
+      args: [BigInt(covenantId)],
+    });
+    await Promise.all([refreshCovenants(), refetchTokenB(), refetchIntegrity(), refetchEligibility()]);
+  };
+
+  const handleDisputeIssue = async (covenantId: number) => {
+    if (!covenantAddress) return;
+    await writeContractAsync({
+      address: covenantAddress,
+      abi: covenantAbi,
+      functionName: "disputeIssue",
+      args: [BigInt(covenantId)],
+    });
+    await refreshCovenants();
+  };
+
+  const covenantStatusLabels = [
+    "Open",
+    "Submitted",
+    "Approved",
+    "Rejected",
+    "Cancelled",
+    "Issue reported",
+    "Issue resolved",
+    "Disputed",
+  ];
 
   return (
     <div className={styles.page}>
@@ -498,6 +547,7 @@ export default function Home() {
               <span>Worker</span>
               <span>Token B</span>
               <span>Integrity</span>
+              <span>Claim</span>
               <span>Status</span>
               <span>Actions</span>
             </div>
@@ -512,6 +562,7 @@ export default function Home() {
                   <span>{item.worker.slice(0, 10)}...</span>
                   <span>{Number(formatUnits(item.tokenBReward, 18)).toFixed(2)}</span>
                   <span>{item.integrityPoints.toString()}</span>
+                  <span>{Number(item.issueClaimBps) / 100}%</span>
                   <span>{covenantStatusLabels[item.status] ?? "Unknown"}</span>
                   <div className={styles.covenantActions}>
                     {item.status === 0 &&
@@ -524,6 +575,30 @@ export default function Home() {
                       >
                         Submit
                       </button>
+                    ) : null}
+                    {(item.status === 0 || item.status === 1) &&
+                    account.address &&
+                    item.worker.toLowerCase() === account.address.toLowerCase() ? (
+                      <div className={styles.issueActions}>
+                        <input
+                          className={styles.issueInput}
+                          value={issueClaims[item.id] ?? ""}
+                          onChange={(event) =>
+                            setIssueClaims((prev) => ({
+                              ...prev,
+                              [item.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Claim %"
+                        />
+                        <button
+                          className={styles.secondaryButton}
+                          onClick={() => handleReportIssue(item.id)}
+                          disabled={isWriting}
+                        >
+                          Report Issue
+                        </button>
+                      </div>
                     ) : null}
                     {item.status === 1 &&
                     account.address &&
@@ -542,6 +617,26 @@ export default function Home() {
                           disabled={isWriting}
                         >
                           Reject
+                        </button>
+                      </>
+                    ) : null}
+                    {item.status === 5 &&
+                    account.address &&
+                    item.creator.toLowerCase() === account.address.toLowerCase() ? (
+                      <>
+                        <button
+                          className={styles.primaryButton}
+                          onClick={() => handleAcceptIssue(item.id)}
+                          disabled={isWriting}
+                        >
+                          Accept Issue
+                        </button>
+                        <button
+                          className={styles.secondaryButton}
+                          onClick={() => handleDisputeIssue(item.id)}
+                          disabled={isWriting}
+                        >
+                          Dispute
                         </button>
                       </>
                     ) : null}
