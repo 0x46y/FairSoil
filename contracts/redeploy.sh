@@ -36,13 +36,19 @@ if [[ ! -f "$BROADCAST_FILE" ]]; then
   exit 1
 fi
 
-read -r TOKEN_A TOKEN_B TREASURY COVENANT <<EOF
-$(python3 - <<'PY'
+export BROADCAST_FILE
+read -r TOKEN_A TOKEN_B TREASURY COVENANT <<<"$(python3 - <<'PY'
 import json
+import os
 import sys
 from pathlib import Path
 
-path = Path(sys.argv[1])
+path_value = os.environ.get("BROADCAST_FILE")
+if not path_value:
+  print("BROADCAST_FILE env not set.", file=sys.stderr)
+  sys.exit(1)
+
+path = Path(path_value)
 data = json.loads(path.read_text())
 txs = data.get("transactions", [])
 
@@ -69,14 +75,22 @@ if not all([token_a, token_b, treasury, covenant]):
 
 print(token_a, token_b, treasury, covenant)
 PY
-"$BROADCAST_FILE")
-EOF
+)"
+
+if [[ -n "${NEXT_PUBLIC_RPC_URL:-}" ]]; then
+  PUBLIC_RPC_URL="$NEXT_PUBLIC_RPC_URL"
+elif [[ -n "${CODESPACE_NAME:-}" ]]; then
+  PUBLIC_RPC_URL="https://${CODESPACE_NAME}-8545.app.github.dev/"
+else
+  PUBLIC_RPC_URL="$RPC_URL"
+fi
 
 cat > "$FRONTEND_ENV" <<EOF
 NEXT_PUBLIC_TOKENA_ADDRESS=$TOKEN_A
 NEXT_PUBLIC_TOKENB_ADDRESS=$TOKEN_B
 NEXT_PUBLIC_TREASURY_ADDRESS=$TREASURY
 NEXT_PUBLIC_COVENANT_ADDRESS=$COVENANT
+NEXT_PUBLIC_RPC_URL=$PUBLIC_RPC_URL
 EOF
 
 echo "Updated $FRONTEND_ENV"
@@ -84,6 +98,7 @@ echo "TOKEN_A=$TOKEN_A"
 echo "TOKEN_B=$TOKEN_B"
 echo "TREASURY=$TREASURY"
 echo "COVENANT=$COVENANT"
+echo "RPC_URL=$PUBLIC_RPC_URL"
 
 if [[ -n "${WALLET_ADDRESS:-}" ]]; then
   echo "Setting primary address and minting Token B for $WALLET_ADDRESS..."
