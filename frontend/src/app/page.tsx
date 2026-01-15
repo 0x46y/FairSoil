@@ -35,6 +35,8 @@ const safeAddress = (value?: string) => (value ? shortAddress(value) : "Unknown"
 
 const formatTokenB = (amount: bigint) =>
   `${Number(formatUnits(amount, 18)).toFixed(2)} SOILB`;
+const formatTokenA = (amount: bigint) =>
+  `${Number(formatUnits(amount, 18)).toFixed(2)} SOILA`;
 
 const formatIntegrity = (points: bigint) => `+${points.toString()} integrity`;
 
@@ -83,6 +85,7 @@ export default function Home() {
   >([]);
   const [isLoadingCovenants, setIsLoadingCovenants] = useState(false);
   const [issueClaims, setIssueClaims] = useState<Record<number, string>>({});
+  const [issueReasons, setIssueReasons] = useState<Record<number, string>>({});
   const [resolveClaims, setResolveClaims] = useState<Record<number, string>>({});
   const [resolveIntegrity, setResolveIntegrity] = useState<Record<number, string>>({});
   const [resolveSlashing, setResolveSlashing] = useState<Record<number, string>>({});
@@ -219,11 +222,17 @@ export default function Home() {
       case "IssueReported": {
         const covenantId = Number(args.covenantId ?? 0);
         const claimPct = formatPercent((args.claimBps ?? 0n) as bigint);
+        const reason =
+          typeof args.reason === "string" && args.reason.trim().length > 0
+            ? `Reason: ${args.reason.trim()}`
+            : "Reason not provided";
         return {
           id,
           timestamp,
           title: `Issue reported on covenant #${covenantId}`,
-          body: `Claim ${claimPct}% · Worker ${safeAddress(args.worker as string | undefined)}`,
+          body: `Worker ${safeAddress(
+            args.worker as string | undefined
+          )} · Claim ${claimPct}% · ${reason}`,
         };
       }
       case "IssueAccepted": {
@@ -274,6 +283,15 @@ export default function Home() {
           timestamp,
           title: "Task completed",
           body: parts.length ? parts.join(" · ") : "Integrity updated",
+        };
+      }
+      case "UBIClaimed": {
+        const amount = (args.amount ?? 0n) as bigint;
+        return {
+          id,
+          timestamp,
+          title: "UBI claimed",
+          body: `+${formatTokenA(amount)}`,
         };
       }
       case "CovenantSet": {
@@ -523,12 +541,13 @@ export default function Home() {
   const handleReportIssue = async (covenantId: number) => {
     if (!covenantAddress) return;
     const claim = issueClaims[covenantId] ?? "0";
+    const reason = issueReasons[covenantId] ?? "";
     const claimBps = Math.min(100, Math.max(0, Number(claim)));
     await writeContractAsync({
       address: covenantAddress,
       abi: covenantAbi,
       functionName: "reportIssue",
-      args: [BigInt(covenantId), BigInt(claimBps * 100)],
+      args: [BigInt(covenantId), BigInt(claimBps * 100), reason],
     });
     await refreshCovenants();
   };
@@ -888,6 +907,17 @@ export default function Home() {
                             }))
                           }
                           placeholder="Claim %"
+                        />
+                        <input
+                          className={styles.issueInput}
+                          value={issueReasons[item.id] ?? ""}
+                          onChange={(event) =>
+                            setIssueReasons((prev) => ({
+                              ...prev,
+                              [item.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Reason"
                         />
                         <button
                           className={styles.secondaryButton}

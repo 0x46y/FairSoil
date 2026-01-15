@@ -59,7 +59,12 @@ contract Covenant is Ownable {
     event CovenantApproved(uint256 indexed covenantId, address indexed creator);
     event CovenantRejected(uint256 indexed covenantId, address indexed creator);
     event CovenantCancelled(uint256 indexed covenantId, address indexed creator);
-    event IssueReported(uint256 indexed covenantId, address indexed worker, uint256 claimBps);
+    event IssueReported(
+        uint256 indexed covenantId,
+        address indexed worker,
+        uint256 claimBps,
+        string reason
+    );
     event IssueAccepted(uint256 indexed covenantId, address indexed creator, uint256 claimBps);
     event IssueDisputed(uint256 indexed covenantId, address indexed creator);
     event DisputeResolverSet(address indexed resolver);
@@ -163,7 +168,11 @@ contract Covenant is Ownable {
         emit CovenantCancelled(covenantId, msg.sender);
     }
 
-    function reportIssue(uint256 covenantId, uint256 claimBps) external {
+    function reportIssue(
+        uint256 covenantId,
+        uint256 claimBps,
+        string calldata reason
+    ) external {
         CovenantData storage data = covenants[covenantId];
         require(data.creator != address(0), "Unknown covenant");
         require(msg.sender == data.worker, "Worker only");
@@ -172,7 +181,7 @@ contract Covenant is Ownable {
 
         data.status = Status.IssueReported;
         data.issueClaimBps = claimBps;
-        emit IssueReported(covenantId, msg.sender, claimBps);
+        emit IssueReported(covenantId, msg.sender, claimBps, reason);
     }
 
     function acceptIssue(uint256 covenantId) external {

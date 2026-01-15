@@ -31,6 +31,14 @@ export const tokenBAbi = [
 export const treasuryAbi = [
   {
     type: "event",
+    name: "UBIClaimed",
+    inputs: [
+      { indexed: true, name: "user", type: "address" },
+      { indexed: false, name: "amount", type: "uint256" },
+    ],
+  },
+  {
+    type: "event",
     name: "TaskCompleted",
     inputs: [
       { indexed: true, name: "worker", type: "address" },
@@ -128,6 +136,7 @@ export const covenantAbi = [
       { indexed: true, name: "covenantId", type: "uint256" },
       { indexed: true, name: "worker", type: "address" },
       { indexed: false, name: "claimBps", type: "uint256" },
+      { indexed: false, name: "reason", type: "string" },
     ],
   },
   {
@@ -223,6 +232,7 @@ export const covenantAbi = [
     inputs: [
       { name: "covenantId", type: "uint256" },
       { name: "claimBps", type: "uint256" },
+      { name: "reason", type: "string" },
     ],
     outputs: [],
   },
