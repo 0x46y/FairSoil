@@ -182,7 +182,12 @@ contract Covenant is Ownable {
         CovenantData storage data = covenants[covenantId];
         require(data.creator != address(0), "Unknown covenant");
         require(msg.sender == data.worker, "Worker only");
-        require(data.status == Status.Open || data.status == Status.Submitted, "Not active");
+        require(
+            data.status == Status.Open ||
+                data.status == Status.Submitted ||
+                data.status == Status.IssueReported,
+            "Not active"
+        );
         require(claimBps <= ISSUE_BPS_DENOMINATOR, "Invalid claim");
 
         data.status = Status.IssueReported;

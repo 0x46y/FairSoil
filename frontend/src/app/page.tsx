@@ -739,9 +739,18 @@ export default function Home() {
 
   const handleReportIssue = async (covenantId: number) => {
     if (!covenantAddress) return;
-    const claim = issueClaims[covenantId] ?? "0";
+    const claim = issueClaims[covenantId] ?? "";
     const reason = issueReasons[covenantId] ?? "";
-    const claimBps = Math.min(100, Math.max(0, Number(claim)));
+    if (!claim.trim()) return;
+    const parsedClaim = Number(claim);
+    if (Number.isNaN(parsedClaim)) return;
+    const claimBps = Math.min(100, Math.max(0, parsedClaim));
+    const confirmationMessage =
+      claimBps === 0
+        ? "You are claiming 0% (forfeiting the entire reward). Is this intended?"
+        : `You are claiming ${claimBps}% of the reward. Proceed?`;
+    const confirmed = window.confirm(confirmationMessage);
+    if (!confirmed) return;
     const actionKey = `report-issue-${covenantId}`;
     try {
       await runTransaction(actionKey, () =>
@@ -1163,7 +1172,7 @@ export default function Home() {
                         {actionLabel(`submit-${item.id}`, "Submit")}
                       </button>
                     ) : null}
-                    {(item.status === 0 || item.status === 1) &&
+                    {(item.status === 0 || item.status === 1 || item.status === 5) &&
                     account.address &&
                     item.worker.toLowerCase() === account.address.toLowerCase() ? (
                       <div className={styles.issueActions}>
@@ -1176,7 +1185,7 @@ export default function Home() {
                               [item.id]: event.target.value,
                             }))
                           }
-                          placeholder="Claim %"
+                          placeholder="0"
                         />
                         <input
                           className={styles.issueInput}
@@ -1192,9 +1201,12 @@ export default function Home() {
                         <button
                           className={styles.secondaryButton}
                           onClick={() => handleReportIssue(item.id)}
-                          disabled={isBusy}
+                          disabled={isBusy || (issueClaims[item.id] ?? "").trim() === ""}
                         >
-                          {actionLabel(`report-issue-${item.id}`, "Report Issue")}
+                          {actionLabel(
+                            `report-issue-${item.id}`,
+                            item.status === 5 ? "Update Issue" : "Report Issue"
+                          )}
                         </button>
                       </div>
                     ) : null}
