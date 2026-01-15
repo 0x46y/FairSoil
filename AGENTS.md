@@ -24,6 +24,8 @@ NEXT_PUBLIC_COVENANT_ADDRESS=0x...
 - `reportTaskCompleted` is `onlyOwner`, so MetaMask must use the deployer wallet.
 - Covenant creation requires Token B approval first; UI does approve + create in sequence.
 - Token A decay rate can be overridden at deploy with `DECAY_RATE_PER_SECOND`.
+- Evidence/Chat: plan is off-chain storage (IPFS/Arweave/etc) + on-chain hash/URI references.
+- Dispute UX: consider evidence URIs for both sides, AI summary (off-chain), and multi-step resolve to avoid mistakes.
 
 ## Milestones
 - Covenant end-to-end flow confirmed: Create -> Submit -> Approve from UI updates Token B balance and adds integrity via Treasury.
