@@ -319,6 +319,16 @@
   font-size: 14px;
 }
 
+.messageSuccess {
+  padding: 16px 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(84, 147, 92, 0.45);
+  background: rgba(95, 166, 104, 0.16);
+  color: #21512a;
+  box-shadow: var(--shadow-soft);
+  font-size: 14px;
+}
+
 .timeline {
   display: grid;
   gap: 24px;

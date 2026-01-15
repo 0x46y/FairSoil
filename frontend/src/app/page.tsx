@@ -126,6 +126,8 @@ export default function Home() {
   const [txStatus, setTxStatus] = useState<"idle" | "signing" | "confirming">("idle");
   const [txAction, setTxAction] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
+  const [txSuccess, setTxSuccess] = useState<string | null>(null);
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tokenAAddr = tokenAAddress ?? zeroAddress;
   const tokenBAddr = tokenBAddress ?? zeroAddress;
@@ -196,6 +198,17 @@ export default function Home() {
     return integrityScore.toString();
   }, [integrityScore]);
 
+  const showSuccess = useCallback((message: string) => {
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+    }
+    setTxSuccess(message);
+    successTimeoutRef.current = setTimeout(() => {
+      setTxSuccess(null);
+      successTimeoutRef.current = null;
+    }, 5000);
+  }, []);
+
   const covenantReward = useMemo(
     () => safeParseUnits(covenantTokenBAmount, 18),
     [covenantTokenBAmount]
@@ -224,7 +237,9 @@ export default function Home() {
           id,
           timestamp,
           title: `Covenant #${covenantId} created`,
-          body: parts.length ? parts.join(" · ") : "Escrow created",
+          body: `Creator ${safeAddress(args.creator as string | undefined)} · Worker ${safeAddress(
+            args.worker as string | undefined
+          )}${parts.length ? ` · ${parts.join(" · ")}` : ""}`,
         };
       }
       case "CovenantSubmitted": {
@@ -233,7 +248,7 @@ export default function Home() {
           id,
           timestamp,
           title: `Covenant #${covenantId} submitted`,
-          body: `Worker ${safeAddress(args.worker as string | undefined)}`,
+          body: `Submitted by ${safeAddress(args.worker as string | undefined)}`,
         };
       }
       case "CovenantApproved": {
@@ -242,7 +257,7 @@ export default function Home() {
           id,
           timestamp,
           title: `Covenant #${covenantId} approved`,
-          body: `Creator ${safeAddress(args.creator as string | undefined)}`,
+          body: `Approved by ${safeAddress(args.creator as string | undefined)} · Reward released`,
         };
       }
       case "CovenantRejected": {
@@ -251,7 +266,7 @@ export default function Home() {
           id,
           timestamp,
           title: `Covenant #${covenantId} rejected`,
-          body: `Creator ${safeAddress(args.creator as string | undefined)}`,
+          body: `Rejected by ${safeAddress(args.creator as string | undefined)}`,
         };
       }
       case "CovenantCancelled": {
@@ -260,7 +275,7 @@ export default function Home() {
           id,
           timestamp,
           title: `Covenant #${covenantId} cancelled`,
-          body: `Creator ${safeAddress(args.creator as string | undefined)}`,
+          body: `Cancelled by ${safeAddress(args.creator as string | undefined)}`,
         };
       }
       case "IssueReported": {
@@ -274,7 +289,7 @@ export default function Home() {
           id,
           timestamp,
           title: `Issue reported on covenant #${covenantId}`,
-          body: `Worker ${safeAddress(
+          body: `Reported by ${safeAddress(
             args.worker as string | undefined
           )} · Claim ${claimPct}% · ${reason}`,
         };
@@ -286,7 +301,7 @@ export default function Home() {
           id,
           timestamp,
           title: `Issue accepted on covenant #${covenantId}`,
-          body: `Claim ${claimPct}% · Creator ${safeAddress(args.creator as string | undefined)}`,
+          body: `Accepted by ${safeAddress(args.creator as string | undefined)} · Claim ${claimPct}%`,
         };
       }
       case "IssueDisputed": {
@@ -295,7 +310,7 @@ export default function Home() {
           id,
           timestamp,
           title: `Issue disputed on covenant #${covenantId}`,
-          body: `Creator ${safeAddress(args.creator as string | undefined)}`,
+          body: `Disputed by ${safeAddress(args.creator as string | undefined)}`,
         };
       }
       case "DisputeResolverSet": {
@@ -313,7 +328,9 @@ export default function Home() {
           id,
           timestamp,
           title: `Malice slashed on covenant #${covenantId}`,
-          body: `Penalty ${formatTokenB(penalty)}`,
+          body: `Creator ${safeAddress(args.creator as string | undefined)} · Worker ${safeAddress(
+            args.worker as string | undefined
+          )} · Penalty ${formatTokenB(penalty)}`,
         };
       }
       case "TaskCompleted": {
@@ -326,7 +343,9 @@ export default function Home() {
           id,
           timestamp,
           title: "Task completed",
-          body: parts.length ? parts.join(" · ") : "Integrity updated",
+          body: `Worker ${safeAddress(args.worker as string | undefined)}${
+            parts.length ? ` · ${parts.join(" · ")}` : ""
+          }`,
         };
       }
       case "UBIClaimed": {
@@ -335,7 +354,7 @@ export default function Home() {
           id,
           timestamp,
           title: "UBI claimed",
-          body: `+${formatTokenA(amount)}`,
+          body: `User ${safeAddress(args.user as string | undefined)} · +${formatTokenA(amount)}`,
         };
       }
       case "CovenantSet": {
@@ -522,6 +541,14 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!publicClient || !covenantAddress || !treasuryAddress) return;
     const unwatchCovenant = publicClient.watchContractEvent({
       address: covenantAddress,
@@ -550,8 +577,11 @@ export default function Home() {
         })
       );
       await refreshAll();
+      setTxError(null);
+      showSuccess("Transaction successful!");
     } catch (error) {
       setTxError(formatTxError(error));
+      setTxSuccess(null);
     } finally {
       setTxStatus("idle");
       setTxAction(null);
@@ -572,8 +602,11 @@ export default function Home() {
         })
       );
       await refreshAll();
+      setTxError(null);
+      showSuccess("Transaction successful!");
     } catch (error) {
       setTxError(formatTxError(error));
+      setTxSuccess(null);
     } finally {
       setTxStatus("idle");
       setTxAction(null);
@@ -602,8 +635,11 @@ export default function Home() {
         })
       );
       await refreshAll();
+      setTxError(null);
+      showSuccess("Transaction successful!");
     } catch (error) {
       setTxError(formatTxError(error));
+      setTxSuccess(null);
     } finally {
       setTxStatus("idle");
       setTxAction(null);
@@ -623,8 +659,11 @@ export default function Home() {
         })
       );
       await refreshAll();
+      setTxError(null);
+      showSuccess("Transaction successful!");
     } catch (error) {
       setTxError(formatTxError(error));
+      setTxSuccess(null);
     } finally {
       setTxStatus("idle");
       setTxAction(null);
@@ -644,8 +683,11 @@ export default function Home() {
         })
       );
       await refreshAll();
+      setTxError(null);
+      showSuccess("Transaction successful!");
     } catch (error) {
       setTxError(formatTxError(error));
+      setTxSuccess(null);
     } finally {
       setTxStatus("idle");
       setTxAction(null);
@@ -665,8 +707,11 @@ export default function Home() {
         })
       );
       await refreshAll();
+      setTxError(null);
+      showSuccess("Transaction successful!");
     } catch (error) {
       setTxError(formatTxError(error));
+      setTxSuccess(null);
     } finally {
       setTxStatus("idle");
       setTxAction(null);
@@ -689,8 +734,11 @@ export default function Home() {
         })
       );
       await refreshAll();
+      setTxError(null);
+      showSuccess("Transaction successful!");
     } catch (error) {
       setTxError(formatTxError(error));
+      setTxSuccess(null);
     } finally {
       setTxStatus("idle");
       setTxAction(null);
@@ -710,8 +758,11 @@ export default function Home() {
         })
       );
       await refreshAll();
+      setTxError(null);
+      showSuccess("Transaction successful!");
     } catch (error) {
       setTxError(formatTxError(error));
+      setTxSuccess(null);
     } finally {
       setTxStatus("idle");
       setTxAction(null);
@@ -731,8 +782,11 @@ export default function Home() {
         })
       );
       await refreshAll();
+      setTxError(null);
+      showSuccess("Transaction successful!");
     } catch (error) {
       setTxError(formatTxError(error));
+      setTxSuccess(null);
     } finally {
       setTxStatus("idle");
       setTxAction(null);
@@ -757,8 +811,11 @@ export default function Home() {
         })
       );
       await refreshAll();
+      setTxError(null);
+      showSuccess("Transaction successful!");
     } catch (error) {
       setTxError(formatTxError(error));
+      setTxSuccess(null);
     } finally {
       setTxStatus("idle");
       setTxAction(null);
@@ -797,6 +854,11 @@ export default function Home() {
         {txError ? (
           <section className={styles.messageError} role="alert">
             <p>{txError}</p>
+          </section>
+        ) : null}
+        {txSuccess ? (
+          <section className={styles.messageSuccess} role="status" aria-live="polite">
+            <p>{txSuccess}</p>
           </section>
         ) : null}
 
