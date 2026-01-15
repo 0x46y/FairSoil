@@ -30,6 +30,20 @@ export const tokenBAbi = [
 
 export const treasuryAbi = [
   {
+    type: "event",
+    name: "TaskCompleted",
+    inputs: [
+      { indexed: true, name: "worker", type: "address" },
+      { indexed: false, name: "tokenBReward", type: "uint256" },
+      { indexed: false, name: "integrityPoints", type: "uint256" },
+    ],
+  },
+  {
+    type: "event",
+    name: "CovenantSet",
+    inputs: [{ indexed: true, name: "covenant", type: "address" }],
+  },
+  {
     type: "function",
     name: "claimUBI",
     stateMutability: "nonpayable",
@@ -64,6 +78,90 @@ export const treasuryAbi = [
 ] as const;
 
 export const covenantAbi = [
+  {
+    type: "event",
+    name: "CovenantCreated",
+    inputs: [
+      { indexed: true, name: "covenantId", type: "uint256" },
+      { indexed: true, name: "creator", type: "address" },
+      { indexed: true, name: "worker", type: "address" },
+      { indexed: false, name: "tokenBReward", type: "uint256" },
+      { indexed: false, name: "integrityPoints", type: "uint256" },
+    ],
+  },
+  {
+    type: "event",
+    name: "CovenantSubmitted",
+    inputs: [
+      { indexed: true, name: "covenantId", type: "uint256" },
+      { indexed: true, name: "worker", type: "address" },
+    ],
+  },
+  {
+    type: "event",
+    name: "CovenantApproved",
+    inputs: [
+      { indexed: true, name: "covenantId", type: "uint256" },
+      { indexed: true, name: "creator", type: "address" },
+    ],
+  },
+  {
+    type: "event",
+    name: "CovenantRejected",
+    inputs: [
+      { indexed: true, name: "covenantId", type: "uint256" },
+      { indexed: true, name: "creator", type: "address" },
+    ],
+  },
+  {
+    type: "event",
+    name: "CovenantCancelled",
+    inputs: [
+      { indexed: true, name: "covenantId", type: "uint256" },
+      { indexed: true, name: "creator", type: "address" },
+    ],
+  },
+  {
+    type: "event",
+    name: "IssueReported",
+    inputs: [
+      { indexed: true, name: "covenantId", type: "uint256" },
+      { indexed: true, name: "worker", type: "address" },
+      { indexed: false, name: "claimBps", type: "uint256" },
+    ],
+  },
+  {
+    type: "event",
+    name: "IssueAccepted",
+    inputs: [
+      { indexed: true, name: "covenantId", type: "uint256" },
+      { indexed: true, name: "creator", type: "address" },
+      { indexed: false, name: "claimBps", type: "uint256" },
+    ],
+  },
+  {
+    type: "event",
+    name: "IssueDisputed",
+    inputs: [
+      { indexed: true, name: "covenantId", type: "uint256" },
+      { indexed: true, name: "creator", type: "address" },
+    ],
+  },
+  {
+    type: "event",
+    name: "DisputeResolverSet",
+    inputs: [{ indexed: true, name: "resolver", type: "address" }],
+  },
+  {
+    type: "event",
+    name: "MaliceSlashed",
+    inputs: [
+      { indexed: true, name: "covenantId", type: "uint256" },
+      { indexed: true, name: "creator", type: "address" },
+      { indexed: true, name: "worker", type: "address" },
+      { indexed: false, name: "penalty", type: "uint256" },
+    ],
+  },
   {
     type: "function",
     name: "createCovenant",

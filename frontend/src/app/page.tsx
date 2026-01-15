@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatUnits, parseUnits, zeroAddress } from "viem";
 import {
   useAccount,
@@ -20,6 +20,40 @@ import {
   tokenBAddress,
   treasuryAddress,
 } from "../lib/contracts";
+
+const MAX_TRAIL_ITEMS = 12;
+
+type TrailItem = {
+  id: string;
+  timestamp: number;
+  title: string;
+  body?: string;
+};
+
+const shortAddress = (value: string) => `${value.slice(0, 6)}...${value.slice(-4)}`;
+const safeAddress = (value?: string) => (value ? shortAddress(value) : "Unknown");
+
+const formatTokenB = (amount: bigint) =>
+  `${Number(formatUnits(amount, 18)).toFixed(2)} SOILB`;
+
+const formatIntegrity = (points: bigint) => `+${points.toString()} integrity`;
+
+const formatPercent = (bps: bigint) => {
+  const percent = Number(bps) / 100;
+  return Number.isInteger(percent) ? percent.toFixed(0) : percent.toFixed(1);
+};
+
+const formatRelativeTime = (timestamp: number, nowMs: number) => {
+  const diffSeconds = Math.max(0, Math.floor(nowMs / 1000 - timestamp));
+  if (diffSeconds < 60) return "Just now";
+  const minutes = Math.floor(diffSeconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  if (hours < 48) return "Yesterday";
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
 
 export default function Home() {
   const account = useAccount();
@@ -52,6 +86,9 @@ export default function Home() {
   const [resolveClaims, setResolveClaims] = useState<Record<number, string>>({});
   const [resolveIntegrity, setResolveIntegrity] = useState<Record<number, string>>({});
   const [resolveSlashing, setResolveSlashing] = useState<Record<number, string>>({});
+  const [trailItems, setTrailItems] = useState<TrailItem[]>([]);
+  const [trailNow, setTrailNow] = useState(() => Date.now());
+  const trailIds = useRef(new Set<string>());
 
   const tokenAAddr = tokenAAddress ?? zeroAddress;
   const tokenBAddr = tokenBAddress ?? zeroAddress;
@@ -122,6 +159,208 @@ export default function Home() {
     return integrityScore.toString();
   }, [integrityScore]);
 
+  const buildTrailItemFromLog = useCallback((log: any, timestamp: number): TrailItem | null => {
+    if (!log?.eventName) return null;
+    const id = `${log.transactionHash ?? "0x"}-${log.logIndex ?? 0}`;
+    const eventName = log.eventName as string;
+    const args = log.args ?? {};
+
+    switch (eventName) {
+      case "CovenantCreated": {
+        const covenantId = Number(args.covenantId ?? 0);
+        const tokenBReward = (args.tokenBReward ?? 0n) as bigint;
+        const integrityPoints = (args.integrityPoints ?? 0n) as bigint;
+        const parts: string[] = [];
+        if (tokenBReward > 0n) parts.push(formatTokenB(tokenBReward));
+        if (integrityPoints > 0n) parts.push(formatIntegrity(integrityPoints));
+        return {
+          id,
+          timestamp,
+          title: `Covenant #${covenantId} created`,
+          body: parts.length ? parts.join(" · ") : "Escrow created",
+        };
+      }
+      case "CovenantSubmitted": {
+        const covenantId = Number(args.covenantId ?? 0);
+        return {
+          id,
+          timestamp,
+          title: `Covenant #${covenantId} submitted`,
+          body: `Worker ${safeAddress(args.worker as string | undefined)}`,
+        };
+      }
+      case "CovenantApproved": {
+        const covenantId = Number(args.covenantId ?? 0);
+        return {
+          id,
+          timestamp,
+          title: `Covenant #${covenantId} approved`,
+          body: `Creator ${safeAddress(args.creator as string | undefined)}`,
+        };
+      }
+      case "CovenantRejected": {
+        const covenantId = Number(args.covenantId ?? 0);
+        return {
+          id,
+          timestamp,
+          title: `Covenant #${covenantId} rejected`,
+          body: `Creator ${safeAddress(args.creator as string | undefined)}`,
+        };
+      }
+      case "CovenantCancelled": {
+        const covenantId = Number(args.covenantId ?? 0);
+        return {
+          id,
+          timestamp,
+          title: `Covenant #${covenantId} cancelled`,
+          body: `Creator ${safeAddress(args.creator as string | undefined)}`,
+        };
+      }
+      case "IssueReported": {
+        const covenantId = Number(args.covenantId ?? 0);
+        const claimPct = formatPercent((args.claimBps ?? 0n) as bigint);
+        return {
+          id,
+          timestamp,
+          title: `Issue reported on covenant #${covenantId}`,
+          body: `Claim ${claimPct}% · Worker ${safeAddress(args.worker as string | undefined)}`,
+        };
+      }
+      case "IssueAccepted": {
+        const covenantId = Number(args.covenantId ?? 0);
+        const claimPct = formatPercent((args.claimBps ?? 0n) as bigint);
+        return {
+          id,
+          timestamp,
+          title: `Issue accepted on covenant #${covenantId}`,
+          body: `Claim ${claimPct}% · Creator ${safeAddress(args.creator as string | undefined)}`,
+        };
+      }
+      case "IssueDisputed": {
+        const covenantId = Number(args.covenantId ?? 0);
+        return {
+          id,
+          timestamp,
+          title: `Issue disputed on covenant #${covenantId}`,
+          body: `Creator ${safeAddress(args.creator as string | undefined)}`,
+        };
+      }
+      case "DisputeResolverSet": {
+        return {
+          id,
+          timestamp,
+          title: "Dispute resolver updated",
+          body: `Resolver ${safeAddress(args.resolver as string | undefined)}`,
+        };
+      }
+      case "MaliceSlashed": {
+        const covenantId = Number(args.covenantId ?? 0);
+        const penalty = (args.penalty ?? 0n) as bigint;
+        return {
+          id,
+          timestamp,
+          title: `Malice slashed on covenant #${covenantId}`,
+          body: `Penalty ${formatTokenB(penalty)}`,
+        };
+      }
+      case "TaskCompleted": {
+        const tokenBReward = (args.tokenBReward ?? 0n) as bigint;
+        const integrityPoints = (args.integrityPoints ?? 0n) as bigint;
+        const parts: string[] = [];
+        if (tokenBReward > 0n) parts.push(`+${formatTokenB(tokenBReward)}`);
+        if (integrityPoints > 0n) parts.push(formatIntegrity(integrityPoints));
+        return {
+          id,
+          timestamp,
+          title: "Task completed",
+          body: parts.length ? parts.join(" · ") : "Integrity updated",
+        };
+      }
+      case "CovenantSet": {
+        return {
+          id,
+          timestamp,
+          title: "Covenant linked to treasury",
+          body: `Contract ${safeAddress(args.covenant as string | undefined)}`,
+        };
+      }
+      default:
+        return null;
+    }
+  }, []);
+
+  const addTrailItems = useCallback((items: TrailItem[]) => {
+    setTrailItems((prev) => {
+      const next = [...prev];
+      for (const item of items) {
+        if (trailIds.current.has(item.id)) continue;
+        trailIds.current.add(item.id);
+        next.push(item);
+      }
+      next.sort((a, b) => b.timestamp - a.timestamp);
+      return next.slice(0, MAX_TRAIL_ITEMS);
+    });
+  }, []);
+
+  const loadHistoricalTrail = useCallback(async () => {
+    if (!publicClient || !covenantAddress || !treasuryAddress) return;
+    const toBlock = await publicClient.getBlockNumber();
+    const [covenantLogs, treasuryLogs] = await Promise.all([
+      publicClient.getContractEvents({
+        address: covenantAddress,
+        abi: covenantAbi,
+        fromBlock: 0n,
+        toBlock,
+      }),
+      publicClient.getContractEvents({
+        address: treasuryAddress,
+        abi: treasuryAbi,
+        fromBlock: 0n,
+        toBlock,
+      }),
+    ]);
+
+    const logs = [...covenantLogs, ...treasuryLogs];
+    const blockMap = new Map<bigint, number>();
+    const uniqueBlocks = Array.from(new Set(logs.map((log) => log.blockNumber)));
+    await Promise.all(
+      uniqueBlocks.map(async (blockNumber) => {
+        const block = await publicClient.getBlock({ blockNumber });
+        blockMap.set(blockNumber, Number(block.timestamp));
+      })
+    );
+
+    const items = logs
+      .map((log) => buildTrailItemFromLog(log, blockMap.get(log.blockNumber) ?? 0))
+      .filter((item): item is TrailItem => item !== null)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, MAX_TRAIL_ITEMS);
+
+    trailIds.current = new Set(items.map((item) => item.id));
+    setTrailItems(items);
+  }, [publicClient, covenantAddress, treasuryAddress, buildTrailItemFromLog]);
+
+  const handleLiveLogs = useCallback(
+    async (logs: any[]) => {
+      if (!publicClient || logs.length === 0) return;
+      const blockMap = new Map<bigint, number>();
+      const items = await Promise.all(
+        logs.map(async (log) => {
+          const blockNumber = log.blockNumber as bigint;
+          let timestamp = blockMap.get(blockNumber);
+          if (timestamp === undefined) {
+            const block = await publicClient.getBlock({ blockNumber });
+            timestamp = Number(block.timestamp);
+            blockMap.set(blockNumber, timestamp);
+          }
+          return buildTrailItemFromLog(log, timestamp);
+        })
+      );
+      addTrailItems(items.filter((item): item is TrailItem => item !== null));
+    },
+    [publicClient, buildTrailItemFromLog, addTrailItems]
+  );
+
   const refreshCovenants = useCallback(async () => {
     if (!publicClient || !covenantAddress) return;
     setIsLoadingCovenants(true);
@@ -173,6 +412,35 @@ export default function Home() {
   useEffect(() => {
     void refreshCovenants();
   }, [refreshCovenants]);
+
+  useEffect(() => {
+    void loadHistoricalTrail();
+  }, [loadHistoricalTrail]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTrailNow(Date.now());
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!publicClient || !covenantAddress || !treasuryAddress) return;
+    const unwatchCovenant = publicClient.watchContractEvent({
+      address: covenantAddress,
+      abi: covenantAbi,
+      onLogs: (logs) => void handleLiveLogs(logs),
+    });
+    const unwatchTreasury = publicClient.watchContractEvent({
+      address: treasuryAddress,
+      abi: treasuryAbi,
+      onLogs: (logs) => void handleLiveLogs(logs),
+    });
+    return () => {
+      unwatchCovenant();
+      unwatchTreasury();
+    };
+  }, [publicClient, covenantAddress, treasuryAddress, handleLiveLogs]);
 
   const handleClaim = async () => {
     if (!treasuryAddress) return;
@@ -529,29 +797,31 @@ export default function Home() {
             <p>Snapshots of proofs and rewards, summarized for privacy.</p>
           </div>
           <div className={styles.timelineList}>
-            <div className={styles.timelineItem}>
-              <span className={styles.timelineTime}>Now</span>
-              <div>
-                <p className={styles.timelineTitle}>UBI claimed</p>
-                <p className={styles.timelineBody}>+100 SOILA · proof logged</p>
+            {trailItems.length === 0 ? (
+              <div className={styles.timelineItem}>
+                <span className={styles.timelineTime}>--</span>
+                <div>
+                  <p className={styles.timelineTitle}>No activity yet</p>
+                  <p className={styles.timelineBody}>
+                    Covenant and treasury events will appear here.
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className={styles.timelineItem}>
-              <span className={styles.timelineTime}>2h ago</span>
-              <div>
-                <p className={styles.timelineTitle}>Task completed</p>
-                <p className={styles.timelineBody}>+1 SOILB · +40 integrity</p>
-              </div>
-            </div>
-            <div className={styles.timelineItem}>
-              <span className={styles.timelineTime}>Yesterday</span>
-              <div>
-                <p className={styles.timelineTitle}>Issue reported</p>
-                <p className={styles.timelineBody}>
-                  Partial reward issued · process verified
-                </p>
-              </div>
-            </div>
+            ) : (
+              trailItems.map((item) => (
+                <div className={styles.timelineItem} key={item.id}>
+                  <span className={styles.timelineTime}>
+                    {formatRelativeTime(item.timestamp, trailNow)}
+                  </span>
+                  <div>
+                    <p className={styles.timelineTitle}>{item.title}</p>
+                    {item.body ? (
+                      <p className={styles.timelineBody}>{item.body}</p>
+                    ) : null}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </section>
 
