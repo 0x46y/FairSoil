@@ -172,6 +172,16 @@ export const covenantAbi = [
     ],
   },
   {
+    type: "event",
+    name: "DisputeResolved",
+    inputs: [
+      { indexed: true, name: "covenantId", type: "uint256" },
+      { indexed: false, name: "workerPayoutBps", type: "uint256" },
+      { indexed: false, name: "integrityPoints", type: "uint256" },
+      { indexed: false, name: "slashingPenalty", type: "uint256" },
+    ],
+  },
+  {
     type: "function",
     name: "createCovenant",
     stateMutability: "nonpayable",

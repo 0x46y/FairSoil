@@ -74,6 +74,12 @@ contract Covenant is Ownable {
         address indexed worker,
         uint256 penalty
     );
+    event DisputeResolved(
+        uint256 indexed covenantId,
+        uint256 workerPayoutBps,
+        uint256 integrityPoints,
+        uint256 slashingPenalty
+    );
 
     constructor(address tokenBAddress, address tokenAAddress, address treasuryAddress)
         Ownable(msg.sender)
@@ -240,5 +246,6 @@ contract Covenant is Ownable {
         if (slashingPenalty > 0) {
             emit MaliceSlashed(covenantId, data.creator, data.worker, slashingPenalty);
         }
+        emit DisputeResolved(covenantId, workerPayoutBps, integrityPoints, slashingPenalty);
     }
 }

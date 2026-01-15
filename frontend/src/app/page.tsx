@@ -88,6 +88,8 @@ const formatRelativeTime = (timestamp: number, nowMs: number) => {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export default function Home() {
   const account = useAccount();
   const { connect } = useConnect();
@@ -333,6 +335,17 @@ export default function Home() {
           )} · Penalty ${formatTokenB(penalty)}`,
         };
       }
+      case "DisputeResolved": {
+        const covenantId = Number(args.covenantId ?? 0);
+        const payoutBps = (args.workerPayoutBps ?? 0n) as bigint;
+        const integrityPoints = (args.integrityPoints ?? 0n) as bigint;
+        return {
+          id,
+          timestamp,
+          title: `Dispute resolved: covenant #${covenantId}`,
+          body: `${formatPercent(payoutBps)}% payout to worker · +${integrityPoints.toString()} points`,
+        };
+      }
       case "TaskCompleted": {
         const tokenBReward = (args.tokenBReward ?? 0n) as bigint;
         const integrityPoints = (args.integrityPoints ?? 0n) as bigint;
@@ -488,6 +501,12 @@ export default function Home() {
     ]);
   }, [refetchEligibility, refetchIntegrity, refetchTokenA, refetchTokenB, refreshCovenants]);
 
+  const postTransactionSync = useCallback(async () => {
+    await refreshAll();
+    await wait(500);
+    await loadHistoricalTrail();
+  }, [loadHistoricalTrail, refreshAll]);
+
   const runTransaction = useCallback(
     async (actionKey: string, request: () => Promise<`0x${string}`>) => {
       if (!publicClient) {
@@ -576,7 +595,7 @@ export default function Home() {
           functionName: "claimUBI",
         })
       );
-      await refreshAll();
+      await postTransactionSync();
       setTxError(null);
       showSuccess("Transaction successful!");
     } catch (error) {
@@ -601,7 +620,7 @@ export default function Home() {
           args: [taskWorker, amount, points],
         })
       );
-      await refreshAll();
+      await postTransactionSync();
       setTxError(null);
       showSuccess("Transaction successful!");
     } catch (error) {
@@ -634,7 +653,7 @@ export default function Home() {
           args: [covenantWorker, reward, points],
         })
       );
-      await refreshAll();
+      await postTransactionSync();
       setTxError(null);
       showSuccess("Transaction successful!");
     } catch (error) {
@@ -658,7 +677,7 @@ export default function Home() {
           args: [BigInt(covenantId)],
         })
       );
-      await refreshAll();
+      await postTransactionSync();
       setTxError(null);
       showSuccess("Transaction successful!");
     } catch (error) {
@@ -682,7 +701,7 @@ export default function Home() {
           args: [BigInt(covenantId)],
         })
       );
-      await refreshAll();
+      await postTransactionSync();
       setTxError(null);
       showSuccess("Transaction successful!");
     } catch (error) {
@@ -706,7 +725,7 @@ export default function Home() {
           args: [BigInt(covenantId)],
         })
       );
-      await refreshAll();
+      await postTransactionSync();
       setTxError(null);
       showSuccess("Transaction successful!");
     } catch (error) {
@@ -733,7 +752,7 @@ export default function Home() {
           args: [BigInt(covenantId), BigInt(claimBps * 100), reason],
         })
       );
-      await refreshAll();
+      await postTransactionSync();
       setTxError(null);
       showSuccess("Transaction successful!");
     } catch (error) {
@@ -757,7 +776,7 @@ export default function Home() {
           args: [BigInt(covenantId)],
         })
       );
-      await refreshAll();
+      await postTransactionSync();
       setTxError(null);
       showSuccess("Transaction successful!");
     } catch (error) {
@@ -781,7 +800,7 @@ export default function Home() {
           args: [BigInt(covenantId)],
         })
       );
-      await refreshAll();
+      await postTransactionSync();
       setTxError(null);
       showSuccess("Transaction successful!");
     } catch (error) {
@@ -810,7 +829,7 @@ export default function Home() {
           args: [BigInt(covenantId), BigInt(payoutPct * 100), BigInt(integrity), slashingPenalty],
         })
       );
-      await refreshAll();
+      await postTransactionSync();
       setTxError(null);
       showSuccess("Transaction successful!");
     } catch (error) {
