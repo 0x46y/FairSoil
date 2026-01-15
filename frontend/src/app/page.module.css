@@ -309,6 +309,16 @@
   color: var(--ink-700);
 }
 
+.messageError {
+  padding: 16px 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(201, 80, 80, 0.4);
+  background: rgba(209, 88, 88, 0.15);
+  color: #7a1d1d;
+  box-shadow: var(--shadow-soft);
+  font-size: 14px;
+}
+
 .timeline {
   display: grid;
   gap: 24px;

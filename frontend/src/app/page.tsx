@@ -45,6 +45,37 @@ const formatPercent = (bps: bigint) => {
   return Number.isInteger(percent) ? percent.toFixed(0) : percent.toFixed(1);
 };
 
+const safeParseUnits = (value: string, decimals: number) => {
+  try {
+    return parseUnits(value || "0", decimals);
+  } catch {
+    return 0n;
+  }
+};
+
+const normalizeErrorMessage = (error: unknown) => {
+  if (!error) return "Unknown error";
+  if (typeof error === "string") return error;
+  if (typeof error === "object" && error !== null) {
+    const anyError = error as { shortMessage?: string; message?: string; cause?: { message?: string } };
+    return anyError.shortMessage || anyError.message || anyError.cause?.message || "Unknown error";
+  }
+  return String(error);
+};
+
+const formatTxError = (error: unknown) => {
+  const message = normalizeErrorMessage(error);
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("user rejected") ||
+    lower.includes("user denied") ||
+    lower.includes("rejected the request")
+  ) {
+    return "Transaction rejected by user.";
+  }
+  return `Transaction failed: ${message}`;
+};
+
 const formatRelativeTime = (timestamp: number, nowMs: number) => {
   const diffSeconds = Math.max(0, Math.floor(nowMs / 1000 - timestamp));
   if (diffSeconds < 60) return "Just now";
@@ -92,6 +123,9 @@ export default function Home() {
   const [trailItems, setTrailItems] = useState<TrailItem[]>([]);
   const [trailNow, setTrailNow] = useState(() => Date.now());
   const trailIds = useRef(new Set<string>());
+  const [txStatus, setTxStatus] = useState<"idle" | "signing" | "confirming">("idle");
+  const [txAction, setTxAction] = useState<string | null>(null);
+  const [txError, setTxError] = useState<string | null>(null);
 
   const tokenAAddr = tokenAAddress ?? zeroAddress;
   const tokenBAddr = tokenBAddress ?? zeroAddress;
@@ -161,6 +195,16 @@ export default function Home() {
     if (integrityScore === undefined) return "--";
     return integrityScore.toString();
   }, [integrityScore]);
+
+  const covenantReward = useMemo(
+    () => safeParseUnits(covenantTokenBAmount, 18),
+    [covenantTokenBAmount]
+  );
+
+  const hasInsufficientBalance = useMemo(() => {
+    if (tokenBBalance === undefined) return false;
+    return covenantReward > tokenBBalance;
+  }, [covenantReward, tokenBBalance]);
 
   const buildTrailItemFromLog = useCallback((log: any, timestamp: number): TrailItem | null => {
     if (!log?.eventName) return null;
@@ -415,6 +459,41 @@ export default function Home() {
     }
   }, [publicClient, covenantAddress]);
 
+  const refreshAll = useCallback(async () => {
+    await Promise.allSettled([
+      refetchTokenA(),
+      refetchTokenB(),
+      refetchIntegrity(),
+      refetchEligibility(),
+      refreshCovenants(),
+    ]);
+  }, [refetchEligibility, refetchIntegrity, refetchTokenA, refetchTokenB, refreshCovenants]);
+
+  const runTransaction = useCallback(
+    async (actionKey: string, request: () => Promise<`0x${string}`>) => {
+      if (!publicClient) {
+        throw new Error("Public client unavailable.");
+      }
+      setTxError(null);
+      setTxAction(actionKey);
+      setTxStatus("signing");
+      const hash = await request();
+      setTxStatus("confirming");
+      await publicClient.waitForTransactionReceipt({ hash });
+    },
+    [publicClient]
+  );
+
+  const actionLabel = useCallback(
+    (actionKey: string, defaultLabel: string) => {
+      if (txAction !== actionKey) return defaultLabel;
+      return txStatus === "confirming" ? "Confirming..." : "Processing...";
+    },
+    [txAction, txStatus]
+  );
+
+  const isBusy = isWriting || txStatus !== "idle";
+
   useEffect(() => {
     if (!taskWorker && account.address) {
       setTaskWorker(account.address);
@@ -462,80 +541,136 @@ export default function Home() {
 
   const handleClaim = async () => {
     if (!treasuryAddress) return;
-    await writeContractAsync({
-      address: treasuryAddress,
-      abi: treasuryAbi,
-      functionName: "claimUBI",
-    });
-    await refetchTokenA();
+    try {
+      await runTransaction("claimUBI", () =>
+        writeContractAsync({
+          address: treasuryAddress,
+          abi: treasuryAbi,
+          functionName: "claimUBI",
+        })
+      );
+      await refreshAll();
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
   };
 
   const handleReport = async () => {
     if (!treasuryAddress || !taskWorker) return;
     const amount = parseUnits(taskTokenBAmount || "0", 18);
     const points = Number.parseInt(taskIntegrityPoints || "0", 10);
-    await writeContractAsync({
-      address: treasuryAddress,
-      abi: treasuryAbi,
-      functionName: "reportTaskCompleted",
-      args: [taskWorker, amount, points],
-    });
-    await Promise.all([refetchTokenB(), refetchIntegrity(), refetchEligibility()]);
+    try {
+      await runTransaction("reportTaskCompleted", () =>
+        writeContractAsync({
+          address: treasuryAddress,
+          abi: treasuryAbi,
+          functionName: "reportTaskCompleted",
+          args: [taskWorker, amount, points],
+        })
+      );
+      await refreshAll();
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
   };
 
   const handleCreateCovenant = async () => {
     if (!covenantAddress || !tokenBAddress || !covenantWorker) return;
-    const reward = parseUnits(covenantTokenBAmount || "0", 18);
+    const reward = covenantReward;
     const points = Number.parseInt(covenantIntegrityPoints || "0", 10);
-
-    await writeContractAsync({
-      address: tokenBAddress,
-      abi: tokenBAbi,
-      functionName: "approve",
-      args: [covenantAddress, reward],
-    });
-
-    await writeContractAsync({
-      address: covenantAddress,
-      abi: covenantAbi,
-      functionName: "createCovenant",
-      args: [covenantWorker, reward, points],
-    });
-
-    await Promise.all([refetchTokenB(), refreshCovenants()]);
+    try {
+      await runTransaction("createCovenant", () =>
+        writeContractAsync({
+          address: tokenBAddress,
+          abi: tokenBAbi,
+          functionName: "approve",
+          args: [covenantAddress, reward],
+        })
+      );
+      await runTransaction("createCovenant", () =>
+        writeContractAsync({
+          address: covenantAddress,
+          abi: covenantAbi,
+          functionName: "createCovenant",
+          args: [covenantWorker, reward, points],
+        })
+      );
+      await refreshAll();
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
   };
 
   const handleSubmitWork = async (covenantId: number) => {
     if (!covenantAddress) return;
-    await writeContractAsync({
-      address: covenantAddress,
-      abi: covenantAbi,
-      functionName: "submitWork",
-      args: [BigInt(covenantId)],
-    });
-    await refreshCovenants();
+    const actionKey = `submit-${covenantId}`;
+    try {
+      await runTransaction(actionKey, () =>
+        writeContractAsync({
+          address: covenantAddress,
+          abi: covenantAbi,
+          functionName: "submitWork",
+          args: [BigInt(covenantId)],
+        })
+      );
+      await refreshAll();
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
   };
 
   const handleApproveWork = async (covenantId: number) => {
     if (!covenantAddress) return;
-    await writeContractAsync({
-      address: covenantAddress,
-      abi: covenantAbi,
-      functionName: "approveWork",
-      args: [BigInt(covenantId)],
-    });
-    await Promise.all([refreshCovenants(), refetchTokenB(), refetchIntegrity(), refetchEligibility()]);
+    const actionKey = `approve-${covenantId}`;
+    try {
+      await runTransaction(actionKey, () =>
+        writeContractAsync({
+          address: covenantAddress,
+          abi: covenantAbi,
+          functionName: "approveWork",
+          args: [BigInt(covenantId)],
+        })
+      );
+      await refreshAll();
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
   };
 
   const handleRejectWork = async (covenantId: number) => {
     if (!covenantAddress) return;
-    await writeContractAsync({
-      address: covenantAddress,
-      abi: covenantAbi,
-      functionName: "rejectWork",
-      args: [BigInt(covenantId)],
-    });
-    await Promise.all([refreshCovenants(), refetchTokenB()]);
+    const actionKey = `reject-${covenantId}`;
+    try {
+      await runTransaction(actionKey, () =>
+        writeContractAsync({
+          address: covenantAddress,
+          abi: covenantAbi,
+          functionName: "rejectWork",
+          args: [BigInt(covenantId)],
+        })
+      );
+      await refreshAll();
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
   };
 
   const handleReportIssue = async (covenantId: number) => {
@@ -543,35 +678,65 @@ export default function Home() {
     const claim = issueClaims[covenantId] ?? "0";
     const reason = issueReasons[covenantId] ?? "";
     const claimBps = Math.min(100, Math.max(0, Number(claim)));
-    await writeContractAsync({
-      address: covenantAddress,
-      abi: covenantAbi,
-      functionName: "reportIssue",
-      args: [BigInt(covenantId), BigInt(claimBps * 100), reason],
-    });
-    await refreshCovenants();
+    const actionKey = `report-issue-${covenantId}`;
+    try {
+      await runTransaction(actionKey, () =>
+        writeContractAsync({
+          address: covenantAddress,
+          abi: covenantAbi,
+          functionName: "reportIssue",
+          args: [BigInt(covenantId), BigInt(claimBps * 100), reason],
+        })
+      );
+      await refreshAll();
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
   };
 
   const handleAcceptIssue = async (covenantId: number) => {
     if (!covenantAddress) return;
-    await writeContractAsync({
-      address: covenantAddress,
-      abi: covenantAbi,
-      functionName: "acceptIssue",
-      args: [BigInt(covenantId)],
-    });
-    await Promise.all([refreshCovenants(), refetchTokenB(), refetchIntegrity(), refetchEligibility()]);
+    const actionKey = `accept-issue-${covenantId}`;
+    try {
+      await runTransaction(actionKey, () =>
+        writeContractAsync({
+          address: covenantAddress,
+          abi: covenantAbi,
+          functionName: "acceptIssue",
+          args: [BigInt(covenantId)],
+        })
+      );
+      await refreshAll();
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
   };
 
   const handleDisputeIssue = async (covenantId: number) => {
     if (!covenantAddress) return;
-    await writeContractAsync({
-      address: covenantAddress,
-      abi: covenantAbi,
-      functionName: "disputeIssue",
-      args: [BigInt(covenantId)],
-    });
-    await refreshCovenants();
+    const actionKey = `dispute-${covenantId}`;
+    try {
+      await runTransaction(actionKey, () =>
+        writeContractAsync({
+          address: covenantAddress,
+          abi: covenantAbi,
+          functionName: "disputeIssue",
+          args: [BigInt(covenantId)],
+        })
+      );
+      await refreshAll();
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
   };
 
   const handleResolveDispute = async (covenantId: number) => {
@@ -581,13 +746,23 @@ export default function Home() {
     const integrity = Number.parseInt(resolveIntegrity[covenantId] ?? "0", 10);
     const slashingAmount = resolveSlashing[covenantId] ?? "0";
     const slashingPenalty = parseUnits(slashingAmount, 18);
-    await writeContractAsync({
-      address: covenantAddress,
-      abi: covenantAbi,
-      functionName: "resolveDispute",
-      args: [BigInt(covenantId), BigInt(payoutPct * 100), BigInt(integrity), slashingPenalty],
-    });
-    await Promise.all([refreshCovenants(), refetchTokenB(), refetchIntegrity(), refetchEligibility()]);
+    const actionKey = `resolve-${covenantId}`;
+    try {
+      await runTransaction(actionKey, () =>
+        writeContractAsync({
+          address: covenantAddress,
+          abi: covenantAbi,
+          functionName: "resolveDispute",
+          args: [BigInt(covenantId), BigInt(payoutPct * 100), BigInt(integrity), slashingPenalty],
+        })
+      );
+      await refreshAll();
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
   };
 
   const covenantStatusLabels = [
@@ -619,6 +794,12 @@ export default function Home() {
           </nav>
         </header>
 
+        {txError ? (
+          <section className={styles.messageError} role="alert">
+            <p>{txError}</p>
+          </section>
+        ) : null}
+
         {missingEnv ? (
           <section className={styles.warning}>
             <h2>Missing contract addresses</h2>
@@ -645,9 +826,9 @@ export default function Home() {
               <button
                 className={styles.primaryButton}
                 onClick={handleClaim}
-                disabled={!account.address || missingEnv || isWriting}
+                disabled={!account.address || missingEnv || isBusy}
               >
-                Claim UBI
+                {actionLabel("claimUBI", "Claim UBI")}
               </button>
               {account.address ? (
                 <button className={styles.secondaryButton} onClick={() => disconnect()}>
@@ -743,9 +924,9 @@ export default function Home() {
             <button
               className={styles.ghostButton}
               onClick={handleReport}
-              disabled={!account.address || missingEnv || isWriting || !taskWorker}
+              disabled={!account.address || missingEnv || isBusy || !taskWorker}
             >
-              Report Task (admin)
+              {actionLabel("reportTaskCompleted", "Report Task (admin)")}
             </button>
             <p className={styles.taskHint}>
               Requires the owner wallet and a verified primary address.
@@ -800,9 +981,17 @@ export default function Home() {
             <button
               className={styles.ghostButton}
               onClick={handleCreateCovenant}
-              disabled={!account.address || missingEnv || isWriting || !covenantWorker}
+              disabled={
+                !account.address ||
+                missingEnv ||
+                isBusy ||
+                !covenantWorker ||
+                hasInsufficientBalance
+              }
             >
-              Create Covenant (approve + lock)
+              {hasInsufficientBalance
+                ? "Insufficient Balance"
+                : actionLabel("createCovenant", "Create Covenant (approve + lock)")}
             </button>
             <p className={styles.taskHint}>
               Approves Token B, then escrows it in the covenant contract.
@@ -888,9 +1077,9 @@ export default function Home() {
                       <button
                         className={styles.ghostButton}
                         onClick={() => handleSubmitWork(item.id)}
-                        disabled={isWriting}
+                        disabled={isBusy}
                       >
-                        Submit
+                        {actionLabel(`submit-${item.id}`, "Submit")}
                       </button>
                     ) : null}
                     {(item.status === 0 || item.status === 1) &&
@@ -922,9 +1111,9 @@ export default function Home() {
                         <button
                           className={styles.secondaryButton}
                           onClick={() => handleReportIssue(item.id)}
-                          disabled={isWriting}
+                          disabled={isBusy}
                         >
-                          Report Issue
+                          {actionLabel(`report-issue-${item.id}`, "Report Issue")}
                         </button>
                       </div>
                     ) : null}
@@ -935,16 +1124,16 @@ export default function Home() {
                         <button
                           className={styles.primaryButton}
                           onClick={() => handleApproveWork(item.id)}
-                          disabled={isWriting}
+                          disabled={isBusy}
                         >
-                          Approve
+                          {actionLabel(`approve-${item.id}`, "Approve")}
                         </button>
                         <button
                           className={styles.secondaryButton}
                           onClick={() => handleRejectWork(item.id)}
-                          disabled={isWriting}
+                          disabled={isBusy}
                         >
-                          Reject
+                          {actionLabel(`reject-${item.id}`, "Reject")}
                         </button>
                       </>
                     ) : null}
@@ -955,16 +1144,16 @@ export default function Home() {
                         <button
                           className={styles.primaryButton}
                           onClick={() => handleAcceptIssue(item.id)}
-                          disabled={isWriting}
+                          disabled={isBusy}
                         >
-                          Accept Issue
+                          {actionLabel(`accept-issue-${item.id}`, "Accept Issue")}
                         </button>
                         <button
                           className={styles.secondaryButton}
                           onClick={() => handleDisputeIssue(item.id)}
-                          disabled={isWriting}
+                          disabled={isBusy}
                         >
-                          Dispute
+                          {actionLabel(`dispute-${item.id}`, "Dispute")}
                         </button>
                       </>
                     ) : null}
@@ -1009,9 +1198,9 @@ export default function Home() {
                         <button
                           className={styles.primaryButton}
                           onClick={() => handleResolveDispute(item.id)}
-                          disabled={isWriting}
+                          disabled={isBusy}
                         >
-                          Resolve
+                          {actionLabel(`resolve-${item.id}`, "Resolve")}
                         </button>
                       </div>
                     ) : null}
