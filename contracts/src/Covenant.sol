@@ -5,17 +5,20 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-interface IFairSoilTokenA {
+interface IFairSoilTokenA is IERC20 {
     function isPrimaryAddress(address account) external view returns (bool);
+    function burnFromCovenant(address account, uint256 amount) external;
 }
 
 interface ISoilTreasury {
     function addIntegrityFromCovenant(address worker, uint256 integrityPoints) external;
+    function mintBByCrystallization(address worker, uint256 burnedA) external returns (uint256);
 }
 
 // Covenant: escrowed Token B rewards released on approval after worker submission.
 contract Covenant is Ownable {
     using SafeERC20 for IERC20;
+    using SafeERC20 for IFairSoilTokenA;
 
     enum Status {
         Open,
@@ -29,6 +32,11 @@ contract Covenant is Ownable {
         IssueResolved
     }
 
+    enum PaymentToken {
+        TokenB,
+        TokenA
+    }
+
     struct CovenantData {
         address creator;
         address worker;
@@ -39,6 +47,7 @@ contract Covenant is Ownable {
         uint256 proposedWorkerPayoutBps;
         uint256 proposedIntegrityPoints;
         uint256 proposedSlashingPenalty;
+        PaymentToken paymentToken;
         Status status;
     }
 
@@ -119,7 +128,8 @@ contract Covenant is Ownable {
     function createCovenant(
         address worker,
         uint256 tokenBReward,
-        uint256 integrityPoints
+        uint256 integrityPoints,
+        bool payInTokenA
     ) external returns (uint256 covenantId) {
         require(worker != address(0), "Worker required");
         require(tokenBReward > 0, "Reward required");
@@ -136,10 +146,15 @@ contract Covenant is Ownable {
             proposedWorkerPayoutBps: 0,
             proposedIntegrityPoints: 0,
             proposedSlashingPenalty: 0,
+            paymentToken: payInTokenA ? PaymentToken.TokenA : PaymentToken.TokenB,
             status: Status.Open
         });
 
-        tokenB.safeTransferFrom(msg.sender, address(this), tokenBReward);
+        if (payInTokenA) {
+            tokenA.safeTransferFrom(msg.sender, address(this), tokenBReward);
+        } else {
+            tokenB.safeTransferFrom(msg.sender, address(this), tokenBReward);
+        }
 
         emit CovenantCreated(covenantId, msg.sender, worker, tokenBReward, integrityPoints);
     }
@@ -161,7 +176,12 @@ contract Covenant is Ownable {
         require(data.status == Status.Submitted, "Not submitted");
 
         data.status = Status.Approved;
-        tokenB.safeTransfer(data.worker, data.tokenBReward);
+        if (data.paymentToken == PaymentToken.TokenA) {
+            tokenA.burnFromCovenant(address(this), data.tokenBReward);
+            treasury.mintBByCrystallization(data.worker, data.tokenBReward);
+        } else {
+            tokenB.safeTransfer(data.worker, data.tokenBReward);
+        }
         if (data.integrityPoints > 0) {
             treasury.addIntegrityFromCovenant(data.worker, data.integrityPoints);
         }
@@ -176,7 +196,11 @@ contract Covenant is Ownable {
         require(data.status == Status.Submitted, "Not submitted");
 
         data.status = Status.Rejected;
-        tokenB.safeTransfer(data.creator, data.tokenBReward);
+        if (data.paymentToken == PaymentToken.TokenA) {
+            tokenA.safeTransfer(data.creator, data.tokenBReward);
+        } else {
+            tokenB.safeTransfer(data.creator, data.tokenBReward);
+        }
 
         emit CovenantRejected(covenantId, msg.sender);
     }
@@ -188,7 +212,11 @@ contract Covenant is Ownable {
         require(data.status == Status.Open, "Not open");
 
         data.status = Status.Cancelled;
-        tokenB.safeTransfer(data.creator, data.tokenBReward);
+        if (data.paymentToken == PaymentToken.TokenA) {
+            tokenA.safeTransfer(data.creator, data.tokenBReward);
+        } else {
+            tokenB.safeTransfer(data.creator, data.tokenBReward);
+        }
 
         emit CovenantCancelled(covenantId, msg.sender);
     }
@@ -224,11 +252,21 @@ contract Covenant is Ownable {
         data.status = Status.IssueResolved;
         uint256 workerShare = (data.tokenBReward * data.issueClaimBps) / ISSUE_BPS_DENOMINATOR;
         uint256 creatorShare = data.tokenBReward - workerShare;
-        if (workerShare > 0) {
-            tokenB.safeTransfer(data.worker, workerShare);
-        }
-        if (creatorShare > 0) {
-            tokenB.safeTransfer(data.creator, creatorShare);
+        if (data.paymentToken == PaymentToken.TokenA) {
+            if (workerShare > 0) {
+                tokenA.burnFromCovenant(address(this), workerShare);
+                treasury.mintBByCrystallization(data.worker, workerShare);
+            }
+            if (creatorShare > 0) {
+                tokenA.safeTransfer(data.creator, creatorShare);
+            }
+        } else {
+            if (workerShare > 0) {
+                tokenB.safeTransfer(data.worker, workerShare);
+            }
+            if (creatorShare > 0) {
+                tokenB.safeTransfer(data.creator, creatorShare);
+            }
         }
         treasury.addIntegrityFromCovenant(data.worker, ISSUE_INTEGRITY_POINTS);
 
@@ -283,11 +321,21 @@ contract Covenant is Ownable {
         uint256 workerShare =
             (data.tokenBReward * data.proposedWorkerPayoutBps) / ISSUE_BPS_DENOMINATOR;
         uint256 creatorShare = data.tokenBReward - workerShare;
-        if (workerShare > 0) {
-            tokenB.safeTransfer(data.worker, workerShare);
-        }
-        if (creatorShare > 0) {
-            tokenB.safeTransfer(data.creator, creatorShare);
+        if (data.paymentToken == PaymentToken.TokenA) {
+            if (workerShare > 0) {
+                tokenA.burnFromCovenant(address(this), workerShare);
+                treasury.mintBByCrystallization(data.worker, workerShare);
+            }
+            if (creatorShare > 0) {
+                tokenA.safeTransfer(data.creator, creatorShare);
+            }
+        } else {
+            if (workerShare > 0) {
+                tokenB.safeTransfer(data.worker, workerShare);
+            }
+            if (creatorShare > 0) {
+                tokenB.safeTransfer(data.creator, creatorShare);
+            }
         }
         if (data.proposedIntegrityPoints > 0) {
             treasury.addIntegrityFromCovenant(data.worker, data.proposedIntegrityPoints);

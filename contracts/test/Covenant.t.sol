@@ -32,6 +32,7 @@ contract CovenantTest is Test {
 
         covenant = new Covenant(address(tokenB), address(tokenA), address(treasury));
         treasury.setCovenant(address(covenant));
+        tokenA.setCovenant(address(covenant));
 
         tokenA.setPrimaryAddress(creator, true);
         tokenA.setPrimaryAddress(worker, true);
@@ -44,7 +45,7 @@ contract CovenantTest is Test {
         tokenB.approve(address(covenant), 500e18);
 
         vm.prank(creator);
-        uint256 covenantId = covenant.createCovenant(worker, 500e18, 100);
+        uint256 covenantId = covenant.createCovenant(worker, 500e18, 100, false);
 
         vm.prank(worker);
         covenant.submitWork(covenantId);
@@ -61,7 +62,7 @@ contract CovenantTest is Test {
         tokenB.approve(address(covenant), 200e18);
 
         vm.prank(creator);
-        uint256 covenantId = covenant.createCovenant(worker, 200e18, 50);
+        uint256 covenantId = covenant.createCovenant(worker, 200e18, 50, false);
 
         vm.prank(worker);
         covenant.submitWork(covenantId);
@@ -80,7 +81,7 @@ contract CovenantTest is Test {
 
         vm.prank(creator);
         vm.expectRevert("Worker not verified");
-        covenant.createCovenant(unverified, 100e18, 0);
+        covenant.createCovenant(unverified, 100e18, 0, false);
     }
 
     function testIssueFlowAcceptsSplitAndIntegrity() public {
@@ -88,7 +89,7 @@ contract CovenantTest is Test {
         tokenB.approve(address(covenant), 300e18);
 
         vm.prank(creator);
-        uint256 covenantId = covenant.createCovenant(worker, 300e18, 0);
+        uint256 covenantId = covenant.createCovenant(worker, 300e18, 0, false);
 
         vm.prank(worker);
         covenant.reportIssue(covenantId, 2000, "Scope change", "ipfs://evidence");
@@ -107,7 +108,7 @@ contract CovenantTest is Test {
         tokenB.approve(address(covenant), 400e18);
 
         vm.prank(creator);
-        uint256 covenantId = covenant.createCovenant(worker, 400e18, 0);
+        uint256 covenantId = covenant.createCovenant(worker, 400e18, 0, false);
 
         vm.prank(worker);
         covenant.reportIssue(covenantId, 2500, "Missing assets", "ipfs://evidence");
@@ -130,5 +131,28 @@ contract CovenantTest is Test {
         assertEq(tokenB.balanceOf(worker), workerBefore + 200e18);
         assertEq(tokenB.balanceOf(creator), creatorBefore + 200e18);
         assertEq(treasury.integrityScore(worker), 10);
+    }
+
+    function testCrystallizesTokenAOnApproval() public {
+        vm.prank(address(treasury));
+        tokenA.mint(creator, 1000e18);
+
+        vm.prank(creator);
+        tokenA.approve(address(covenant), 1000e18);
+
+        vm.prank(creator);
+        uint256 covenantId = covenant.createCovenant(worker, 1000e18, 25, true);
+
+        vm.prank(worker);
+        covenant.submitWork(covenantId);
+
+        uint256 workerBefore = tokenB.balanceOf(worker);
+
+        vm.prank(creator);
+        covenant.approveWork(covenantId);
+
+        assertEq(tokenA.balanceOf(address(covenant)), 0);
+        assertEq(tokenB.balanceOf(worker), workerBefore + 800e18);
+        assertEq(treasury.integrityScore(worker), 25);
     }
 }

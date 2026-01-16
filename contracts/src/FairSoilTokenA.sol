@@ -17,6 +17,7 @@ contract FairSoilTokenA is ERC20Upgradeable, OwnableUpgradeable, UUPSUpgradeable
     mapping(address => bool) public isPrimaryAddress;
 
     address public treasury;
+    address public covenant;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -37,6 +38,10 @@ contract FairSoilTokenA is ERC20Upgradeable, OwnableUpgradeable, UUPSUpgradeable
         treasury = newTreasury;
     }
 
+    function setCovenant(address newCovenant) external onlyOwner {
+        covenant = newCovenant;
+    }
+
     function setPrimaryAddress(address account, bool status) external onlyOwner {
         isPrimaryAddress[account] = status;
         if (lastUpdate[account] == 0) {
@@ -48,6 +53,16 @@ contract FairSoilTokenA is ERC20Upgradeable, OwnableUpgradeable, UUPSUpgradeable
         require(msg.sender == treasury, "Treasury only");
         _applyDecay(to);
         _mint(to, amount);
+    }
+
+    function burnFromCovenant(address account, uint256 amount) external {
+        require(msg.sender == covenant, "Covenant only");
+        require(account == covenant, "Covenant balance only");
+        if (amount == 0) {
+            return;
+        }
+        _applyDecay(account);
+        _burn(account, amount);
     }
 
     function balanceOf(address account) public view override returns (uint256) {

@@ -113,8 +113,9 @@ export default function Home() {
   const [taskTokenBAmount, setTaskTokenBAmount] = useState("500");
   const [taskIntegrityPoints, setTaskIntegrityPoints] = useState("100");
   const [covenantWorker, setCovenantWorker] = useState("");
-  const [covenantTokenBAmount, setCovenantTokenBAmount] = useState("250");
+  const [covenantRewardAmount, setCovenantRewardAmount] = useState("250");
   const [covenantIntegrityPoints, setCovenantIntegrityPoints] = useState("50");
+  const [covenantPayInTokenA, setCovenantPayInTokenA] = useState(false);
   const [covenants, setCovenants] = useState<
     {
       id: number;
@@ -127,6 +128,7 @@ export default function Home() {
       proposedWorkerPayoutBps: bigint;
       proposedIntegrityPoints: bigint;
       proposedSlashingPenalty: bigint;
+      paymentToken: number;
       status: number;
     }[]
   >([]);
@@ -193,6 +195,24 @@ export default function Home() {
     },
   });
 
+  const { data: crystallizationRateBps } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "crystallizationRateBps",
+    query: {
+      enabled: Boolean(treasuryAddress),
+    },
+  });
+
+  const { data: crystallizationFeeBps } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "crystallizationFeeBps",
+    query: {
+      enabled: Boolean(treasuryAddress),
+    },
+  });
+
   const { data: disputeResolver } = useReadContract({
     address: covenantAddr,
     abi: covenantAbi,
@@ -217,6 +237,18 @@ export default function Home() {
     return integrityScore.toString();
   }, [integrityScore]);
 
+  const estimatedCrystallizedReward = useMemo(() => {
+    if (!covenantPayInTokenA) return null;
+    if (crystallizationRateBps === undefined || crystallizationFeeBps === undefined) {
+      return null;
+    }
+    const rate = BigInt(crystallizationRateBps);
+    const fee = BigInt(crystallizationFeeBps);
+    const minted = (covenantReward * rate) / 10_000n;
+    const afterFee = (minted * (10_000n - fee)) / 10_000n;
+    return afterFee;
+  }, [covenantPayInTokenA, crystallizationRateBps, crystallizationFeeBps, covenantReward]);
+
   const showSuccess = useCallback((message: string) => {
     if (successTimeoutRef.current) {
       clearTimeout(successTimeoutRef.current);
@@ -229,14 +261,15 @@ export default function Home() {
   }, []);
 
   const covenantReward = useMemo(
-    () => safeParseUnits(covenantTokenBAmount, 18),
-    [covenantTokenBAmount]
+    () => safeParseUnits(covenantRewardAmount, 18),
+    [covenantRewardAmount]
   );
 
   const hasInsufficientBalance = useMemo(() => {
-    if (tokenBBalance === undefined) return false;
-    return covenantReward > tokenBBalance;
-  }, [covenantReward, tokenBBalance]);
+    const balance = covenantPayInTokenA ? tokenABalance : tokenBBalance;
+    if (balance === undefined) return false;
+    return covenantReward > balance;
+  }, [covenantPayInTokenA, covenantReward, tokenABalance, tokenBBalance]);
 
   const buildTrailItemFromLog = useCallback((log: any, timestamp: number): TrailItem | null => {
     if (!log?.eventName) return null;
@@ -527,7 +560,8 @@ export default function Home() {
             proposedWorkerPayoutBps: data[6] as bigint,
             proposedIntegrityPoints: data[7] as bigint,
             proposedSlashingPenalty: data[8] as bigint,
-            status: Number(data[9]),
+            paymentToken: Number(data[9]),
+            status: Number(data[10]),
           };
         })
       );
@@ -679,14 +713,17 @@ export default function Home() {
   };
 
   const handleCreateCovenant = async () => {
-    if (!covenantAddress || !tokenBAddress || !covenantWorker) return;
+    if (!covenantAddress || !covenantWorker) return;
+    const paymentTokenAddress = covenantPayInTokenA ? tokenAAddress : tokenBAddress;
+    const paymentTokenAbi = covenantPayInTokenA ? tokenAAbi : tokenBAbi;
+    if (!paymentTokenAddress) return;
     const reward = covenantReward;
     const points = Number.parseInt(covenantIntegrityPoints || "0", 10);
     try {
       await runTransaction("createCovenant", () =>
         writeContractAsync({
-          address: tokenBAddress,
-          abi: tokenBAbi,
+          address: paymentTokenAddress,
+          abi: paymentTokenAbi,
           functionName: "approve",
           args: [covenantAddress, reward],
         })
@@ -696,7 +733,7 @@ export default function Home() {
           address: covenantAddress,
           abi: covenantAbi,
           functionName: "createCovenant",
-          args: [covenantWorker, reward, points],
+          args: [covenantWorker, reward, points, covenantPayInTokenA],
         })
       );
       await postTransactionSync();
@@ -1121,13 +1158,24 @@ export default function Home() {
                   placeholder="0x..."
                 />
               </label>
+              <label className={styles.taskField}>
+                Payment asset
+                <select
+                  className={styles.taskInput}
+                  value={covenantPayInTokenA ? "tokenA" : "tokenB"}
+                  onChange={(event) => setCovenantPayInTokenA(event.target.value === "tokenA")}
+                >
+                  <option value="tokenB">Token B (Asset)</option>
+                  <option value="tokenA">Token A (Flow)</option>
+                </select>
+              </label>
               <div className={styles.taskRow}>
                 <label className={styles.taskField}>
-                  Token B
+                  {covenantPayInTokenA ? "Token A" : "Token B"}
                   <input
                     className={styles.taskInput}
-                    value={covenantTokenBAmount}
-                    onChange={(event) => setCovenantTokenBAmount(event.target.value)}
+                    value={covenantRewardAmount}
+                    onChange={(event) => setCovenantRewardAmount(event.target.value)}
                     placeholder="250"
                   />
                 </label>
@@ -1158,8 +1206,19 @@ export default function Home() {
                 : actionLabel("createCovenant", "Create Covenant (approve + lock)")}
             </button>
             <p className={styles.taskHint}>
-              Approves Token B, then escrows it in the covenant contract.
+              {covenantPayInTokenA
+                ? "Approves Token A, then escrows it in the covenant contract."
+                : "Approves Token B, then escrows it in the covenant contract."}
             </p>
+            {covenantPayInTokenA ? (
+              <p className={styles.taskHint}>
+                {estimatedCrystallizedReward !== null
+                  ? `Estimated receive: ${Number(
+                      formatUnits(estimatedCrystallizedReward, 18)
+                    ).toFixed(2)} SOILB after crystallization fee.`
+                  : "Estimated receive: --"}
+              </p>
+            ) : null}
           </article>
         </section>
 
@@ -1215,7 +1274,7 @@ export default function Home() {
             <div className={styles.covenantRowHeader}>
               <span>ID</span>
               <span>Worker</span>
-              <span>Token B</span>
+              <span>Reward</span>
               <span>Integrity</span>
               <span>Claim</span>
               <span>Status</span>
@@ -1230,7 +1289,10 @@ export default function Home() {
                 <div className={styles.covenantRow} key={`covenant-${item.id}`}>
                   <span>#{item.id}</span>
                   <span>{item.worker.slice(0, 10)}...</span>
-                  <span>{Number(formatUnits(item.tokenBReward, 18)).toFixed(2)}</span>
+                  <span>
+                    {Number(formatUnits(item.tokenBReward, 18)).toFixed(2)}{" "}
+                    {item.paymentToken === 1 ? "SOILA" : "SOILB"}
+                  </span>
                   <span>{item.integrityPoints.toString()}</span>
                   <span>{Number(item.issueClaimBps) / 100}%</span>
                   <span>{covenantStatusLabels[item.status] ?? "Unknown"}</span>

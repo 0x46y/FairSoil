@@ -6,6 +6,16 @@ export const tokenAAbi = [
     inputs: [{ name: "account", type: "address" }],
     outputs: [{ name: "", type: "uint256" }],
   },
+  {
+    type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
 ] as const;
 
 export const tokenBAbi = [
@@ -82,6 +92,20 @@ export const treasuryAbi = [
     stateMutability: "view",
     inputs: [{ name: "account", type: "address" }],
     outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "crystallizationRateBps",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "crystallizationFeeBps",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
   },
 ] as const;
 
@@ -202,6 +226,7 @@ export const covenantAbi = [
       { name: "worker", type: "address" },
       { name: "tokenBReward", type: "uint256" },
       { name: "integrityPoints", type: "uint256" },
+      { name: "payInTokenA", type: "bool" },
     ],
     outputs: [{ name: "covenantId", type: "uint256" }],
   },
@@ -227,6 +252,7 @@ export const covenantAbi = [
       { name: "proposedWorkerPayoutBps", type: "uint256" },
       { name: "proposedIntegrityPoints", type: "uint256" },
       { name: "proposedSlashingPenalty", type: "uint256" },
+      { name: "paymentToken", type: "uint8" },
       { name: "status", type: "uint8" },
     ],
   },

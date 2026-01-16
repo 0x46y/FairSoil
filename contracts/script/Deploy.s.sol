@@ -30,6 +30,7 @@ contract Deploy is Script {
         covenant = address(new Covenant(tokenB, tokenA, treasury));
 
         FairSoilTokenA(tokenA).setTreasury(treasury);
+        FairSoilTokenA(tokenA).setCovenant(covenant);
         FairSoilTokenB(tokenB).setTreasury(treasury);
         SoilTreasury(treasury).setCovenant(covenant);
 
