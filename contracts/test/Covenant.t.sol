@@ -101,4 +101,34 @@ contract CovenantTest is Test {
         assertEq(tokenB.balanceOf(creator), creatorBefore + 240e18);
         assertEq(treasury.integrityScore(worker), 20);
     }
+
+    function testDisputeResolutionRequiresFinalize() public {
+        vm.prank(creator);
+        tokenB.approve(address(covenant), 400e18);
+
+        vm.prank(creator);
+        uint256 covenantId = covenant.createCovenant(worker, 400e18, 0);
+
+        vm.prank(worker);
+        covenant.reportIssue(covenantId, 2500, "Missing assets", "ipfs://evidence");
+
+        vm.prank(creator);
+        covenant.disputeIssue(covenantId, "Counter claim", "ipfs://counter");
+
+        uint256 creatorBefore = tokenB.balanceOf(creator);
+        uint256 workerBefore = tokenB.balanceOf(worker);
+
+        covenant.resolveDispute(covenantId, 5000, 10, 0);
+
+        Covenant.CovenantData memory data = covenant.covenants(covenantId);
+        assertEq(uint256(data.status), uint256(Covenant.Status.ResolutionProposed));
+        assertEq(tokenB.balanceOf(creator), creatorBefore);
+        assertEq(tokenB.balanceOf(worker), workerBefore);
+
+        covenant.finalizeResolution(covenantId);
+
+        assertEq(tokenB.balanceOf(worker), workerBefore + 200e18);
+        assertEq(tokenB.balanceOf(creator), creatorBefore + 200e18);
+        assertEq(treasury.integrityScore(worker), 10);
+    }
 }

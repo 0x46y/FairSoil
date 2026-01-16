@@ -24,8 +24,9 @@ contract Covenant is Ownable {
         Rejected,
         Cancelled,
         IssueReported,
-        IssueResolved,
-        Disputed
+        Disputed,
+        ResolutionProposed,
+        IssueResolved
     }
 
     struct CovenantData {
@@ -35,6 +36,9 @@ contract Covenant is Ownable {
         uint256 integrityPoints;
         uint256 issueClaimBps;
         uint256 milestoneProgress;
+        uint256 proposedWorkerPayoutBps;
+        uint256 proposedIntegrityPoints;
+        uint256 proposedSlashingPenalty;
         Status status;
     }
 
@@ -67,7 +71,18 @@ contract Covenant is Ownable {
         string evidenceUri
     );
     event IssueAccepted(uint256 indexed covenantId, address indexed creator, uint256 claimBps);
-    event IssueDisputed(uint256 indexed covenantId, address indexed creator, string evidenceUri);
+    event IssueDisputed(
+        uint256 indexed covenantId,
+        address indexed creator,
+        string reason,
+        string evidenceUri
+    );
+    event ResolutionProposed(
+        uint256 indexed covenantId,
+        uint256 workerPayoutBps,
+        uint256 integrityPoints,
+        uint256 slashingPenalty
+    );
     event DisputeResolverSet(address indexed resolver);
     event MaliceSlashed(
         uint256 indexed covenantId,
@@ -118,6 +133,9 @@ contract Covenant is Ownable {
             integrityPoints: integrityPoints,
             issueClaimBps: 0,
             milestoneProgress: 0,
+            proposedWorkerPayoutBps: 0,
+            proposedIntegrityPoints: 0,
+            proposedSlashingPenalty: 0,
             status: Status.Open
         });
 
@@ -217,14 +235,21 @@ contract Covenant is Ownable {
         emit IssueAccepted(covenantId, msg.sender, data.issueClaimBps);
     }
 
-    function disputeIssue(uint256 covenantId, string calldata evidenceUri) external {
+    function disputeIssue(
+        uint256 covenantId,
+        string calldata reason,
+        string calldata evidenceUri
+    ) external {
         CovenantData storage data = covenants[covenantId];
         require(data.creator != address(0), "Unknown covenant");
         require(msg.sender == data.creator, "Creator only");
-        require(data.status == Status.IssueReported, "Not reported");
+        require(
+            data.status == Status.IssueReported || data.status == Status.Disputed,
+            "Not reported"
+        );
 
         data.status = Status.Disputed;
-        emit IssueDisputed(covenantId, msg.sender, evidenceUri);
+        emit IssueDisputed(covenantId, msg.sender, reason, evidenceUri);
     }
 
     function resolveDispute(
@@ -235,11 +260,28 @@ contract Covenant is Ownable {
     ) external onlyDisputeResolver {
         CovenantData storage data = covenants[covenantId];
         require(data.creator != address(0), "Unknown covenant");
-        require(data.status == Status.Disputed, "Not disputed");
+        require(
+            data.status == Status.Disputed || data.status == Status.ResolutionProposed,
+            "Not disputed"
+        );
         require(workerPayoutBps <= ISSUE_BPS_DENOMINATOR, "Invalid claim");
 
+        data.status = Status.ResolutionProposed;
+        data.proposedWorkerPayoutBps = workerPayoutBps;
+        data.proposedIntegrityPoints = integrityPoints;
+        data.proposedSlashingPenalty = slashingPenalty;
+
+        emit ResolutionProposed(covenantId, workerPayoutBps, integrityPoints, slashingPenalty);
+    }
+
+    function finalizeResolution(uint256 covenantId) external onlyDisputeResolver {
+        CovenantData storage data = covenants[covenantId];
+        require(data.creator != address(0), "Unknown covenant");
+        require(data.status == Status.ResolutionProposed, "Not proposed");
+
         data.status = Status.IssueResolved;
-        uint256 workerShare = (data.tokenBReward * workerPayoutBps) / ISSUE_BPS_DENOMINATOR;
+        uint256 workerShare =
+            (data.tokenBReward * data.proposedWorkerPayoutBps) / ISSUE_BPS_DENOMINATOR;
         uint256 creatorShare = data.tokenBReward - workerShare;
         if (workerShare > 0) {
             tokenB.safeTransfer(data.worker, workerShare);
@@ -247,12 +289,22 @@ contract Covenant is Ownable {
         if (creatorShare > 0) {
             tokenB.safeTransfer(data.creator, creatorShare);
         }
-        if (integrityPoints > 0) {
-            treasury.addIntegrityFromCovenant(data.worker, integrityPoints);
+        if (data.proposedIntegrityPoints > 0) {
+            treasury.addIntegrityFromCovenant(data.worker, data.proposedIntegrityPoints);
         }
-        if (slashingPenalty > 0) {
-            emit MaliceSlashed(covenantId, data.creator, data.worker, slashingPenalty);
+        if (data.proposedSlashingPenalty > 0) {
+            emit MaliceSlashed(
+                covenantId,
+                data.creator,
+                data.worker,
+                data.proposedSlashingPenalty
+            );
         }
-        emit DisputeResolved(covenantId, workerPayoutBps, integrityPoints, slashingPenalty);
+        emit DisputeResolved(
+            covenantId,
+            data.proposedWorkerPayoutBps,
+            data.proposedIntegrityPoints,
+            data.proposedSlashingPenalty
+        );
     }
 }

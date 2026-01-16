@@ -124,6 +124,9 @@ export default function Home() {
       integrityPoints: bigint;
       issueClaimBps: bigint;
       milestoneProgress: bigint;
+      proposedWorkerPayoutBps: bigint;
+      proposedIntegrityPoints: bigint;
+      proposedSlashingPenalty: bigint;
       status: number;
     }[]
   >([]);
@@ -131,6 +134,7 @@ export default function Home() {
   const [issueClaims, setIssueClaims] = useState<Record<number, string>>({});
   const [issueReasons, setIssueReasons] = useState<Record<number, string>>({});
   const [issueEvidenceUris, setIssueEvidenceUris] = useState<Record<number, string>>({});
+  const [disputeReasons, setDisputeReasons] = useState<Record<number, string>>({});
   const [disputeEvidenceUris, setDisputeEvidenceUris] = useState<Record<number, string>>({});
   const [resolveClaims, setResolveClaims] = useState<Record<number, string>>({});
   const [resolveIntegrity, setResolveIntegrity] = useState<Record<number, string>>({});
@@ -326,6 +330,10 @@ export default function Home() {
       }
       case "IssueDisputed": {
         const covenantId = Number(args.covenantId ?? 0);
+        const reason =
+          typeof args.reason === "string" && args.reason.trim().length > 0
+            ? `Reason: ${args.reason.trim()}`
+            : "Reason not provided";
         const evidenceLink = formatEvidenceLink(args.evidenceUri);
         return {
           id,
@@ -333,7 +341,7 @@ export default function Home() {
           title: `Issue disputed on covenant #${covenantId}`,
           body: (
             <>
-              Disputed by {safeAddress(args.creator as string | undefined)}
+              Disputed by {safeAddress(args.creator as string | undefined)} · {reason}
               {evidenceLink ? <> · {evidenceLink}</> : null}
             </>
           ),
@@ -345,6 +353,17 @@ export default function Home() {
           timestamp,
           title: "Dispute resolver updated",
           body: `Resolver ${safeAddress(args.resolver as string | undefined)}`,
+        };
+      }
+      case "ResolutionProposed": {
+        const covenantId = Number(args.covenantId ?? 0);
+        const payoutBps = (args.workerPayoutBps ?? 0n) as bigint;
+        const integrityPoints = (args.integrityPoints ?? 0n) as bigint;
+        return {
+          id,
+          timestamp,
+          title: `Resolution proposed: covenant #${covenantId}`,
+          body: `${formatPercent(payoutBps)}% payout to worker · +${integrityPoints.toString()} points`,
         };
       }
       case "MaliceSlashed": {
@@ -505,7 +524,10 @@ export default function Home() {
             integrityPoints: data[3] as bigint,
             issueClaimBps: data[4] as bigint,
             milestoneProgress: data[5] as bigint,
-            status: Number(data[6]),
+            proposedWorkerPayoutBps: data[6] as bigint,
+            proposedIntegrityPoints: data[7] as bigint,
+            proposedSlashingPenalty: data[8] as bigint,
+            status: Number(data[9]),
           };
         })
       );
@@ -824,6 +846,7 @@ export default function Home() {
 
   const handleDisputeIssue = async (covenantId: number) => {
     if (!covenantAddress) return;
+    const reason = disputeReasons[covenantId] ?? "";
     const evidenceUri = disputeEvidenceUris[covenantId] ?? "";
     const actionKey = `dispute-${covenantId}`;
     try {
@@ -832,7 +855,7 @@ export default function Home() {
           address: covenantAddress,
           abi: covenantAbi,
           functionName: "disputeIssue",
-          args: [BigInt(covenantId), evidenceUri],
+          args: [BigInt(covenantId), reason, evidenceUri],
         })
       );
       await postTransactionSync();
@@ -876,6 +899,30 @@ export default function Home() {
     }
   };
 
+  const handleFinalizeResolution = async (covenantId: number) => {
+    if (!covenantAddress) return;
+    const actionKey = `finalize-${covenantId}`;
+    try {
+      await runTransaction(actionKey, () =>
+        writeContractAsync({
+          address: covenantAddress,
+          abi: covenantAbi,
+          functionName: "finalizeResolution",
+          args: [BigInt(covenantId)],
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("Transaction successful!");
+    } catch (error) {
+      setTxError(formatTxError(error));
+      setTxSuccess(null);
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
   const covenantStatusLabels = [
     "Open",
     "Submitted",
@@ -883,8 +930,9 @@ export default function Home() {
     "Rejected",
     "Cancelled",
     "Issue reported",
-    "Issue resolved",
     "Disputed",
+    "Resolution proposed",
+    "Issue resolved",
   ];
 
   return (
@@ -1267,10 +1315,21 @@ export default function Home() {
                         </button>
                       </>
                     ) : null}
-                    {item.status === 5 &&
+                    {(item.status === 5 || item.status === 6) &&
                     account.address &&
                     item.creator.toLowerCase() === account.address.toLowerCase() ? (
                       <>
+                        <input
+                          className={styles.issueInput}
+                          value={disputeReasons[item.id] ?? ""}
+                          onChange={(event) =>
+                            setDisputeReasons((prev) => ({
+                              ...prev,
+                              [item.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Reason"
+                        />
                         <input
                           className={`${styles.issueInput} ${styles.issueInputWide}`}
                           value={disputeEvidenceUris[item.id] ?? ""}
@@ -1282,26 +1341,31 @@ export default function Home() {
                           }
                           placeholder="Evidence URL"
                         />
-                        <button
-                          className={styles.primaryButton}
-                          onClick={() => handleAcceptIssue(item.id)}
-                          disabled={isBusy}
-                        >
-                          {actionLabel(`accept-issue-${item.id}`, "Accept Issue")}
-                        </button>
+                        {item.status === 5 ? (
+                          <button
+                            className={styles.primaryButton}
+                            onClick={() => handleAcceptIssue(item.id)}
+                            disabled={isBusy}
+                          >
+                            {actionLabel(`accept-issue-${item.id}`, "Accept Issue")}
+                          </button>
+                        ) : null}
                         <button
                           className={styles.secondaryButton}
                           onClick={() => handleDisputeIssue(item.id)}
                           disabled={isBusy}
                         >
-                          {actionLabel(`dispute-${item.id}`, "Dispute")}
+                          {actionLabel(
+                            `dispute-${item.id}`,
+                            item.status === 6 ? "Update Dispute" : "Dispute"
+                          )}
                         </button>
                       </>
                     ) : null}
-    {item.status === 7 &&
-    account.address &&
-    disputeResolver &&
-    (disputeResolver as string).toLowerCase() === account.address.toLowerCase() ? (
+                    {(item.status === 6 || item.status === 7) &&
+                    account.address &&
+                    disputeResolver &&
+                    (disputeResolver as string).toLowerCase() === account.address.toLowerCase() ? (
                       <div className={styles.resolveActions}>
                         <input
                           className={styles.issueInput}
@@ -1341,8 +1405,20 @@ export default function Home() {
                           onClick={() => handleResolveDispute(item.id)}
                           disabled={isBusy}
                         >
-                          {actionLabel(`resolve-${item.id}`, "Resolve")}
+                          {actionLabel(
+                            `resolve-${item.id}`,
+                            item.status === 7 ? "Update Proposal" : "Propose Resolution"
+                          )}
                         </button>
+                        {item.status === 7 ? (
+                          <button
+                            className={styles.secondaryButton}
+                            onClick={() => handleFinalizeResolution(item.id)}
+                            disabled={isBusy}
+                          >
+                            {actionLabel(`finalize-${item.id}`, "Finalize Resolution")}
+                          </button>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>

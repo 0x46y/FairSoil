@@ -155,7 +155,18 @@ export const covenantAbi = [
     inputs: [
       { indexed: true, name: "covenantId", type: "uint256" },
       { indexed: true, name: "creator", type: "address" },
+      { indexed: false, name: "reason", type: "string" },
       { indexed: false, name: "evidenceUri", type: "string" },
+    ],
+  },
+  {
+    type: "event",
+    name: "ResolutionProposed",
+    inputs: [
+      { indexed: true, name: "covenantId", type: "uint256" },
+      { indexed: false, name: "workerPayoutBps", type: "uint256" },
+      { indexed: false, name: "integrityPoints", type: "uint256" },
+      { indexed: false, name: "slashingPenalty", type: "uint256" },
     ],
   },
   {
@@ -213,6 +224,9 @@ export const covenantAbi = [
       { name: "integrityPoints", type: "uint256" },
       { name: "issueClaimBps", type: "uint256" },
       { name: "milestoneProgress", type: "uint256" },
+      { name: "proposedWorkerPayoutBps", type: "uint256" },
+      { name: "proposedIntegrityPoints", type: "uint256" },
+      { name: "proposedSlashingPenalty", type: "uint256" },
       { name: "status", type: "uint8" },
     ],
   },
@@ -262,6 +276,7 @@ export const covenantAbi = [
     stateMutability: "nonpayable",
     inputs: [
       { name: "covenantId", type: "uint256" },
+      { name: "reason", type: "string" },
       { name: "evidenceUri", type: "string" },
     ],
     outputs: [],
@@ -276,6 +291,13 @@ export const covenantAbi = [
       { name: "integrityPoints", type: "uint256" },
       { name: "slashingPenalty", type: "uint256" },
     ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "finalizeResolution",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "covenantId", type: "uint256" }],
     outputs: [],
   },
   {
