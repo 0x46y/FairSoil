@@ -30,3 +30,4 @@ NEXT_PUBLIC_COVENANT_ADDRESS=0x...
 ## Milestones
 - Covenant end-to-end flow confirmed: Create -> Submit -> Approve from UI updates Token B balance and adds integrity via Treasury.
 - 2026/01/15: 紛争（Dispute）および最終裁定（Resolve）のフルフロー疎通を確認。100%の計算精度で資産とスコアが移動することを実証。
+- 2026/01/16: 二段階裁定（Proposed -> Finalized）および悪質性スラッシングの表示、文脈付き証拠URLのリンク化を確認。システムの公正性とリカバリー能力を100%実証。
