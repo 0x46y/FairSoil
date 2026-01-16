@@ -237,18 +237,6 @@ export default function Home() {
     return integrityScore.toString();
   }, [integrityScore]);
 
-  const estimatedCrystallizedReward = useMemo(() => {
-    if (!covenantPayInTokenA) return null;
-    if (crystallizationRateBps === undefined || crystallizationFeeBps === undefined) {
-      return null;
-    }
-    const rate = BigInt(crystallizationRateBps);
-    const fee = BigInt(crystallizationFeeBps);
-    const minted = (covenantReward * rate) / 10_000n;
-    const afterFee = (minted * (10_000n - fee)) / 10_000n;
-    return afterFee;
-  }, [covenantPayInTokenA, crystallizationRateBps, crystallizationFeeBps, covenantReward]);
-
   const showSuccess = useCallback((message: string) => {
     if (successTimeoutRef.current) {
       clearTimeout(successTimeoutRef.current);
@@ -264,6 +252,18 @@ export default function Home() {
     () => safeParseUnits(covenantRewardAmount, 18),
     [covenantRewardAmount]
   );
+
+  const estimatedCrystallizedReward = useMemo(() => {
+    if (!covenantPayInTokenA) return null;
+    if (crystallizationRateBps === undefined || crystallizationFeeBps === undefined) {
+      return null;
+    }
+    const rate = BigInt(crystallizationRateBps);
+    const fee = BigInt(crystallizationFeeBps);
+    const minted = (covenantReward * rate) / 10_000n;
+    const afterFee = (minted * (10_000n - fee)) / 10_000n;
+    return afterFee;
+  }, [covenantPayInTokenA, crystallizationRateBps, crystallizationFeeBps, covenantReward]);
 
   const hasInsufficientBalance = useMemo(() => {
     const balance = covenantPayInTokenA ? tokenABalance : tokenBBalance;
