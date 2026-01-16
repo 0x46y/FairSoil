@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatUnits, parseUnits, zeroAddress } from "viem";
 import {
   useAccount,
@@ -27,7 +27,7 @@ type TrailItem = {
   id: string;
   timestamp: number;
   title: string;
-  body?: string;
+  body?: ReactNode;
 };
 
 const shortAddress = (value: string) => `${value.slice(0, 6)}...${value.slice(-4)}`;
@@ -43,6 +43,17 @@ const formatIntegrity = (points: bigint) => `+${points.toString()} integrity`;
 const formatPercent = (bps: bigint) => {
   const percent = Number(bps) / 100;
   return Number.isInteger(percent) ? percent.toFixed(0) : percent.toFixed(1);
+};
+
+const formatEvidenceLink = (value: unknown) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return (
+    <a className={styles.timelineLink} href={trimmed} target="_blank" rel="noreferrer">
+      Evidence URL
+    </a>
+  );
 };
 
 const safeParseUnits = (value: string, decimals: number) => {
@@ -119,6 +130,8 @@ export default function Home() {
   const [isLoadingCovenants, setIsLoadingCovenants] = useState(false);
   const [issueClaims, setIssueClaims] = useState<Record<number, string>>({});
   const [issueReasons, setIssueReasons] = useState<Record<number, string>>({});
+  const [issueEvidenceUris, setIssueEvidenceUris] = useState<Record<number, string>>({});
+  const [disputeEvidenceUris, setDisputeEvidenceUris] = useState<Record<number, string>>({});
   const [resolveClaims, setResolveClaims] = useState<Record<number, string>>({});
   const [resolveIntegrity, setResolveIntegrity] = useState<Record<number, string>>({});
   const [resolveSlashing, setResolveSlashing] = useState<Record<number, string>>({});
@@ -287,13 +300,18 @@ export default function Home() {
           typeof args.reason === "string" && args.reason.trim().length > 0
             ? `Reason: ${args.reason.trim()}`
             : "Reason not provided";
+        const evidenceLink = formatEvidenceLink(args.evidenceUri);
         return {
           id,
           timestamp,
           title: `Issue reported on covenant #${covenantId}`,
-          body: `Reported by ${safeAddress(
-            args.worker as string | undefined
-          )} · Claim ${claimPct}% · ${reason}`,
+          body: (
+            <>
+              Reported by {safeAddress(args.worker as string | undefined)} · Claim {claimPct}% ·{" "}
+              {reason}
+              {evidenceLink ? <> · {evidenceLink}</> : null}
+            </>
+          ),
         };
       }
       case "IssueAccepted": {
@@ -308,11 +326,17 @@ export default function Home() {
       }
       case "IssueDisputed": {
         const covenantId = Number(args.covenantId ?? 0);
+        const evidenceLink = formatEvidenceLink(args.evidenceUri);
         return {
           id,
           timestamp,
           title: `Issue disputed on covenant #${covenantId}`,
-          body: `Disputed by ${safeAddress(args.creator as string | undefined)}`,
+          body: (
+            <>
+              Disputed by {safeAddress(args.creator as string | undefined)}
+              {evidenceLink ? <> · {evidenceLink}</> : null}
+            </>
+          ),
         };
       }
       case "DisputeResolverSet": {
@@ -741,6 +765,7 @@ export default function Home() {
     if (!covenantAddress) return;
     const claim = issueClaims[covenantId] ?? "";
     const reason = issueReasons[covenantId] ?? "";
+    const evidenceUri = issueEvidenceUris[covenantId] ?? "";
     if (!claim.trim()) return;
     const parsedClaim = Number(claim);
     if (Number.isNaN(parsedClaim)) return;
@@ -758,7 +783,7 @@ export default function Home() {
           address: covenantAddress,
           abi: covenantAbi,
           functionName: "reportIssue",
-          args: [BigInt(covenantId), BigInt(claimBps * 100), reason],
+          args: [BigInt(covenantId), BigInt(claimBps * 100), reason, evidenceUri],
         })
       );
       await postTransactionSync();
@@ -799,6 +824,7 @@ export default function Home() {
 
   const handleDisputeIssue = async (covenantId: number) => {
     if (!covenantAddress) return;
+    const evidenceUri = disputeEvidenceUris[covenantId] ?? "";
     const actionKey = `dispute-${covenantId}`;
     try {
       await runTransaction(actionKey, () =>
@@ -806,7 +832,7 @@ export default function Home() {
           address: covenantAddress,
           abi: covenantAbi,
           functionName: "disputeIssue",
-          args: [BigInt(covenantId)],
+          args: [BigInt(covenantId), evidenceUri],
         })
       );
       await postTransactionSync();
@@ -1198,6 +1224,17 @@ export default function Home() {
                           }
                           placeholder="Reason"
                         />
+                        <input
+                          className={`${styles.issueInput} ${styles.issueInputWide}`}
+                          value={issueEvidenceUris[item.id] ?? ""}
+                          onChange={(event) =>
+                            setIssueEvidenceUris((prev) => ({
+                              ...prev,
+                              [item.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Evidence URL"
+                        />
                         <button
                           className={styles.secondaryButton}
                           onClick={() => handleReportIssue(item.id)}
@@ -1234,6 +1271,17 @@ export default function Home() {
                     account.address &&
                     item.creator.toLowerCase() === account.address.toLowerCase() ? (
                       <>
+                        <input
+                          className={`${styles.issueInput} ${styles.issueInputWide}`}
+                          value={disputeEvidenceUris[item.id] ?? ""}
+                          onChange={(event) =>
+                            setDisputeEvidenceUris((prev) => ({
+                              ...prev,
+                              [item.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Evidence URL"
+                        />
                         <button
                           className={styles.primaryButton}
                           onClick={() => handleAcceptIssue(item.id)}

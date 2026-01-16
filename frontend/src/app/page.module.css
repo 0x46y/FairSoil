@@ -377,6 +377,16 @@
   font-size: 14px;
 }
 
+.timelineLink {
+  color: var(--soil-600);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.timelineLink:hover {
+  color: var(--soil-700);
+}
+
 .covenantSection {
   display: grid;
   gap: 16px;
@@ -452,6 +462,10 @@
   border: 1px solid var(--sand-200);
   padding: 6px 8px;
   font-size: 12px;
+}
+
+.issueInputWide {
+  width: 180px;
 }
 
 .resolveActions {

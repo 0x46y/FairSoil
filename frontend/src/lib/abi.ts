@@ -137,6 +137,7 @@ export const covenantAbi = [
       { indexed: true, name: "worker", type: "address" },
       { indexed: false, name: "claimBps", type: "uint256" },
       { indexed: false, name: "reason", type: "string" },
+      { indexed: false, name: "evidenceUri", type: "string" },
     ],
   },
   {
@@ -154,6 +155,7 @@ export const covenantAbi = [
     inputs: [
       { indexed: true, name: "covenantId", type: "uint256" },
       { indexed: true, name: "creator", type: "address" },
+      { indexed: false, name: "evidenceUri", type: "string" },
     ],
   },
   {
@@ -243,6 +245,7 @@ export const covenantAbi = [
       { name: "covenantId", type: "uint256" },
       { name: "claimBps", type: "uint256" },
       { name: "reason", type: "string" },
+      { name: "evidenceUri", type: "string" },
     ],
     outputs: [],
   },
@@ -257,7 +260,10 @@ export const covenantAbi = [
     type: "function",
     name: "disputeIssue",
     stateMutability: "nonpayable",
-    inputs: [{ name: "covenantId", type: "uint256" }],
+    inputs: [
+      { name: "covenantId", type: "uint256" },
+      { name: "evidenceUri", type: "string" },
+    ],
     outputs: [],
   },
   {

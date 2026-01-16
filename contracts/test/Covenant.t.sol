@@ -91,7 +91,7 @@ contract CovenantTest is Test {
         uint256 covenantId = covenant.createCovenant(worker, 300e18, 0);
 
         vm.prank(worker);
-        covenant.reportIssue(covenantId, 2000, "Scope change");
+        covenant.reportIssue(covenantId, 2000, "Scope change", "ipfs://evidence");
 
         uint256 creatorBefore = tokenB.balanceOf(creator);
         vm.prank(creator);

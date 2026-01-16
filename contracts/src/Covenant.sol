@@ -63,10 +63,11 @@ contract Covenant is Ownable {
         uint256 indexed covenantId,
         address indexed worker,
         uint256 claimBps,
-        string reason
+        string reason,
+        string evidenceUri
     );
     event IssueAccepted(uint256 indexed covenantId, address indexed creator, uint256 claimBps);
-    event IssueDisputed(uint256 indexed covenantId, address indexed creator);
+    event IssueDisputed(uint256 indexed covenantId, address indexed creator, string evidenceUri);
     event DisputeResolverSet(address indexed resolver);
     event MaliceSlashed(
         uint256 indexed covenantId,
@@ -177,7 +178,8 @@ contract Covenant is Ownable {
     function reportIssue(
         uint256 covenantId,
         uint256 claimBps,
-        string calldata reason
+        string calldata reason,
+        string calldata evidenceUri
     ) external {
         CovenantData storage data = covenants[covenantId];
         require(data.creator != address(0), "Unknown covenant");
@@ -192,7 +194,7 @@ contract Covenant is Ownable {
 
         data.status = Status.IssueReported;
         data.issueClaimBps = claimBps;
-        emit IssueReported(covenantId, msg.sender, claimBps, reason);
+        emit IssueReported(covenantId, msg.sender, claimBps, reason, evidenceUri);
     }
 
     function acceptIssue(uint256 covenantId) external {
@@ -215,14 +217,14 @@ contract Covenant is Ownable {
         emit IssueAccepted(covenantId, msg.sender, data.issueClaimBps);
     }
 
-    function disputeIssue(uint256 covenantId) external {
+    function disputeIssue(uint256 covenantId, string calldata evidenceUri) external {
         CovenantData storage data = covenants[covenantId];
         require(data.creator != address(0), "Unknown covenant");
         require(msg.sender == data.creator, "Creator only");
         require(data.status == Status.IssueReported, "Not reported");
 
         data.status = Status.Disputed;
-        emit IssueDisputed(covenantId, msg.sender);
+        emit IssueDisputed(covenantId, msg.sender, evidenceUri);
     }
 
     function resolveDispute(
