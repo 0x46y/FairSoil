@@ -124,6 +124,7 @@ export default function Home() {
       tokenBReward: bigint;
       integrityPoints: bigint;
       issueClaimBps: bigint;
+      escrowStart: bigint;
       milestoneProgress: bigint;
       proposedWorkerPayoutBps: bigint;
       proposedIntegrityPoints: bigint;
@@ -556,12 +557,13 @@ export default function Home() {
             tokenBReward: data[2] as bigint,
             integrityPoints: data[3] as bigint,
             issueClaimBps: data[4] as bigint,
-            milestoneProgress: data[5] as bigint,
-            proposedWorkerPayoutBps: data[6] as bigint,
-            proposedIntegrityPoints: data[7] as bigint,
-            proposedSlashingPenalty: data[8] as bigint,
-            paymentToken: Number(data[9]),
-            status: Number(data[10]),
+            escrowStart: data[5] as bigint,
+            milestoneProgress: data[6] as bigint,
+            proposedWorkerPayoutBps: data[7] as bigint,
+            proposedIntegrityPoints: data[8] as bigint,
+            proposedSlashingPenalty: data[9] as bigint,
+            paymentToken: Number(data[10]),
+            status: Number(data[11]),
           };
         })
       );

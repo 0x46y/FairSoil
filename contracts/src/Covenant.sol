@@ -8,6 +8,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 interface IFairSoilTokenA is IERC20 {
     function isPrimaryAddress(address account) external view returns (bool);
     function burnFromCovenant(address account, uint256 amount) external;
+    function applyEscrowDecay(uint256 amount, uint256 escrowStart) external returns (uint256);
 }
 
 interface ISoilTreasury {
@@ -43,6 +44,7 @@ contract Covenant is Ownable {
         uint256 tokenBReward;
         uint256 integrityPoints;
         uint256 issueClaimBps;
+        uint256 escrowStart;
         uint256 milestoneProgress;
         uint256 proposedWorkerPayoutBps;
         uint256 proposedIntegrityPoints;
@@ -142,6 +144,7 @@ contract Covenant is Ownable {
             tokenBReward: tokenBReward,
             integrityPoints: integrityPoints,
             issueClaimBps: 0,
+            escrowStart: block.timestamp,
             milestoneProgress: 0,
             proposedWorkerPayoutBps: 0,
             proposedIntegrityPoints: 0,
@@ -197,7 +200,10 @@ contract Covenant is Ownable {
 
         data.status = Status.Rejected;
         if (data.paymentToken == PaymentToken.TokenA) {
-            tokenA.safeTransfer(data.creator, data.tokenBReward);
+            uint256 refund = tokenA.applyEscrowDecay(data.tokenBReward, data.escrowStart);
+            if (refund > 0) {
+                tokenA.safeTransfer(data.creator, refund);
+            }
         } else {
             tokenB.safeTransfer(data.creator, data.tokenBReward);
         }
@@ -213,7 +219,10 @@ contract Covenant is Ownable {
 
         data.status = Status.Cancelled;
         if (data.paymentToken == PaymentToken.TokenA) {
-            tokenA.safeTransfer(data.creator, data.tokenBReward);
+            uint256 refund = tokenA.applyEscrowDecay(data.tokenBReward, data.escrowStart);
+            if (refund > 0) {
+                tokenA.safeTransfer(data.creator, refund);
+            }
         } else {
             tokenB.safeTransfer(data.creator, data.tokenBReward);
         }
@@ -258,7 +267,10 @@ contract Covenant is Ownable {
                 treasury.mintBByCrystallization(data.worker, workerShare);
             }
             if (creatorShare > 0) {
-                tokenA.safeTransfer(data.creator, creatorShare);
+                uint256 refund = tokenA.applyEscrowDecay(creatorShare, data.escrowStart);
+                if (refund > 0) {
+                    tokenA.safeTransfer(data.creator, refund);
+                }
             }
         } else {
             if (workerShare > 0) {
@@ -327,7 +339,10 @@ contract Covenant is Ownable {
                 treasury.mintBByCrystallization(data.worker, workerShare);
             }
             if (creatorShare > 0) {
-                tokenA.safeTransfer(data.creator, creatorShare);
+                uint256 refund = tokenA.applyEscrowDecay(creatorShare, data.escrowStart);
+                if (refund > 0) {
+                    tokenA.safeTransfer(data.creator, refund);
+                }
             }
         } else {
             if (workerShare > 0) {

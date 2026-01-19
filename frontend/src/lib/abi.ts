@@ -248,6 +248,7 @@ export const covenantAbi = [
       { name: "tokenBReward", type: "uint256" },
       { name: "integrityPoints", type: "uint256" },
       { name: "issueClaimBps", type: "uint256" },
+      { name: "escrowStart", type: "uint256" },
       { name: "milestoneProgress", type: "uint256" },
       { name: "proposedWorkerPayoutBps", type: "uint256" },
       { name: "proposedIntegrityPoints", type: "uint256" },

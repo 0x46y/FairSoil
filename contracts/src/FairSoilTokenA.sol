@@ -65,10 +65,30 @@ contract FairSoilTokenA is ERC20Upgradeable, OwnableUpgradeable, UUPSUpgradeable
         _burn(account, amount);
     }
 
+    function applyEscrowDecay(uint256 amount, uint256 escrowStart) external returns (uint256) {
+        require(msg.sender == covenant, "Covenant only");
+        require(escrowStart > 0 && escrowStart <= block.timestamp, "Invalid escrow start");
+        if (amount == 0) {
+            return 0;
+        }
+        uint256 elapsed = block.timestamp - escrowStart;
+        if (elapsed == 0) {
+            return amount;
+        }
+        uint256 decayed = _calculateDecayedBalance(covenant, amount, elapsed);
+        if (decayed < amount) {
+            _burn(covenant, amount - decayed);
+        }
+        return decayed;
+    }
+
     function balanceOf(address account) public view override returns (uint256) {
         uint256 raw = super.balanceOf(account);
         if (raw == 0) {
             return 0;
+        }
+        if (account == covenant) {
+            return raw;
         }
 
         uint256 last = lastUpdate[account];
@@ -128,6 +148,10 @@ contract FairSoilTokenA is ERC20Upgradeable, OwnableUpgradeable, UUPSUpgradeable
     }
 
     function _applyDecay(address account) internal {
+        if (account == covenant) {
+            lastUpdate[account] = block.timestamp;
+            return;
+        }
         uint256 raw = super.balanceOf(account);
         if (raw == 0) {
             lastUpdate[account] = block.timestamp;
