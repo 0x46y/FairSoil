@@ -265,6 +265,13 @@
   letter-spacing: 0.08em;
 }
 
+.fieldHint {
+  font-size: 12px;
+  color: var(--ink-500);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .taskInput {
   border-radius: 14px;
   border: 1px solid var(--sand-200);
@@ -450,14 +457,28 @@
 }
 
 .issueActions {
-  display: flex;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  align-items: end;
+}
+
+.issueField {
+  display: grid;
   gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
+  font-size: 11px;
+  color: var(--ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.issueLabel {
+  font-size: 11px;
 }
 
 .issueInput {
-  width: 84px;
+  width: 100%;
+  min-width: 0;
   border-radius: 12px;
   border: 1px solid var(--sand-200);
   padding: 6px 8px;
@@ -465,20 +486,58 @@
 }
 
 .issueInputWide {
-  width: 180px;
+  width: 100%;
+  min-width: 0;
+}
+
+.issueTextarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 72px;
+  border-radius: 12px;
+  border: 1px solid var(--sand-200);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+  color: var(--ink-900);
+}
+
+.issueHelp {
+  font-size: 11px;
+  color: var(--ink-500);
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .resolveActions {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: end;
 }
 
 .covenantActions .primaryButton,
 .covenantActions .secondaryButton,
 .covenantActions .ghostButton {
   padding: 8px 14px;
+  font-size: 12px;
+}
+
+.stepNote {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-600);
+}
+
+.stepPill {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(116, 140, 102, 0.18);
+  color: var(--leaf-500);
+  font-weight: 600;
   font-size: 12px;
 }
 

@@ -280,6 +280,13 @@ export const covenantAbi = [
   },
   {
     type: "function",
+    name: "cancel",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "covenantId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
     name: "reportIssue",
     stateMutability: "nonpayable",
     inputs: [

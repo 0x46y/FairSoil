@@ -116,6 +116,7 @@ export default function Home() {
   const [covenantRewardAmount, setCovenantRewardAmount] = useState("250");
   const [covenantIntegrityPoints, setCovenantIntegrityPoints] = useState("50");
   const [covenantPayInTokenA, setCovenantPayInTokenA] = useState(false);
+  const [covenantStep, setCovenantStep] = useState<0 | 1 | 2>(0);
   const [covenants, setCovenants] = useState<
     {
       id: number;
@@ -722,6 +723,7 @@ export default function Home() {
     const reward = covenantReward;
     const points = Number.parseInt(covenantIntegrityPoints || "0", 10);
     try {
+      setCovenantStep(1);
       await runTransaction("createCovenant", () =>
         writeContractAsync({
           address: paymentTokenAddress,
@@ -730,6 +732,7 @@ export default function Home() {
           args: [covenantAddress, reward],
         })
       );
+      setCovenantStep(2);
       await runTransaction("createCovenant", () =>
         writeContractAsync({
           address: covenantAddress,
@@ -747,6 +750,7 @@ export default function Home() {
     } finally {
       setTxStatus("idle");
       setTxAction(null);
+      setCovenantStep(0);
     }
   };
 
@@ -807,6 +811,30 @@ export default function Home() {
           address: covenantAddress,
           abi: covenantAbi,
           functionName: "rejectWork",
+          args: [BigInt(covenantId)],
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("Transaction successful!");
+    } catch (error) {
+      setTxError(formatTxError(error));
+      setTxSuccess(null);
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const handleCancelCovenant = async (covenantId: number) => {
+    if (!covenantAddress) return;
+    const actionKey = `cancel-${covenantId}`;
+    try {
+      await runTransaction(actionKey, () =>
+        writeContractAsync({
+          address: covenantAddress,
+          abi: covenantAbi,
+          functionName: "cancel",
           args: [BigInt(covenantId)],
         })
       );
@@ -1102,6 +1130,9 @@ export default function Home() {
                   onChange={(event) => setTaskWorker(event.target.value)}
                   placeholder="0x..."
                 />
+                <span className={styles.fieldHint}>
+                  Address of the worker who completed the task (must be verified).
+                </span>
               </label>
               <div className={styles.taskRow}>
                 <label className={styles.taskField}>
@@ -1112,6 +1143,7 @@ export default function Home() {
                     onChange={(event) => setTaskTokenBAmount(event.target.value)}
                     placeholder="500"
                   />
+                  <span className={styles.fieldHint}>Reward amount minted to the worker.</span>
                 </label>
                 <label className={styles.taskField}>
                   Integrity
@@ -1121,6 +1153,9 @@ export default function Home() {
                     onChange={(event) => setTaskIntegrityPoints(event.target.value)}
                     placeholder="100"
                   />
+                  <span className={styles.fieldHint}>
+                    Honesty points added to the worker’s score.
+                  </span>
                 </label>
               </div>
             </div>
@@ -1159,6 +1194,9 @@ export default function Home() {
                   onChange={(event) => setCovenantWorker(event.target.value)}
                   placeholder="0x..."
                 />
+                <span className={styles.fieldHint}>
+                  The worker who will submit and receive the reward.
+                </span>
               </label>
               <label className={styles.taskField}>
                 Payment asset
@@ -1170,6 +1208,9 @@ export default function Home() {
                   <option value="tokenB">Token B (Asset)</option>
                   <option value="tokenA">Token A (Flow)</option>
                 </select>
+                <span className={styles.fieldHint}>
+                  Token A crystallizes into Token B with a fee.
+                </span>
               </label>
               <div className={styles.taskRow}>
                 <label className={styles.taskField}>
@@ -1180,6 +1221,7 @@ export default function Home() {
                     onChange={(event) => setCovenantRewardAmount(event.target.value)}
                     placeholder="250"
                   />
+                  <span className={styles.fieldHint}>Amount to lock in escrow.</span>
                 </label>
                 <label className={styles.taskField}>
                   Integrity
@@ -1189,6 +1231,9 @@ export default function Home() {
                     onChange={(event) => setCovenantIntegrityPoints(event.target.value)}
                     placeholder="50"
                   />
+                  <span className={styles.fieldHint}>
+                    Integrity points awarded upon approval.
+                  </span>
                 </label>
               </div>
             </div>
@@ -1207,6 +1252,18 @@ export default function Home() {
                 ? "Insufficient Balance"
                 : actionLabel("createCovenant", "Create Covenant (approve + lock)")}
             </button>
+            <div className={styles.stepNote}>
+              <span className={styles.stepPill}>
+                {covenantStep === 1
+                  ? "Step 1/2: Approve token allowance"
+                  : covenantStep === 2
+                  ? "Step 2/2: Lock funds into escrow"
+                  : "Two-step wallet flow"}
+              </span>
+              <span>
+                ERC-20 requires permission (approve) before escrow can lock funds.
+              </span>
+            </div>
             <p className={styles.taskHint}>
               {covenantPayInTokenA
                 ? "Approves Token A, then escrows it in the covenant contract."
@@ -1301,6 +1358,17 @@ export default function Home() {
                   <div className={styles.covenantActions}>
                     {item.status === 0 &&
                     account.address &&
+                    item.creator.toLowerCase() === account.address.toLowerCase() ? (
+                      <button
+                        className={styles.secondaryButton}
+                        onClick={() => handleCancelCovenant(item.id)}
+                        disabled={isBusy}
+                      >
+                        {actionLabel(`cancel-${item.id}`, "Cancel (refund)")}
+                      </button>
+                    ) : null}
+                    {item.status === 0 &&
+                    account.address &&
                     item.worker.toLowerCase() === account.address.toLowerCase() ? (
                       <button
                         className={styles.ghostButton}
@@ -1314,39 +1382,51 @@ export default function Home() {
                     account.address &&
                     item.worker.toLowerCase() === account.address.toLowerCase() ? (
                       <div className={styles.issueActions}>
-                        <input
-                          className={styles.issueInput}
-                          value={issueClaims[item.id] ?? ""}
-                          onChange={(event) =>
-                            setIssueClaims((prev) => ({
-                              ...prev,
-                              [item.id]: event.target.value,
-                            }))
-                          }
-                          placeholder="0"
-                        />
-                        <input
-                          className={styles.issueInput}
-                          value={issueReasons[item.id] ?? ""}
-                          onChange={(event) =>
-                            setIssueReasons((prev) => ({
-                              ...prev,
-                              [item.id]: event.target.value,
-                            }))
-                          }
-                          placeholder="Reason"
-                        />
-                        <input
-                          className={`${styles.issueInput} ${styles.issueInputWide}`}
-                          value={issueEvidenceUris[item.id] ?? ""}
-                          onChange={(event) =>
-                            setIssueEvidenceUris((prev) => ({
-                              ...prev,
-                              [item.id]: event.target.value,
-                            }))
-                          }
-                          placeholder="Evidence URL"
-                        />
+                        <label className={styles.issueField}>
+                          <span className={styles.issueLabel}>Claim %</span>
+                          <input
+                            className={styles.issueInput}
+                            value={issueClaims[item.id] ?? ""}
+                            onChange={(event) =>
+                              setIssueClaims((prev) => ({
+                                ...prev,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="0"
+                          />
+                          <span className={styles.issueHelp}>
+                            % of reward to keep if there is a problem.
+                          </span>
+                        </label>
+                        <label className={styles.issueField}>
+                          <span className={styles.issueLabel}>Reason</span>
+                          <textarea
+                            className={styles.issueTextarea}
+                            value={issueReasons[item.id] ?? ""}
+                            onChange={(event) =>
+                              setIssueReasons((prev) => ({
+                                ...prev,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Describe what went wrong"
+                          />
+                        </label>
+                        <label className={styles.issueField}>
+                          <span className={styles.issueLabel}>Evidence URL</span>
+                          <input
+                            className={`${styles.issueInput} ${styles.issueInputWide}`}
+                            value={issueEvidenceUris[item.id] ?? ""}
+                            onChange={(event) =>
+                              setIssueEvidenceUris((prev) => ({
+                                ...prev,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="https://..."
+                          />
+                        </label>
                         <button
                           className={styles.secondaryButton}
                           onClick={() => handleReportIssue(item.id)}
@@ -1383,28 +1463,34 @@ export default function Home() {
                     account.address &&
                     item.creator.toLowerCase() === account.address.toLowerCase() ? (
                       <>
-                        <input
-                          className={styles.issueInput}
-                          value={disputeReasons[item.id] ?? ""}
-                          onChange={(event) =>
-                            setDisputeReasons((prev) => ({
-                              ...prev,
-                              [item.id]: event.target.value,
-                            }))
-                          }
-                          placeholder="Reason"
-                        />
-                        <input
-                          className={`${styles.issueInput} ${styles.issueInputWide}`}
-                          value={disputeEvidenceUris[item.id] ?? ""}
-                          onChange={(event) =>
-                            setDisputeEvidenceUris((prev) => ({
-                              ...prev,
-                              [item.id]: event.target.value,
-                            }))
-                          }
-                          placeholder="Evidence URL"
-                        />
+                        <label className={styles.issueField}>
+                          <span className={styles.issueLabel}>Reason</span>
+                          <textarea
+                            className={styles.issueTextarea}
+                            value={disputeReasons[item.id] ?? ""}
+                            onChange={(event) =>
+                              setDisputeReasons((prev) => ({
+                                ...prev,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Explain why you dispute the claim"
+                          />
+                        </label>
+                        <label className={styles.issueField}>
+                          <span className={styles.issueLabel}>Evidence URL</span>
+                          <input
+                            className={`${styles.issueInput} ${styles.issueInputWide}`}
+                            value={disputeEvidenceUris[item.id] ?? ""}
+                            onChange={(event) =>
+                              setDisputeEvidenceUris((prev) => ({
+                                ...prev,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="https://..."
+                          />
+                        </label>
                         {item.status === 5 ? (
                           <button
                             className={styles.primaryButton}
@@ -1431,39 +1517,51 @@ export default function Home() {
                     disputeResolver &&
                     (disputeResolver as string).toLowerCase() === account.address.toLowerCase() ? (
                       <div className={styles.resolveActions}>
-                        <input
-                          className={styles.issueInput}
-                          value={resolveClaims[item.id] ?? ""}
-                          onChange={(event) =>
-                            setResolveClaims((prev) => ({
-                              ...prev,
-                              [item.id]: event.target.value,
-                            }))
-                          }
-                          placeholder="Payout %"
-                        />
-                        <input
-                          className={styles.issueInput}
-                          value={resolveIntegrity[item.id] ?? ""}
-                          onChange={(event) =>
-                            setResolveIntegrity((prev) => ({
-                              ...prev,
-                              [item.id]: event.target.value,
-                            }))
-                          }
-                          placeholder="Integrity"
-                        />
-                        <input
-                          className={styles.issueInput}
-                          value={resolveSlashing[item.id] ?? ""}
-                          onChange={(event) =>
-                            setResolveSlashing((prev) => ({
-                              ...prev,
-                              [item.id]: event.target.value,
-                            }))
-                          }
-                          placeholder="Slash B"
-                        />
+                        <label className={styles.issueField}>
+                          <span className={styles.issueLabel}>Payout %</span>
+                          <input
+                            className={styles.issueInput}
+                            value={resolveClaims[item.id] ?? ""}
+                            onChange={(event) =>
+                              setResolveClaims((prev) => ({
+                                ...prev,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="50"
+                          />
+                          <span className={styles.issueHelp}>
+                            % of reward paid to worker.
+                          </span>
+                        </label>
+                        <label className={styles.issueField}>
+                          <span className={styles.issueLabel}>Integrity</span>
+                          <input
+                            className={styles.issueInput}
+                            value={resolveIntegrity[item.id] ?? ""}
+                            onChange={(event) =>
+                              setResolveIntegrity((prev) => ({
+                                ...prev,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="10"
+                          />
+                        </label>
+                        <label className={styles.issueField}>
+                          <span className={styles.issueLabel}>Slash B</span>
+                          <input
+                            className={styles.issueInput}
+                            value={resolveSlashing[item.id] ?? ""}
+                            onChange={(event) =>
+                              setResolveSlashing((prev) => ({
+                                ...prev,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="0"
+                          />
+                        </label>
                         <button
                           className={styles.primaryButton}
                           onClick={() => handleResolveDispute(item.id)}
