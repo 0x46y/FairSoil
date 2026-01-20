@@ -139,6 +139,36 @@ To create a digital economic foundation where:
 - **Regeneration incentives:** If maintenance/improvement is proven, reduce taxes or grant Token B rewards.
 - **Effect:** Suppresses commons tragedies and "extract-first" behavior while ensuring sustainability.
 
+#### 18. Reciprocal Reinvestment Buffer (Reciprocal Reinvestment Buffer)
+- **Spec:** Social Reinvestment contributions are recorded as a persistent "rescue credit."
+- **Rescue conditions:** When public criteria apply (healthcare, disasters, caregiving, re-entry), prioritize UBI top-ups or emergency support in proportion to rescue credit.
+- **Effect:** Reframes reinvestment from "confiscation" into a future backup buffer, strengthening recovery.
+
+#### 19. Circulation-based Stability (Circulation-based Stability)
+- **Spec:** Use circulating supply (unlocked velocity) as the primary stability indicator, not total Token B supply.
+- **Separation:** Token B locked in covenants, long-term staking, or durability royalties is excluded from circulation.
+- **Effect:** Allows total supply to grow with accumulated infrastructure and know-how while maintaining value stability.
+
+#### 20. Guided Price Corridor (Guided Price Corridor)
+- **Spec:** Prices remain free to negotiate, but the system presents a reference price range based on similar past rules and current monetary conditions.
+- **Non-binding:** The reference range is informational only; no penalties for deviation.
+- **Effect:** Avoids price controls while reducing extreme overpricing or exploitative underpricing.
+
+#### 21. Rest & Disposable Buffer (Rest & Disposable Buffer)
+- **Spec:** Contract reward design must include costs for rest, paid leave, and recovery, ensuring disposable buffer as a system assumption.
+- **Purpose:** Treat rest as a legitimate cost of human maintenance, not laziness.
+- **Effect:** Secures recovery slack without requiring "spend-to-convert" mechanics.
+
+#### 22. Nutrient Return & Inheritance (Nutrient Return & Inheritance)
+- **Spec:** Assets marked dormant after long inactivity are gradually returned to the Soil Treasury.
+- **Inheritance rules:** Pre-designated heirs, notifications, grace windows, and reactivation conditions are defined to reduce confiscation perception.
+- **Effect:** Prevents dead storage from clogging circulation while preserving intergenerational continuity.
+
+#### 23. Distributed Market Witness (Distributed Market Witness)
+- **Spec:** Reward participants who report price/market data used for reference corridors once accuracy is verified.
+- **Anti-abuse:** Require multi-source agreement, falsifiability, and mild penalties for bad data.
+- **Effect:** Sustains reliable price signals without centralized control.
+
 ### Intellectual Property and Contribution
 #### 1. First Penguin Protocol (Procedural IP)
 - **Spec:** When someone publishes a new procedure (rule template), its evaluation hash rises as it is used successfully for "proper work."
@@ -211,6 +241,18 @@ To create a digital economic foundation where:
 - **Migration method:** Publish procedures and enforce timelock and exit rights (Spec 4).
 - **Effect:** Balances fixability and transparency for long-term operation.
 
+#### 5. Merit as Rights, not Balances (Merit as Rights, not Balances)
+- **Spec:** Even if Token B balances decrease, rights/benefits earned from honest contributions (soft perks such as priority access, discounts, listing order, review priority) are retained.
+- **Rights cap:** Benefits are limited to mild priority and must not create exclusive control over decision-making or access.
+- **Concentration guard:** Audit and cap excessive accumulation by a single entity; use expiry/decay or time bounds to prevent dominance.
+- **Effect:** Preserves reward as trust history rather than raw balance, reducing "spend anxiety."
+
+#### 6. Recency-weighted Authority (Recency-weighted Authority)
+- **Spec:** Voting/judging power weights recent activity heavily; legacy score is honor/history with light influence.
+- **Activity decay:** Inactivity automatically reduces authority; participation restores it.
+- **Authority cap:** Apply upper bounds and cooldowns to avoid outsized influence by any single actor.
+- **Effect:** Prevents fixed elites and keeps decisions aligned with current capacity and context.
+
 ### Operations and Safety
 #### 1. "Sunlight (ZKP)" for Privacy and Deterrence
 - **Technical approach:** Use zero-knowledge proofs to record only mathematical evidence that agreed steps A, B, C were followed, without revealing task details.
@@ -233,33 +275,38 @@ To create a digital economic foundation where:
 - **Settlement rules:** Settle outstanding advances, staking, and royalties before allowing transfer of remaining assets.
 - **Effect:** Avoids lock-in and supports transparent, healthy participation.
 
-#### 5. Data Minimization and Long-term Privacy (Data Minimization)
+#### 5. Future-facing Transparency (Future-facing Transparency)
+- **Spec:** Show forward-looking ranges for return rates, rescue buffers, and expected balances where feasible via dashboards.
+- **Non-binding:** Treat projections as estimates with explicit assumptions and drivers.
+- **Effect:** Reduces anxiety from "future worsening" and helps planning.
+
+#### 6. Data Minimization and Long-term Privacy (Data Minimization)
 - **Spec:** Store minimal permanent data and substitute ZKP proofs wherever possible.
 - **Retention policy:** Limit retention for personal data and define deletion/expiration procedures.
 - **Effect:** Reduces long-term privacy risks.
 
-#### 6. Treasury Security (Treasury Security)
+#### 7. Treasury Security (Treasury Security)
 - **Spec:** Require multisig and timelocks for Soil Treasury authority; prohibit single-key control.
 - **Ops rules:** Log critical permission changes; require hardware keys and distributed custody.
 - **Effect:** Prevents single points of failure and internal abuse.
 
-#### 7. Oracle Fail-safe (Oracle Fail-safe)
+#### 8. Oracle Fail-safe (Oracle Fail-safe)
 - **Spec:** If CPI/TWAP oracles stop or show anomalies, freeze distribution/minting and auto-switch to last-known or conservative values.
 - **Recovery:** Resume only when multiple sources agree and audit logs stabilize.
 - **Effect:** Prevents supply runaway from oracle failure.
 
-#### 8. Data Pruning and State Compression (Data Pruning & State Compression)
+#### 9. Data Pruning and State Compression (Data Pruning & State Compression)
 - **Post-prune verifiability:** Discard raw data after a fixed period, but keep hash chains and summarized ZK proofs so procedural correctness remains verifiable.
 - **Data lifecycle:** Keep raw logs short-term (e.g., 90 days), then retain only proof artifacts.
 - **Archival role:** Regular users prune for light clients; rewarded indexer nodes (record keepers) retain long-term archives and provide retrieval on demand.
 - **Effect:** Prevents unbounded storage growth while keeping devices within a few GB.
 
-#### 9. Non-Interest Financial Loop (Non-Interest Financial Loop)
+#### 10. Non-Interest Financial Loop (Non-Interest Financial Loop)
 - **Risk sharing:** Funding projects trades upside distributions for shared slashing risk on failure or fraud.
 - **Layered incentives:** Rewards include monetary upside, integrity score boosts (governance influence), and priority access to supported services.
 - **Effect:** Eliminates passive interest while encouraging active, reviewed investment behavior.
 
-#### 10. Data Persistence and Freezing (Data Persistence & Freezing)
+#### 11. Data Persistence and Freezing (Data Persistence & Freezing)
 - **Freeze flag:** Data tied to disputes, serious incidents, or historical value is exempted from automatic pruning.
 - **Storage target:** Frozen raw data moves to decentralized long-term storage; hashes remain on-chain permanently.
 - **Request and forced freeze:** Users can request preservation with staking; the DAO can force-freeze when concealment or severity is suspected.
