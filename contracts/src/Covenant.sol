@@ -134,6 +134,7 @@ contract Covenant is Ownable {
         bool payInTokenA
     ) external returns (uint256 covenantId) {
         require(worker != address(0), "Worker required");
+        require(msg.sender != worker, "Self-dealing not allowed");
         require(tokenBReward > 0, "Reward required");
         require(tokenA.isPrimaryAddress(worker), "Worker not verified");
 
