@@ -268,6 +268,14 @@ To create a digital economic foundation where:
 - **Authority cap:** Apply upper bounds and cooldowns to avoid outsized influence by any single actor.
 - **Effect:** Prevents fixed elites and keeps decisions aligned with current capacity and context.
 
+#### 7. Delegated Claim Guardrails (Delegated Claim Guardrails)
+- **Spec:** Delegated claim profiles for Token A must prioritize user rights and safety.
+- **Validity:** Delegation has a maximum duration (e.g., 90 days) and expires automatically.
+- **Revocation:** Users can revoke or change delegation immediately; veto power always remains with the user.
+- **Auditability:** Delegated changes are recorded in audit logs and are third-party verifiable.
+- **Scope:** Delegation is limited to claim frequency/caps; destination changes and asset transfers are disallowed.
+- **Re-consent:** Granting or renewing delegation requires explicit user consent and re-confirmation.
+
 ### Operations and Safety
 #### 1. "Sunlight (ZKP)" for Privacy and Deterrence
 - **Technical approach:** Use zero-knowledge proofs to record only mathematical evidence that agreed steps A, B, C were followed, without revealing task details.
