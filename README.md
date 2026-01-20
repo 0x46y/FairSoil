@@ -24,6 +24,10 @@ To create a digital economic foundation where:
 - **Token A (Flow):** A "decaying" currency for daily transactions.
   - Distributed daily to all verified humans.
   - Automatically loses value/amount over time (e.g., 30-day half-life) to encourage circulation.
+  - **Claim model:** Accrues daily into an unclaimed balance; users can claim in daily/weekly/monthly batches.
+  - **Unclaimed decay:** No decay for the first 30 days; normal decay applies from day 31 to discourage long-term hoarding.
+  - **Self-limits:** Users can set withdrawal frequency and caps.
+  - **Delegated profile:** Allowed only with time limits, user revocation rights, and audit logs.
 - **Token B (Asset):** A permanent value store.
   - Earned through high-integrity actions and socially essential contributions.
   - Cannot be obtained through simple hoarding of Token A.
