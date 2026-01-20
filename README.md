@@ -28,6 +28,11 @@ To create a digital economic foundation where:
   - **Unclaimed decay:** No decay for the first 30 days; normal decay applies from day 31 to discourage long-term hoarding.
   - **Self-limits:** Users can set withdrawal frequency and caps.
   - **Delegated profile:** Allowed only with time limits, user revocation rights, and audit logs.
+    - **Guardrails:** Maximum validity window (e.g., 90 days) with automatic expiry.
+    - **Guardrails:** The user can revoke or change delegation immediately; veto power always remains with the user.
+    - **Guardrails:** Delegated changes are recorded in audit logs and are third-party verifiable.
+    - **Guardrails:** Delegation is limited to claim frequency/caps; destination changes and asset transfers are disallowed.
+    - **Guardrails:** Granting or renewing delegation requires explicit user consent and re-confirmation.
 - **Token B (Asset):** A permanent value store.
   - Earned through high-integrity actions and socially essential contributions.
   - Cannot be obtained through simple hoarding of Token A.
@@ -58,6 +63,7 @@ To create a digital economic foundation where:
 
 #### 3. Unconditional UBI as "Slack"
 - **Spec:** Token A distribution is not tied to integrity score or labor performance.
+- **Claim model:** Daily accrual builds an unclaimed balance; users can claim in daily/weekly/monthly batches. Unclaimed balance has no decay for 30 days, then normal decay applies.
 - **Purpose:** Guarantee survival even when people are too tired to be "superhuman."
 - **Effect:** Even if rewards are high, people can say "no" to unwanted work because financial anxiety is removed.
 
