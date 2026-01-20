@@ -92,18 +92,20 @@ To create a digital economic foundation where:
 - **Effect:** Aligns issuance with productivity and maintains trust against external currencies.
 
 #### 11. Progressive Decay and Survival Buffer (Progressive Decay & Survival Buffer)
-- **Spec:** No decay for the basic balance equal to minimum living cost (0%). Dynamic decay applies only to surplus assets.
+- **Spec:** No decay for the basic balance equal to minimum living cost (0%). Dynamic decay applies only to surplus assets. The Survival Buffer is not a fixed number; it follows a CPI-derived minimum living cost from the oracle in section 12.
 - **Uniqueness:** Survival Buffer applies only to a World ID verified primary address; unverified addresses always decay.
+- **Initial parameter example:** Survival Buffer uses a 30-day CPI moving average, updates weekly, and is capped at ±3% per week.
 - **Effect:** Prevents stability costs from falling on everyday people while enabling redistribution and circulation.
 
 #### 12. Purchasing Power Oracle (Purchasing Power Oracle)
-- **Spec:** Track external price indices (e.g., CPI) and auto-adjust Token A distribution.
-- **Supply control:** When distribution increases, decay rate is raised in sync. Upper/lower bounds limit short-term volatility.
+- **Spec:** Track external price indices (e.g., CPI) and auto-adjust Token A distribution and the Survival Buffer baseline. Token B issuance is separated from this control loop.
+- **Supply control:** When distribution increases, decay rate is raised in sync. Upper/lower bounds and smoothing (moving averages) limit short-term volatility.
+- **Initial parameter example:** CPI input uses a 30-day moving average; Token A distribution adjusts by ±5% per week, decay rate by ±2% per week; outliers are excluded beyond 3σ.
 - **Effect:** UBI retains real purchasing power during inflation.
 
 #### 13. Emergency Advance Protocol (Emergency Advance Protocol)
-- **Spec:** During disasters, allow temporary large issuance as an advance on future decay (return). A recovery schedule is fixed at issuance.
-- **Recovery control:** Use dynamic conditions (price/FX stability) rather than fixed deadlines. Accelerate recovery during overheating, slow during headwinds.
+- **Spec:** During disasters, allow temporary issuance as an advance on future Token B rewards. A recovery schedule is fixed at issuance.
+- **Recovery control:** Use dynamic stability conditions rather than fixed deadlines. Accelerate recovery during overheating, slow during headwinds. Token A distribution remains governed by the CPI oracle in section 12.
 - **Cap:** Set issuance limits or ratio caps to prevent abuse.
 - **Effect:** Saves short-term crises while preserving long-term stability (mean reversion).
 
@@ -111,8 +113,8 @@ To create a digital economic foundation where:
 - **Spec:** Users with 30-day average asset balance below a threshold and integrity score above a threshold receive increased next-day distribution. Average balance uses Token A + Token B (Token B at market value). Token B is valued by a 30-day TWAP from decentralized oracles (e.g., Chainlink).
 - **Smoothing:** Use moving averages to prevent flash-poverty attacks.
 - **Opaque loss definition:** Exclude users who show concentrated, unexplained large transfers/burns outside contracts or verified payments.
-- **Legitimate emergency spending:** Spending tied to special contract types (healthcare/welfare, education/research, infrastructure/survival, disaster/emergency, public goods) does not count as waste.
-- **Examples:** Healthcare/welfare (treatment, medicine, care), education/research (tuition, books, pioneer royalties), infrastructure/survival (rent, utilities, telecom), disaster/emergency (recovery, incident response), public goods (community maintenance, environmental protection).
+- **Publicness determination:** Legitimate spending is unified under publicness scoring for rule templates, combining governance votes with on-chain metrics (usage, challenge rate, decentralization). Start with a minimal metric set and publish results in audit logs.
+- **Minimal metric set example:** 30-day unique users, completion rate, dispute rate, rejection rate, top-5 concentration (HHI).
 - **Appeal:** Appeals use ZKP evidence and DAO review to protect privacy.
 - **Effect:** Avoids subsidizing waste while supporting honest people in hardship; replaces negative income tax/refunds with real-time, zero-admin processing.
 
@@ -126,7 +128,8 @@ To create a digital economic foundation where:
 - **Spec:** Verified participants can receive interest-free advances from the Soil Treasury up to contracted task rewards. Limits scale with integrity score.
 - **Tier example:** Initial 10% -> mid 30% -> high 50% -> top 80%.
 - **Cap design:** Use a diminishing upper bound to prevent credit inflation.
-- **Anti-absconding:** If tasks are not fulfilled, unpaid balances are deducted from future UBI (Token A). The Survival Buffer is exempt.
+- **Anti-absconding:** If tasks are not fulfilled, unpaid balances are deducted from future UBI (Token A). The Survival Buffer is exempt, and the deduction rate is dynamically adjusted by unpaid balance, integrity score, and macro indicators, with upper/lower bounds and smoothing.
+- **Initial parameter example:** Deduction rate min 5% / max 30% of daily UBI, weekly adjustment, ±5% per week. Unpaid balance cap starts at 120% of contracted reward.
 - **Restart limits:** New advances are locked until repayment; World ID prevents evasion.
 - **Effect:** Provides baseline credit for newcomers while expanding opportunity based on track record.
 
@@ -140,9 +143,10 @@ To create a digital economic foundation where:
 - **Effect:** Suppresses commons tragedies and "extract-first" behavior while ensuring sustainability.
 
 #### 18. Reciprocal Reinvestment Buffer (Reciprocal Reinvestment Buffer)
-- **Spec:** Social Reinvestment contributions are recorded as a persistent "rescue credit."
+- **Spec:** Social Reinvestment contributions are recorded as a persistent "rescue credit." Return rates are graded (discounts) by asset state (active use, staked in rules, long-idle) rather than blanket exemptions.
 - **Rescue conditions:** When public criteria apply (healthcare, disasters, caregiving, re-entry), prioritize UBI top-ups or emergency support in proportion to rescue credit.
-- **Effect:** Reframes reinvestment from "confiscation" into a future backup buffer, strengthening recovery.
+- **Initial parameter example:** Active use 70% discount, staked 50% discount, long-idle 0% discount. Monthly updates, ±10% per month.
+- **Effect:** Reframes reinvestment from "confiscation" into a future backup buffer, strengthening recovery. Use bounds and smoothing to avoid liquidity droughts.
 
 #### 19. Circulation-based Stability (Circulation-based Stability)
 - **Spec:** Use circulating supply (unlocked velocity) as the primary stability indicator, not total Token B supply.
@@ -160,7 +164,8 @@ To create a digital economic foundation where:
 - **Effect:** Secures recovery slack without requiring "spend-to-convert" mechanics.
 
 #### 22. Nutrient Return & Inheritance (Nutrient Return & Inheritance)
-- **Spec:** Assets marked dormant after long inactivity are gradually returned to the Soil Treasury.
+- **Spec:** Assets marked dormant after long inactivity are gradually returned to the Soil Treasury. Active or rule-locked assets receive discounted return rates; idle assets use the standard rate.
+- **Initial parameter example:** Dormancy is 365 days of inactivity; return starts at 0.5% per month and steps up to a 2.0%/month cap.
 - **Inheritance rules:** Pre-designated heirs, notifications, grace windows, and reactivation conditions are defined to reduce confiscation perception.
 - **Effect:** Prevents dead storage from clogging circulation while preserving intergenerational continuity.
 
