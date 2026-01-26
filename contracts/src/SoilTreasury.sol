@@ -20,6 +20,12 @@ interface IAPPIOracle {
 
 // Soil Treasury: manages UBI distribution for Token A.
 contract SoilTreasury is Ownable {
+    enum CircuitState {
+        Normal,
+        Limited,
+        Halted
+    }
+
     IFairSoilTokenA public immutable tokenA;
     IFairSoilTokenB public immutable tokenB;
     uint256 public dailyUBIAmount = 100 * 1e18;
@@ -27,6 +33,7 @@ contract SoilTreasury is Ownable {
     uint256 public lastAPPI;
     uint256 public maxUbiIncreaseBps = 500; // 5% per update
     uint256 public maxUbiDecreaseBps = 200; // 2% per update
+    CircuitState public circuitState = CircuitState.Normal;
 
     mapping(address => uint256) public lastClaimTimestamp;
     mapping(address => uint256) public integrityScore;
@@ -63,6 +70,7 @@ contract SoilTreasury is Ownable {
     event APPIOracleSet(address indexed oracle);
     event APPIApplied(uint256 indexed day, uint256 appiValue, uint256 newDailyUBI);
     event APPIChangeLimitsSet(uint256 maxIncreaseBps, uint256 maxDecreaseBps);
+    event CircuitStateSet(CircuitState state);
 
     constructor(address tokenAAddress, address tokenBAddress) Ownable(msg.sender) {
         tokenA = IFairSoilTokenA(tokenAAddress);
@@ -70,6 +78,7 @@ contract SoilTreasury is Ownable {
     }
 
     function setDailyUBIAmount(uint256 newAmount) external onlyOwner {
+        require(circuitState == CircuitState.Normal, "Circuit limited");
         dailyUBIAmount = newAmount;
     }
 
@@ -109,6 +118,7 @@ contract SoilTreasury is Ownable {
     }
 
     function applyAPPI(uint256 day) external onlyOwner {
+        require(circuitState == CircuitState.Normal, "Circuit limited");
         require(address(appiOracle) != address(0), "APPI oracle not set");
         uint256 value = appiOracle.dailyIndex(day);
         require(value > 0, "APPI unavailable");
@@ -127,6 +137,11 @@ contract SoilTreasury is Ownable {
             }
         }
         emit APPIApplied(day, value, dailyUBIAmount);
+    }
+
+    function setCircuitState(CircuitState newState) external onlyOwner {
+        circuitState = newState;
+        emit CircuitStateSet(newState);
     }
 
     function setDeficitCapA(uint256 newCapA) external onlyOwner {
@@ -213,6 +228,7 @@ contract SoilTreasury is Ownable {
     }
 
     function emergencyMintA(address to, uint256 amount) external onlyOwner {
+        require(circuitState != CircuitState.Halted, "Circuit halted");
         require(amount > 0, "Amount required");
         require(deficitAOutstanding + amount <= deficitCapA, "Deficit cap");
         deficitAOutstanding += amount;
@@ -221,6 +237,7 @@ contract SoilTreasury is Ownable {
     }
 
     function emergencyAdvanceB(address to, uint256 amount) external onlyOwner {
+        require(circuitState != CircuitState.Halted, "Circuit halted");
         require(amount > 0, "Amount required");
         require(advanceBOutstanding + amount <= advanceCapB, "Advance cap");
         advanceBOutstanding += amount;
@@ -233,6 +250,7 @@ contract SoilTreasury is Ownable {
         uint256 tokenBReward,
         uint256 integrityPoints
     ) external onlyOwner {
+        require(circuitState == CircuitState.Normal, "Circuit limited");
         require(tokenA.isPrimaryAddress(worker), "Worker not verified");
         if (tokenBReward > 0) {
             tokenB.mint(worker, tokenBReward);
