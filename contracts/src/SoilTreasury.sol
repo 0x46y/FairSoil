@@ -25,6 +25,8 @@ contract SoilTreasury is Ownable {
     uint256 public dailyUBIAmount = 100 * 1e18;
     IAPPIOracle public appiOracle;
     uint256 public lastAPPI;
+    uint256 public maxUbiIncreaseBps = 500; // 5% per update
+    uint256 public maxUbiDecreaseBps = 200; // 2% per update
 
     mapping(address => uint256) public lastClaimTimestamp;
     mapping(address => uint256) public integrityScore;
@@ -56,6 +58,7 @@ contract SoilTreasury is Ownable {
     event DecayApplied(address indexed user, uint256 amountA);
     event APPIOracleSet(address indexed oracle);
     event APPIApplied(uint256 indexed day, uint256 appiValue, uint256 newDailyUBI);
+    event APPIChangeLimitsSet(uint256 maxIncreaseBps, uint256 maxDecreaseBps);
 
     constructor(address tokenAAddress, address tokenBAddress) Ownable(msg.sender) {
         tokenA = IFairSoilTokenA(tokenAAddress);
@@ -93,12 +96,32 @@ contract SoilTreasury is Ownable {
         emit APPIOracleSet(newOracle);
     }
 
+    function setAPPIChangeLimits(uint256 newMaxIncreaseBps, uint256 newMaxDecreaseBps) external onlyOwner {
+        require(newMaxIncreaseBps <= 10_000, "Invalid increase");
+        require(newMaxDecreaseBps <= 10_000, "Invalid decrease");
+        maxUbiIncreaseBps = newMaxIncreaseBps;
+        maxUbiDecreaseBps = newMaxDecreaseBps;
+        emit APPIChangeLimitsSet(newMaxIncreaseBps, newMaxDecreaseBps);
+    }
+
     function applyAPPI(uint256 day) external onlyOwner {
         require(address(appiOracle) != address(0), "APPI oracle not set");
         uint256 value = appiOracle.dailyIndex(day);
         require(value > 0, "APPI unavailable");
         lastAPPI = value;
-        dailyUBIAmount = value;
+        if (dailyUBIAmount == 0) {
+            dailyUBIAmount = value;
+        } else {
+            uint256 maxUp = dailyUBIAmount + (dailyUBIAmount * maxUbiIncreaseBps) / 10_000;
+            uint256 maxDown = dailyUBIAmount - (dailyUBIAmount * maxUbiDecreaseBps) / 10_000;
+            if (value > maxUp) {
+                dailyUBIAmount = maxUp;
+            } else if (value < maxDown) {
+                dailyUBIAmount = maxDown;
+            } else {
+                dailyUBIAmount = value;
+            }
+        }
         emit APPIApplied(day, value, dailyUBIAmount);
     }
 
