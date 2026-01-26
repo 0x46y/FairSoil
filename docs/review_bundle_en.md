@@ -75,6 +75,11 @@ Full detail currently lives in `docs/spec_ja.md`.
 - Circuit breaker guards issuance in abnormal conditions.
 - APPI oracle hooks for internal purchasing power updates (Phase1 scope).
 
+### Circuit Breaker (Minimal, Implementation-aligned)
+- **Normal:** UBI accrue/claim, APPI apply, crystallization, rewards operate.
+- **Limited:** Stop UBI (claim/accrue/unclaimed) and crystallization; viewing continues.
+- **Halted:** Stop UBI, crystallization, and emergency issuance; viewing only.
+
 ### Covenant (Escrowed Work)
 - Payment modes: Immediate / Escrow / Delayed.
 - Issue -> Dispute -> Resolve (two‑step finalize).

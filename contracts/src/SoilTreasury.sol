@@ -312,6 +312,7 @@ contract SoilTreasury is Ownable {
 
     function claimUBI() external {
         require(tokenA.isPrimaryAddress(msg.sender), "Not World ID verified");
+        require(circuitState == CircuitState.Normal, "Circuit limited");
         uint256 lastClaim = lastClaimTimestamp[msg.sender];
         require(
             lastClaim == 0 || block.timestamp >= lastClaim + 1 days,
@@ -329,6 +330,7 @@ contract SoilTreasury is Ownable {
 
     function accrueUBI() external {
         require(tokenA.isPrimaryAddress(msg.sender), "Not World ID verified");
+        require(circuitState == CircuitState.Normal, "Circuit limited");
         uint256 currentDay = block.timestamp / 1 days;
         uint256 lastDay = lastAccruedDay[msg.sender];
         if (lastDay == 0) {
@@ -349,6 +351,7 @@ contract SoilTreasury is Ownable {
 
     function claimUnclaimed(uint256 fromDay, uint256 toDay) external {
         require(tokenA.isPrimaryAddress(msg.sender), "Not World ID verified");
+        require(circuitState == CircuitState.Normal, "Circuit limited");
         require(fromDay <= toDay, "Invalid range");
         uint256 currentDay = block.timestamp / 1 days;
         require(toDay <= currentDay, "Future day");

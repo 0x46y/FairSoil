@@ -446,6 +446,67 @@ contract FairSoilInvariants is StdInvariant, Test {
         }
     }
 
+    // Appeal covenants: single appeal per original, created only after IssueResolved.
+    function invariant_appealCovenantRules() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            uint256 appealId = covenant.appealCovenantOf(i);
+            if (appealId == 0) {
+                continue;
+            }
+            (
+                address creator,
+                address worker,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                Covenant.Status status,
+                bool settled
+            ) = covenant.covenants(i);
+            assertEq(status, Covenant.Status.IssueResolved);
+
+            (
+                address appealCreator,
+                address appealWorker,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                Covenant.Status appealStatus,
+                bool appealSettled
+            ) = covenant.covenants(appealId);
+
+            assertEq(creator, appealCreator);
+            assertEq(worker, appealWorker);
+            assertTrue(appealId != i);
+            assertEq(covenant.originalCovenantOf(appealId), i);
+
+            // appeal covenant should not be pre-settled on creation
+            if (appealStatus == Covenant.Status.Open) {
+                assertFalse(appealSettled);
+            }
+
+            // no-op read to avoid unused warnings
+            if (settled) {
+                assertTrue(status == Covenant.Status.IssueResolved);
+            }
+        }
+    }
+
     // R7: escrow events should be emitted and releases should never exceed locks.
     function invariant_escrowEventsBalanced() public {
         _syncEscrowEvents();
