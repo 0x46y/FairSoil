@@ -8,6 +8,7 @@ FairSoil is a decentralized Universal Basic Income (UBI) protocol designed to cu
 - Vision details: `docs/vision.md`
 - Phase2+ ideas: `docs/spec_future.md`
 - Review bundle (full consolidated master): `docs/review_bundle_en.md`
+  - Regenerate: `python scripts/build_review_bundle_en.py`
 
 ## MVP Milestone (Phase 1)
 - Date: 2026/01/14

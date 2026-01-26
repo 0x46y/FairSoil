@@ -27,6 +27,15 @@ NEXT_PUBLIC_COVENANT_ADDRESS=0x...
 - Evidence/Chat: plan is off-chain storage (IPFS/Arweave/etc) + on-chain hash/URI references.
 - Dispute UX: consider evidence URIs for both sides, AI summary (off-chain), and multi-step resolve to avoid mistakes.
 
+## Documentation workflow
+- `docs/review_bundle_ja.md` is the primary consolidated master (generated output).
+- `docs/review_bundle_en.md` is the English consolidated bundle (generated output).
+- `README_ja.md` / `README.md` are entry points; keep them concise and link to specs.
+- Japanese and English docs are maintained in parallel.
+- Bundles are generated from source docs:
+  - JA: `python scripts/build_review_bundle.py`
+  - EN: `python scripts/build_review_bundle_en.py`
+
 ## Milestones
 - Covenant end-to-end flow confirmed: Create -> Submit -> Approve from UI updates Token B balance and adds integrity via Treasury.
 - 2026/01/15: 紛争（Dispute）および最終裁定（Resolve）のフルフロー疎通を確認。100%の計算精度で資産とスコアが移動することを実証。
