@@ -21,7 +21,7 @@ SOURCES = [
 HEADER = """# FairSoil Review Bundle (JA)
 
 このファイルは日本語レビュー用の主要文書まとめです。  
-注意: これは結合生成物です。正本は各ドキュメント（README_ja.md / docs/spec_ja.md / docs/vision_ja.md / docs/spec_future_ja.md）を参照してください。
+注意: これは結合生成物です（編集禁止）。修正は各ドキュメント（README_ja.md / docs/spec_ja.md / docs/vision_ja.md / docs/spec_future_ja.md）に行ってください。
 """
 
 

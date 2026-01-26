@@ -1,7 +1,7 @@
 # FairSoil Review Bundle (JA)
 
 このファイルは日本語レビュー用の主要文書まとめです。  
-注意: これは結合生成物です。正本は各ドキュメント（README_ja.md / docs/spec_ja.md / docs/vision_ja.md / docs/spec_future_ja.md）を参照してください。
+注意: これは結合生成物です（編集禁止）。修正は各ドキュメント（README_ja.md / docs/spec_ja.md / docs/vision_ja.md / docs/spec_future_ja.md）に行ってください。
 
 ---
 
@@ -19,18 +19,10 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
 - 外部レビュー用まとめ（全仕様の統合版・マスター）: `docs/review_bundle_ja.md`
   - 再生成: `python scripts/build_review_bundle_ja.py`
 
-## 仕様リンク（章別）
-- コアメカニズム: `docs/spec_ja.md#コアメカニズム`
+## 仕様リンク
+- 詳細仕様（目次）: `docs/spec_ja.md`
 - 会計ルール（0章）: `docs/spec_ja.md#0-会計ルール草案abtreasury`
-- 経済・分配: `docs/spec_ja.md#経済分配`
-- 知財・貢献: `docs/spec_ja.md#知財貢献`
-- 教育・再挑戦: `docs/spec_ja.md#教育再挑戦`
 - ガバナンス・監査: `docs/spec_ja.md#ガバナンス監査`
-- 運用・安全: `docs/spec_ja.md#運用安全`
-- 導入戦略: `docs/spec_ja.md#導入戦略-adoption-path`
-- 技術スタック: `docs/spec_ja.md#技術スタック予定`
-- 最低要件: `docs/spec_ja.md#最低要件予定`
-- 開発環境: `docs/spec_ja.md#開発環境wsl2--foundry`
 
 ## MVPマイルストーン（Phase 1）
 - 達成日: 2026/01/14
@@ -54,36 +46,8 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
 - AI要約は判定ではなく「論点整理」の支援としてオフチェーンで提供する。
 - 裁定（Resolve）は二段階確定・確認ダイアログ・再審請求（1回）などで誤操作を抑止する。
 
-## オンチェーン最小イベント（ユーザー/紛争の最小）
-- `UBIAccrued(user, day, amountA)`
-- `Claimed(user, fromDay, toDay, grossA, decayedA)`
-- `DecayApplied(scope, amountA)`
-- `CovenantCreated(id, templateHash, parties)`
-- `IssueReported(covenantId, issueId, evidenceHash)`
-- `Resolved(covenantId, issueId, stage, payoutA, payoutB, integrityDelta, finalizedAt)`
-
-## 会計監査イベント（R7の最小）
-- `TreasuryIn(from, amount, reason)`
-- `TreasuryOutA(to, amount, reason)`
-- `TreasuryOutB(to, amount, reason)`
-- `LiabilityChanged(deltaA, deltaB, reason)`
-- `ReserveSnapshot(reservesA, reservesB)`
-
-## 未受領UBIの参照実装（正しさ優先）
-- **台帳モデル:** `unclaimed[day] = amountA` の日次バケットを保持する。
-- **請求時処理:** `age = nowDay - day` を基準に減価係数を適用し、合算して請求額を確定する。
-- **減価回避の防止:** 請求の分割ではなく「発生日基準」で減価を適用する（仕様3と整合）。
-- **最適化は後回し:** まず正確性を優先し、必要に応じてチェックポイント方式で圧縮する。
-
-## オンチェーン/オフチェーン境界（最小定義）
-**オンチェーンで確定するもの（最小）**
-- 掟ID、状態遷移（Issue/Dispute/Resolve）、支払額、ロック/アンロック、ペナルティ結果、参照ハッシュ
-
-**オフチェーンだが改ざん検知するもの**
-- evidenceUri、要約、タイムライン説明文、添付（IPFS等）
-
-**完全にオフチェーン**
-- AI要約の生成過程、モデル、プロンプト（必要ならハッシュのみ保持）
+## 詳細仕様の場所
+- イベント一覧、会計監査イベント、未受領UBI参照実装、オン/オフ境界は `docs/spec_ja.md` に集約。
 
 ## ビジョン（概要）
 FairSoil は「誠実さが損にならない」経済基盤を目指す。  

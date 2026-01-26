@@ -10,15 +10,10 @@ The full Japanese version of this README is in `README_ja.md`.
 - Review bundle (full consolidated master): `docs/review_bundle_en.md`
   - Regenerate: `python scripts/build_review_bundle_en.py`
 
-## Spec Links (By Section)
-- Core mechanisms: `docs/spec_en.md#core-mechanisms`
+## Spec Links
+- Detailed spec (TOC): `docs/spec_en.md`
 - Accounting rules (Section 0): `docs/spec_en.md#0-2-ledger-classification`
-- Consistency rules (R1–R7): `docs/spec_en.md#0-3-consistency-rules-r1r7`
-- Treasury income/outflow: `docs/spec_en.md#treasury-income--outflow-reasons`
-- Reserves & liabilities: `docs/spec_en.md#reserves--liabilities`
-- Evidence handling: `docs/spec_en.md#evidence-handling-policy`
 - Audit events: `docs/spec_en.md#audit-events-r7-minimal`
-- Scope: `docs/spec_en.md#scope`
 
 ## MVP Milestone (Phase 1)
 - Date: 2026/01/14
@@ -41,36 +36,8 @@ The full Japanese version of this README is in `README_ja.md`.
 - AI summaries are off-chain, used for issue framing only (not decisions).
 - Resolve uses two-step finalization and one-time appeal to reduce mistakes.
 
-## On-chain minimal events (User/Dispute)
-- `UBIAccrued(user, day, amountA)`
-- `Claimed(user, fromDay, toDay, grossA, decayedA)`
-- `DecayApplied(scope, amountA)`
-- `CovenantCreated(id, templateHash, parties)`
-- `IssueReported(covenantId, issueId, evidenceHash)`
-- `Resolved(covenantId, issueId, stage, payoutA, payoutB, integrityDelta, finalizedAt)`
-
-## Accounting audit events (R7 minimal)
-- `TreasuryIn(from, amount, reason)`
-- `TreasuryOutA(to, amount, reason)`
-- `TreasuryOutB(to, amount, reason)`
-- `LiabilityChanged(deltaA, deltaB, reason)`
-- `ReserveSnapshot(reservesA, reservesB)`
-
-## Unclaimed UBI Reference (Correctness First)
-- **Ledger model:** keep daily buckets `unclaimed[day] = amountA`.
-- **Claim processing:** use `age = nowDay - day` and apply decay per day, then sum.
-- **Anti-evasion:** decay is applied by issue date, not by split-claims (Spec 3).
-- **Optimize later:** use checkpoints or compression only after correctness is proven.
-
-## On-chain / Off-chain Boundary (Minimal)
-**On-chain (minimal)**
-- Covenant IDs, state transitions (Issue/Dispute/Resolve), payouts, lock/unlock, penalties, reference hashes.
-
-**Off-chain but tamper-evident**
-- evidenceUri, summaries, timeline notes, attachments (IPFS etc).
-
-**Off-chain only**
-- AI summary generation process, models, prompts (hashes only if needed).
+## Where the details live
+- Event lists, audit events, unclaimed UBI reference, and on/off-chain boundaries are in `docs/spec_en.md`.
 
 ## Vision (Summary)
 FairSoil aims to build an economy where honesty is rewarded and exploitation is costly.  

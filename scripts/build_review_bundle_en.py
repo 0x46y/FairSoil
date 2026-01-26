@@ -21,7 +21,7 @@ SOURCES = [
 HEADER = """# FairSoil Review Bundle (EN)
 
 This file bundles the core documents for external review.  
-Note: This is a generated bundle. The sources are README.md / docs/spec_en.md / docs/vision_en.md / docs/spec_future_en.md.
+Note: This is a generated bundle (do not edit). Apply changes to README.md / docs/spec_en.md / docs/vision_en.md / docs/spec_future_en.md.
 """
 
 
