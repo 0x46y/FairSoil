@@ -59,6 +59,7 @@ contract FairSoilInvariants is StdInvariant, Test {
     uint256 internal treasuryOutBAmount;
     bool internal unknownTreasuryReason;
     bool internal unknownTreasuryInReason;
+    uint256 internal treasuryInAmount;
 
     function setUp() public {
         FairSoilTokenA implementation = new FairSoilTokenA();
@@ -228,6 +229,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 }
             } else if (topic0 == keccak256("TreasuryIn(address,uint256,bytes32)")) {
                 (, uint256 amount, bytes32 reason) = abi.decode(entries[i].data, (uint256, bytes32));
+                treasuryInAmount += amount;
                 if (amount == 0) {
                     unknownTreasuryInReason = true;
                 }
@@ -364,6 +366,13 @@ contract FairSoilInvariants is StdInvariant, Test {
     function invariant_treasuryInReasonsAllowed() public {
         _syncEscrowEvents();
         assertFalse(unknownTreasuryInReason);
+    }
+
+    function invariant_treasuryTotalsMatchEvents() public {
+        _syncEscrowEvents();
+        assertEq(treasury.treasuryOutATotal(), treasuryOutAAmount);
+        assertEq(treasury.treasuryOutBTotal(), treasuryOutBAmount);
+        assertEq(treasury.treasuryInTotal(), treasuryInAmount);
     }
 
     // Covenant payment mode invariants (Immediate/Escrow/Delayed).

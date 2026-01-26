@@ -52,6 +52,9 @@ contract SoilTreasury is Ownable {
     uint256 public advanceCapB;
     uint256 public deficitAOutstanding;
     uint256 public advanceBOutstanding;
+    uint256 public treasuryInTotal;
+    uint256 public treasuryOutATotal;
+    uint256 public treasuryOutBTotal;
 
     event UBIClaimed(address indexed user, uint256 amount);
     event TaskCompleted(address indexed worker, uint256 tokenBReward, uint256 integrityPoints);
@@ -162,7 +165,18 @@ contract SoilTreasury is Ownable {
 
     function recordTreasuryIn(address from, uint256 amount, bytes32 reason) external onlyOwner {
         require(amount > 0, "Amount required");
+        treasuryInTotal += amount;
         emit TreasuryIn(from, amount, reason);
+    }
+
+    function _recordOutA(address to, uint256 amount, bytes32 reason) internal {
+        treasuryOutATotal += amount;
+        emit TreasuryOutA(to, amount, reason);
+    }
+
+    function _recordOutB(address to, uint256 amount, bytes32 reason) internal {
+        treasuryOutBTotal += amount;
+        emit TreasuryOutB(to, amount, reason);
     }
 
     function setDeficitCapA(uint256 newCapA) external onlyOwner {
@@ -187,7 +201,7 @@ contract SoilTreasury is Ownable {
         lastAccruedDay[msg.sender] = currentDay;
         lastClaimTimestamp[msg.sender] = block.timestamp;
         tokenA.mint(msg.sender, dailyUBIAmount);
-        emit TreasuryOutA(msg.sender, dailyUBIAmount, REASON_UBI);
+        _recordOutA(msg.sender, dailyUBIAmount, REASON_UBI);
         emit UBIClaimed(msg.sender, dailyUBIAmount);
     }
 
@@ -245,7 +259,7 @@ contract SoilTreasury is Ownable {
             emit DecayApplied(msg.sender, gross - decayed);
         }
         tokenA.mint(msg.sender, decayed);
-        emit TreasuryOutA(msg.sender, decayed, REASON_UBI_CLAIM);
+        _recordOutA(msg.sender, decayed, REASON_UBI_CLAIM);
         lastClaimTimestamp[msg.sender] = block.timestamp;
         emit Claimed(msg.sender, fromDay, toDay, gross, decayed);
     }
@@ -256,7 +270,7 @@ contract SoilTreasury is Ownable {
         require(deficitAOutstanding + amount <= deficitCapA, "Deficit cap");
         deficitAOutstanding += amount;
         tokenA.mint(to, amount);
-        emit TreasuryOutA(to, amount, REASON_DEFICIT);
+        _recordOutA(to, amount, REASON_DEFICIT);
         emit DeficitAIssued(to, amount);
     }
 
@@ -266,7 +280,7 @@ contract SoilTreasury is Ownable {
         require(advanceBOutstanding + amount <= advanceCapB, "Advance cap");
         advanceBOutstanding += amount;
         tokenB.mint(to, amount);
-        emit TreasuryOutB(to, amount, REASON_ADVANCE);
+        _recordOutB(to, amount, REASON_ADVANCE);
         emit AdvanceBIssued(to, amount);
     }
 
@@ -279,7 +293,7 @@ contract SoilTreasury is Ownable {
         require(tokenA.isPrimaryAddress(worker), "Worker not verified");
         if (tokenBReward > 0) {
             tokenB.mint(worker, tokenBReward);
-            emit TreasuryOutB(worker, tokenBReward, REASON_TASK);
+            _recordOutB(worker, tokenBReward, REASON_TASK);
         }
         if (integrityPoints > 0) {
             integrityScore[worker] += integrityPoints;
@@ -350,7 +364,7 @@ contract SoilTreasury is Ownable {
         }
         if (minted > 0) {
             tokenB.mint(worker, minted);
-            emit TreasuryOutB(worker, minted, REASON_CRYSTAL);
+            _recordOutB(worker, minted, REASON_CRYSTAL);
         }
         emit CrystallizationMinted(worker, minted, burnedA);
         return minted;
