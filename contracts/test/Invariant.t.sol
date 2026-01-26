@@ -12,6 +12,8 @@ import {SoilTreasury} from "../src/SoilTreasury.sol";
 import {Covenant} from "../src/Covenant.sol";
 import {InvariantCreatorHandler} from "./InvariantCreatorHandler.sol";
 import {InvariantWorkerHandler} from "./InvariantWorkerHandler.sol";
+import {InvariantResolverHandler} from "./InvariantResolverHandler.sol";
+import {InvariantTimeHandler} from "./InvariantTimeHandler.sol";
 
 // Invariant skeleton for Phase 2. Fill the TODOs as contracts stabilize.
 contract FairSoilInvariants is StdInvariant, Test {
@@ -21,6 +23,8 @@ contract FairSoilInvariants is StdInvariant, Test {
     Covenant internal covenant;
     InvariantCreatorHandler internal creatorHandler;
     InvariantWorkerHandler internal workerHandler;
+    InvariantResolverHandler internal resolverHandler;
+    InvariantTimeHandler internal timeHandler;
 
     address internal alice = address(0xA11CE);
 
@@ -65,6 +69,8 @@ contract FairSoilInvariants is StdInvariant, Test {
             address(treasury),
             address(covenant)
         );
+        resolverHandler = new InvariantResolverHandler(address(covenant));
+        timeHandler = new InvariantTimeHandler();
 
         tokenA.setPrimaryAddress(address(creatorHandler), true);
         tokenA.setPrimaryAddress(address(workerHandler), true);
@@ -81,6 +87,8 @@ contract FairSoilInvariants is StdInvariant, Test {
 
         targetContract(address(creatorHandler));
         targetContract(address(workerHandler));
+        targetContract(address(resolverHandler));
+        targetContract(address(timeHandler));
     }
 
     // R2 basic wiring sanity (Treasury pointers are consistent).
