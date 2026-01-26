@@ -81,6 +81,7 @@ contract FairSoilInvariants is StdInvariant, Test {
     uint256 internal lastOutATotal;
     uint256 internal lastOutBTotal;
     uint256 internal lastInTotal;
+    uint256 internal lastUBIOutTotal;
     SoilTreasury.CircuitState internal lastCircuitState;
     uint256 internal treasuryOutADeficit;
     uint256 internal treasuryOutAUBI;
@@ -559,6 +560,17 @@ contract FairSoilInvariants is StdInvariant, Test {
         lastOutATotal = outA;
         lastOutBTotal = outB;
         lastCircuitState = state;
+    }
+
+    // When Limited, UBI-related TreasuryOutA should not increase.
+    function invariant_noUBIOutWhileLimited() public {
+        _syncEscrowEvents();
+        SoilTreasury.CircuitState state = treasury.circuitState();
+        uint256 ubiOut = treasuryOutAUBI + treasuryOutAClaim;
+        if (state == SoilTreasury.CircuitState.Limited && lastCircuitState == SoilTreasury.CircuitState.Limited) {
+            assertEq(ubiOut, lastUBIOutTotal);
+        }
+        lastUBIOutTotal = ubiOut;
     }
 
     function invariant_treasuryTotalsMonotonic() public {
