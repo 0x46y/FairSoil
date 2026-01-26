@@ -10,6 +10,8 @@ import {FairSoilTokenA} from "../src/FairSoilTokenA.sol";
 import {FairSoilTokenB} from "../src/FairSoilTokenB.sol";
 import {SoilTreasury} from "../src/SoilTreasury.sol";
 import {Covenant} from "../src/Covenant.sol";
+import {InvariantCreatorHandler} from "./InvariantCreatorHandler.sol";
+import {InvariantWorkerHandler} from "./InvariantWorkerHandler.sol";
 
 // Invariant skeleton for Phase 2. Fill the TODOs as contracts stabilize.
 contract FairSoilInvariants is StdInvariant, Test {
@@ -17,6 +19,8 @@ contract FairSoilInvariants is StdInvariant, Test {
     FairSoilTokenB internal tokenB;
     SoilTreasury internal treasury;
     Covenant internal covenant;
+    InvariantCreatorHandler internal creatorHandler;
+    InvariantWorkerHandler internal workerHandler;
 
     address internal alice = address(0xA11CE);
 
@@ -50,6 +54,33 @@ contract FairSoilInvariants is StdInvariant, Test {
         covenant.disputeIssue(covenantId, "dispute", "evidence");
         covenant.resolveDispute(covenantId, 5_000, 0, 0);
         covenant.finalizeResolution(covenantId);
+
+        creatorHandler = new InvariantCreatorHandler(
+            address(treasury),
+            address(covenant),
+            address(tokenA),
+            address(tokenB)
+        );
+        workerHandler = new InvariantWorkerHandler(
+            address(treasury),
+            address(covenant)
+        );
+
+        tokenA.setPrimaryAddress(address(creatorHandler), true);
+        tokenA.setPrimaryAddress(address(workerHandler), true);
+
+        treasury.setDeficitCapA(1_000_000e18);
+        treasury.setAdvanceCapB(1_000_000e18);
+        treasury.emergencyMintA(address(creatorHandler), 1_000e18);
+        treasury.reportTaskCompleted(address(creatorHandler), 1_000e18, 0);
+
+        vm.prank(address(creatorHandler));
+        tokenA.approve(address(covenant), 1_000e18);
+        vm.prank(address(creatorHandler));
+        tokenB.approve(address(covenant), 1_000e18);
+
+        targetContract(address(creatorHandler));
+        targetContract(address(workerHandler));
     }
 
     // R2 basic wiring sanity (Treasury pointers are consistent).
@@ -65,6 +96,25 @@ contract FairSoilInvariants is StdInvariant, Test {
         vm.expectRevert("Treasury only");
         tokenB.mint(address(0xBEEF), 1);
         assertEq(tokenB.totalSupply(), supplyBefore);
+    }
+
+    // R1 minimal: payouts must go through explicit mint/burn/transfer paths (access control enforced).
+    function invariant_accountingPathsAreGated() public {
+        vm.prank(address(0xBEEF));
+        vm.expectRevert("Treasury only");
+        tokenA.mint(address(0xBEEF), 1);
+
+        vm.prank(address(0xBEEF));
+        vm.expectRevert("Treasury only");
+        tokenB.mint(address(0xBEEF), 1);
+
+        vm.prank(address(0xBEEF));
+        vm.expectRevert("Treasury only");
+        tokenB.lock(address(0xBEEF), 1);
+
+        vm.prank(address(0xBEEF));
+        vm.expectRevert("Covenant only");
+        tokenA.burnFromCovenant(address(0xBEEF), 1);
     }
 
     // TODO: R5 Locked supply separation once B-locking is implemented.

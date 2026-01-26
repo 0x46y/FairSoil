@@ -10,6 +10,9 @@ contract FairSoilTokenB is ERC20, Ownable {
     mapping(address => uint256) public lockedBalance;
     uint256 public totalLocked;
 
+    event Locked(address indexed account, uint256 amount);
+    event Unlocked(address indexed account, uint256 amount);
+
     constructor(address treasuryAddress) ERC20("FairSoil Asset", "SOILB") Ownable(msg.sender) {
         treasury = treasuryAddress;
     }
@@ -28,6 +31,7 @@ contract FairSoilTokenB is ERC20, Ownable {
         require(amount > 0, "Amount required");
         lockedBalance[account] += amount;
         totalLocked += amount;
+        emit Locked(account, amount);
     }
 
     function unlock(address account, uint256 amount) external {
@@ -37,6 +41,7 @@ contract FairSoilTokenB is ERC20, Ownable {
         require(locked >= amount, "Insufficient locked");
         lockedBalance[account] = locked - amount;
         totalLocked -= amount;
+        emit Unlocked(account, amount);
     }
 
     function _update(address from, address to, uint256 amount) internal override {
