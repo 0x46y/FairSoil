@@ -55,6 +55,7 @@ contract FairSoilInvariants is StdInvariant, Test {
     mapping(uint256 => bool) internal issueReportedEventById;
     mapping(uint256 => bool) internal issueDisputedEventById;
     mapping(uint256 => bool) internal resolutionProposedEventById;
+    mapping(uint256 => bool) internal createdEventById;
     uint256 internal treasuryOutAAmount;
     uint256 internal treasuryOutBAmount;
     bool internal unknownTreasuryReason;
@@ -65,6 +66,16 @@ contract FairSoilInvariants is StdInvariant, Test {
     uint256 internal lastOutATotal;
     uint256 internal lastOutBTotal;
     SoilTreasury.CircuitState internal lastCircuitState;
+    uint256 internal treasuryOutADeficit;
+    uint256 internal treasuryOutAUBI;
+    uint256 internal treasuryOutAUBIClaim;
+    uint256 internal treasuryOutBAdvance;
+    uint256 internal treasuryOutBTask;
+    uint256 internal treasuryOutBCrystal;
+    uint256 internal treasuryInFee;
+    uint256 internal treasuryInTax;
+    uint256 internal treasuryInSlash;
+    uint256 internal treasuryInExternal;
 
     function setUp() public {
         FairSoilTokenA implementation = new FairSoilTokenA();
@@ -155,6 +166,9 @@ contract FairSoilInvariants is StdInvariant, Test {
                 (, uint256 amount) = abi.decode(entries[i].data, (uint8, uint256));
                 escrowLockedAmount += amount;
                 escrowLockedAmountById[covenantId] += amount;
+            } else if (topic0 == keccak256("CovenantCreated(uint256,address,address,uint256,uint256)")) {
+                uint256 covenantId = uint256(entries[i].topics[1]);
+                createdEventById[covenantId] = true;
             } else if (topic0 == keccak256("CovenantApproved(uint256,address)")) {
                 uint256 covenantId = uint256(entries[i].topics[1]);
                 approvedEventById[covenantId] = true;
@@ -229,6 +243,13 @@ contract FairSoilInvariants is StdInvariant, Test {
                 if (!_isAllowedTreasuryOutAReason(reason, to)) {
                     treasuryOutAReasonMismatch = true;
                 }
+                if (reason == SoilTreasury.REASON_DEFICIT) {
+                    treasuryOutADeficit += amount;
+                } else if (reason == SoilTreasury.REASON_UBI) {
+                    treasuryOutAUBI += amount;
+                } else if (reason == SoilTreasury.REASON_UBI_CLAIM) {
+                    treasuryOutAUBIClaim += amount;
+                }
             } else if (topic0 == keccak256("TreasuryOutB(address,uint256,bytes32)")) {
                 (address to, uint256 amount, bytes32 reason) = abi.decode(entries[i].data, (address, uint256, bytes32));
                 treasuryOutBAmount += amount;
@@ -238,6 +259,13 @@ contract FairSoilInvariants is StdInvariant, Test {
                 if (!_isAllowedTreasuryOutBReason(reason, to)) {
                     treasuryOutBReasonMismatch = true;
                 }
+                if (reason == SoilTreasury.REASON_ADVANCE) {
+                    treasuryOutBAdvance += amount;
+                } else if (reason == SoilTreasury.REASON_TASK) {
+                    treasuryOutBTask += amount;
+                } else if (reason == SoilTreasury.REASON_CRYSTAL) {
+                    treasuryOutBCrystal += amount;
+                }
             } else if (topic0 == keccak256("TreasuryIn(address,uint256,bytes32)")) {
                 (, uint256 amount, bytes32 reason) = abi.decode(entries[i].data, (uint256, bytes32));
                 treasuryInAmount += amount;
@@ -246,6 +274,15 @@ contract FairSoilInvariants is StdInvariant, Test {
                 }
                 if (!_isAllowedTreasuryInReason(reason)) {
                     unknownTreasuryInReason = true;
+                }
+                if (reason == SoilTreasury.REASON_FEE) {
+                    treasuryInFee += amount;
+                } else if (reason == SoilTreasury.REASON_TAX) {
+                    treasuryInTax += amount;
+                } else if (reason == SoilTreasury.REASON_SLASH) {
+                    treasuryInSlash += amount;
+                } else if (reason == SoilTreasury.REASON_EXTERNAL) {
+                    treasuryInExternal += amount;
                 }
             }
         }
@@ -412,6 +449,20 @@ contract FairSoilInvariants is StdInvariant, Test {
         assertLe(treasury.deficitAOutstanding(), treasury.treasuryOutATotal());
         // Outstanding advance should never exceed total B out.
         assertLe(treasury.advanceBOutstanding(), treasury.treasuryOutBTotal());
+    }
+
+    function invariant_deficitAdvanceReasonTotals() public {
+        _syncEscrowEvents();
+        assertEq(treasuryOutAAmount, treasuryOutADeficit + treasuryOutAUBI + treasuryOutAUBIClaim);
+        assertEq(treasuryOutBAmount, treasuryOutBAdvance + treasuryOutBTask + treasuryOutBCrystal);
+        assertEq(treasury.deficitAOutstanding(), treasuryOutADeficit);
+        assertEq(treasury.advanceBOutstanding(), treasuryOutBAdvance);
+    }
+
+    function invariant_treasuryInReasonTotals() public {
+        _syncEscrowEvents();
+        assertEq(treasuryInAmount, treasuryInFee + treasuryInTax + treasuryInSlash + treasuryInExternal);
+        assertEq(treasury.treasuryInTotal(), treasuryInAmount);
     }
 
 
@@ -1111,6 +1162,17 @@ contract FairSoilInvariants is StdInvariant, Test {
         }
     }
 
+    function invariant_issueAcceptedRequiresReported() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!issueAcceptedEventById[i]) {
+                continue;
+            }
+            assertTrue(issueReportedEventById[i]);
+        }
+    }
+
     function invariant_approvedNotIssueResolvedConflict() public view {
         uint256 count = covenant.nextId();
         uint256 limit = count > 10 ? 10 : count;
@@ -1120,6 +1182,17 @@ contract FairSoilInvariants is StdInvariant, Test {
             }
             (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
             assertTrue(status == Covenant.Status.Approved || status == Covenant.Status.IssueResolved);
+        }
+    }
+
+    function invariant_approvedRequiresSubmitted() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!approvedEventById[i]) {
+                continue;
+            }
+            assertTrue(submittedEventById[i]);
         }
     }
 
@@ -1159,6 +1232,17 @@ contract FairSoilInvariants is StdInvariant, Test {
         }
     }
 
+    function invariant_submittedRequiresCreated() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!submittedEventById[i]) {
+                continue;
+            }
+            assertTrue(createdEventById[i]);
+        }
+    }
+
     function invariant_issueReportedImpliesIssueReportedStatus() public view {
         uint256 count = covenant.nextId();
         uint256 limit = count > 10 ? 10 : count;
@@ -1189,6 +1273,17 @@ contract FairSoilInvariants is StdInvariant, Test {
                 status == Covenant.Status.ResolutionProposed ||
                 status == Covenant.Status.IssueResolved
             );
+        }
+    }
+
+    function invariant_issueDisputedRequiresReported() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!issueDisputedEventById[i]) {
+                continue;
+            }
+            assertTrue(issueReportedEventById[i]);
         }
     }
 
@@ -1306,29 +1401,29 @@ contract FairSoilInvariants is StdInvariant, Test {
 
     function _isAllowedTreasuryReason(bytes32 reason) internal pure returns (bool) {
         return
-            reason == bytes32("UBI") ||
-            reason == bytes32("UBI_CLAIM") ||
-            reason == bytes32("DEFICIT") ||
-            reason == bytes32("ADVANCE") ||
-            reason == bytes32("TASK") ||
-            reason == bytes32("CRYSTAL");
+            reason == SoilTreasury.REASON_UBI ||
+            reason == SoilTreasury.REASON_UBI_CLAIM ||
+            reason == SoilTreasury.REASON_DEFICIT ||
+            reason == SoilTreasury.REASON_ADVANCE ||
+            reason == SoilTreasury.REASON_TASK ||
+            reason == SoilTreasury.REASON_CRYSTAL;
     }
 
     function _isAllowedTreasuryOutAReason(bytes32 reason, address to) internal view returns (bool) {
-        if (reason == bytes32("UBI") || reason == bytes32("UBI_CLAIM")) {
+        if (reason == SoilTreasury.REASON_UBI || reason == SoilTreasury.REASON_UBI_CLAIM) {
             return to != address(0);
         }
-        if (reason == bytes32("DEFICIT")) {
+        if (reason == SoilTreasury.REASON_DEFICIT) {
             return to != address(0);
         }
         return false;
     }
 
     function _isAllowedTreasuryOutBReason(bytes32 reason, address to) internal view returns (bool) {
-        if (reason == bytes32("ADVANCE")) {
+        if (reason == SoilTreasury.REASON_ADVANCE) {
             return to != address(0);
         }
-        if (reason == bytes32("TASK") || reason == bytes32("CRYSTAL")) {
+        if (reason == SoilTreasury.REASON_TASK || reason == SoilTreasury.REASON_CRYSTAL) {
             return to != address(0);
         }
         return false;
@@ -1336,9 +1431,9 @@ contract FairSoilInvariants is StdInvariant, Test {
 
     function _isAllowedTreasuryInReason(bytes32 reason) internal pure returns (bool) {
         return
-            reason == bytes32("FEE") ||
-            reason == bytes32("TAX") ||
-            reason == bytes32("SLASH") ||
-            reason == bytes32("EXTERNAL");
+            reason == SoilTreasury.REASON_FEE ||
+            reason == SoilTreasury.REASON_TAX ||
+            reason == SoilTreasury.REASON_SLASH ||
+            reason == SoilTreasury.REASON_EXTERNAL;
     }
 }

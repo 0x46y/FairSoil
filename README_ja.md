@@ -124,8 +124,20 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
   - **Taxes_to_Treasury:** 還流税（Treasury が受領した分）  
   - **Slashing_to_Treasury:** スラッシュ（没収が Treasury に帰属する分）  
   - **External_In:** 外部からの寄付・助成・ブリッジ等（任意）
+  - **実装メモ:** 収入の記録は `recordFee/recordTax/recordSlashing/recordExternalIn` のみを用い、汎用 `recordTreasuryIn` は外部公開しない
 - **支出（Treasury_Out_A）:** 公的タスク報酬、UBI補助、Targeted Support、移行期のUBI上乗せ 等
 - **支出（Treasury_Out_B）:** 誠実貢献報酬、撤退・廃棄の完遂ボーナス、資源還流報酬 等
+  - **支出理由（Reason）:**  
+    - A系: `UBI`, `UBI_CLAIM`, `DEFICIT`  
+    - B系: `ADVANCE`, `TASK`, `CRYSTAL`
+  - **収入理由（Reason）:**  
+    - `FEE`, `TAX`, `SLASH`, `EXTERNAL`
+  - **記録API対応:**  
+    - `recordFee` → `FEE`  
+    - `recordTax` → `TAX`  
+    - `recordSlashing` → `SLASH`  
+    - `recordExternalIn` → `EXTERNAL`
+  - **実装メモ:** reason 定数は `SoilTreasury.REASON_*` としてオンチェーン参照可能
 - **発行（Seigniorage）:** ルールに基づく新規発行（例：A の減価に連動する補填ミント 等）  
   - ※Seigniorage は「収入」ではなく「供給操作」として別枠管理する
 - **負債（Liabilities）:** 未来のB報酬（前借り分）、未決の掟報酬、救済クレジット 等

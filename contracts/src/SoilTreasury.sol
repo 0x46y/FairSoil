@@ -79,12 +79,16 @@ contract SoilTreasury is Ownable {
     event APPIChangeLimitsSet(uint256 maxIncreaseBps, uint256 maxDecreaseBps);
     event CircuitStateSet(CircuitState state);
 
-    bytes32 private constant REASON_UBI = "UBI";
-    bytes32 private constant REASON_UBI_CLAIM = "UBI_CLAIM";
-    bytes32 private constant REASON_DEFICIT = "DEFICIT";
-    bytes32 private constant REASON_ADVANCE = "ADVANCE";
-    bytes32 private constant REASON_TASK = "TASK";
-    bytes32 private constant REASON_CRYSTAL = "CRYSTAL";
+    bytes32 public constant REASON_UBI = "UBI";
+    bytes32 public constant REASON_UBI_CLAIM = "UBI_CLAIM";
+    bytes32 public constant REASON_DEFICIT = "DEFICIT";
+    bytes32 public constant REASON_ADVANCE = "ADVANCE";
+    bytes32 public constant REASON_TASK = "TASK";
+    bytes32 public constant REASON_CRYSTAL = "CRYSTAL";
+    bytes32 public constant REASON_FEE = "FEE";
+    bytes32 public constant REASON_TAX = "TAX";
+    bytes32 public constant REASON_SLASH = "SLASH";
+    bytes32 public constant REASON_EXTERNAL = "EXTERNAL";
 
     constructor(address tokenAAddress, address tokenBAddress) Ownable(msg.sender) {
         tokenA = IFairSoilTokenA(tokenAAddress);
@@ -163,20 +167,67 @@ contract SoilTreasury is Ownable {
         emit CircuitStateSet(newState);
     }
 
-    function recordTreasuryIn(address from, uint256 amount, bytes32 reason) external onlyOwner {
+    function recordTreasuryIn(address from, uint256 amount, bytes32 reason) internal {
         require(amount > 0, "Amount required");
+        require(_isAllowedTreasuryInReason(reason), "Invalid reason");
         treasuryInTotal += amount;
         emit TreasuryIn(from, amount, reason);
     }
 
+    function recordFee(address from, uint256 amount) external onlyOwner {
+        recordTreasuryIn(from, amount, REASON_FEE);
+    }
+
+    function recordTax(address from, uint256 amount) external onlyOwner {
+        recordTreasuryIn(from, amount, REASON_TAX);
+    }
+
+    function recordSlashing(address from, uint256 amount) external onlyOwner {
+        recordTreasuryIn(from, amount, REASON_SLASH);
+    }
+
+    function recordExternalIn(address from, uint256 amount) external onlyOwner {
+        recordTreasuryIn(from, amount, REASON_EXTERNAL);
+    }
+
     function _recordOutA(address to, uint256 amount, bytes32 reason) internal {
+        require(_isAllowedTreasuryOutAReason(reason, to), "Invalid A out reason");
         treasuryOutATotal += amount;
         emit TreasuryOutA(to, amount, reason);
     }
 
     function _recordOutB(address to, uint256 amount, bytes32 reason) internal {
+        require(_isAllowedTreasuryOutBReason(reason, to), "Invalid B out reason");
         treasuryOutBTotal += amount;
         emit TreasuryOutB(to, amount, reason);
+    }
+
+    function _isAllowedTreasuryInReason(bytes32 reason) internal pure returns (bool) {
+        return
+            reason == REASON_FEE ||
+            reason == REASON_TAX ||
+            reason == REASON_SLASH ||
+            reason == REASON_EXTERNAL;
+    }
+
+    function _isAllowedTreasuryOutAReason(bytes32 reason, address to) internal pure returns (bool) {
+        if (to == address(0)) {
+            return false;
+        }
+        return
+            reason == REASON_UBI ||
+            reason == REASON_UBI_CLAIM ||
+            reason == REASON_DEFICIT;
+    }
+
+    function _isAllowedTreasuryOutBReason(bytes32 reason, address to) internal pure returns (bool) {
+        if (to == address(0)) {
+            return false;
+        }
+        return
+            reason == REASON_ADVANCE ||
+            reason == REASON_TASK ||
+            reason == REASON_CRYSTAL;
     }
 
     function setDeficitCapA(uint256 newCapA) external onlyOwner {

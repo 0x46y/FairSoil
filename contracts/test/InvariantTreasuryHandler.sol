@@ -73,16 +73,15 @@ contract InvariantTreasuryHandler {
 
     function recordTreasuryIn(uint256 amount, uint8 reasonType) external {
         uint256 normalized = 1 + (amount % 1e18);
-        bytes32 reason;
-        if (reasonType % 4 == 0) {
-            reason = bytes32("FEE");
-        } else if (reasonType % 4 == 1) {
-            reason = bytes32("TAX");
-        } else if (reasonType % 4 == 2) {
-            reason = bytes32("SLASH");
+        uint8 bucket = reasonType % 4;
+        if (bucket == 0) {
+            treasury.recordFee(address(this), normalized);
+        } else if (bucket == 1) {
+            treasury.recordTax(address(this), normalized);
+        } else if (bucket == 2) {
+            treasury.recordSlashing(address(this), normalized);
         } else {
-            reason = bytes32("EXTERNAL");
+            treasury.recordExternalIn(address(this), normalized);
         }
-        treasury.recordTreasuryIn(address(this), normalized, reason);
     }
 }

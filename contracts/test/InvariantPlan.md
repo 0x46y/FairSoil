@@ -98,6 +98,10 @@
   - `SoilTreasury.mintBByCrystallization`
   - `SoilTreasury.penalizeProcessScore`
   - `SoilTreasury.penalizePayScoreWithReason`
+  - `SoilTreasury.recordFee`
+  - `SoilTreasury.recordTax`
+  - `SoilTreasury.recordSlashing`
+  - `SoilTreasury.recordExternalIn`
   - `Covenant.submitWork`
   - `Covenant.approveWork`
   - `Covenant.rejectWork`
@@ -107,6 +111,7 @@
   - `Covenant.finalizeResolution`
 - [ ] R1-2: 列挙した全関数が「許可イベントセット」を必ず発火する（または revert）
   - 許可イベント例: Mint(A/B), Transfer(A/B), Lock/Unlock(A/B), TreasuryOutA/B, TreasuryIn, Burn(A/B)
+- [ ] **reason 参照:** 理由定数は `SoilTreasury.REASON_*` を参照する（文字列直書きは禁止）
 - [ ] R1-3: “分類不能な支払” が起きる呼び出しは revert する
 
 **invariant案**
