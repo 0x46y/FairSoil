@@ -27,6 +27,10 @@ contract SoilTreasury is Ownable {
     uint256 public crystallizationRateBps = 10_000;
     uint256 public crystallizationFeeBps = 2000;
     address public covenant;
+    uint256 public deficitCapA;
+    uint256 public advanceCapB;
+    uint256 public deficitAOutstanding;
+    uint256 public advanceBOutstanding;
 
     event UBIClaimed(address indexed user, uint256 amount);
     event TaskCompleted(address indexed worker, uint256 tokenBReward, uint256 integrityPoints);
@@ -34,6 +38,10 @@ contract SoilTreasury is Ownable {
     event CrystallizationRateSet(uint256 rateBps);
     event CrystallizationFeeSet(uint256 feeBps);
     event CrystallizationMinted(address indexed worker, uint256 tokenBAmount, uint256 burnedA);
+    event DeficitCapASet(uint256 capA);
+    event AdvanceCapBSet(uint256 capB);
+    event DeficitAIssued(address indexed to, uint256 amount);
+    event AdvanceBIssued(address indexed to, uint256 amount);
 
     constructor(address tokenAAddress, address tokenBAddress) Ownable(msg.sender) {
         tokenA = IFairSoilTokenA(tokenAAddress);
@@ -66,6 +74,16 @@ contract SoilTreasury is Ownable {
         emit CovenantSet(newCovenant);
     }
 
+    function setDeficitCapA(uint256 newCapA) external onlyOwner {
+        deficitCapA = newCapA;
+        emit DeficitCapASet(newCapA);
+    }
+
+    function setAdvanceCapB(uint256 newCapB) external onlyOwner {
+        advanceCapB = newCapB;
+        emit AdvanceCapBSet(newCapB);
+    }
+
     function claimUBI() external {
         require(tokenA.isPrimaryAddress(msg.sender), "Not World ID verified");
         uint256 lastClaim = lastClaimTimestamp[msg.sender];
@@ -77,6 +95,22 @@ contract SoilTreasury is Ownable {
         lastClaimTimestamp[msg.sender] = block.timestamp;
         tokenA.mint(msg.sender, dailyUBIAmount);
         emit UBIClaimed(msg.sender, dailyUBIAmount);
+    }
+
+    function emergencyMintA(address to, uint256 amount) external onlyOwner {
+        require(amount > 0, "Amount required");
+        require(deficitAOutstanding + amount <= deficitCapA, "Deficit cap");
+        deficitAOutstanding += amount;
+        tokenA.mint(to, amount);
+        emit DeficitAIssued(to, amount);
+    }
+
+    function emergencyAdvanceB(address to, uint256 amount) external onlyOwner {
+        require(amount > 0, "Amount required");
+        require(advanceBOutstanding + amount <= advanceCapB, "Advance cap");
+        advanceBOutstanding += amount;
+        tokenB.mint(to, amount);
+        emit AdvanceBIssued(to, amount);
     }
 
     function reportTaskCompleted(
