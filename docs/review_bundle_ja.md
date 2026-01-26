@@ -1,6 +1,7 @@
 # FairSoil Review Bundle (JA)
 
-このファイルは日本語レビュー用の主要文書まとめです。
+このファイルは日本語レビュー用の主要文書まとめです。  
+注意: これは結合生成物です。正本は各ドキュメント（README_ja.md / docs/spec_ja.md / docs/vision_ja.md / docs/spec_future.md）を参照してください。
 
 ---
 
@@ -14,7 +15,20 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
 - 詳細仕様: `docs/spec_ja.md`
 - ビジョン詳細: `docs/vision_ja.md`
 - Phase2+ ideas: `docs/spec_future.md`
-- 外部レビュー用まとめ: `docs/review_bundle_ja.md`
+- 外部レビュー用まとめ（全仕様の統合版・マスター）: `docs/review_bundle_ja.md`
+
+## 仕様リンク（章別）
+- コアメカニズム: `docs/spec_ja.md#コアメカニズム`
+- 会計ルール（0章）: `docs/spec_ja.md#0-会計ルール草案abtreasury`
+- 経済・分配: `docs/spec_ja.md#経済分配`
+- 知財・貢献: `docs/spec_ja.md#知財貢献`
+- 教育・再挑戦: `docs/spec_ja.md#教育再挑戦`
+- ガバナンス・監査: `docs/spec_ja.md#ガバナンス監査`
+- 運用・安全: `docs/spec_ja.md#運用安全`
+- 導入戦略: `docs/spec_ja.md#導入戦略-adoption-path`
+- 技術スタック: `docs/spec_ja.md#技術スタック予定`
+- 最低要件: `docs/spec_ja.md#最低要件予定`
+- 開発環境: `docs/spec_ja.md#開発環境wsl2--foundry`
 
 ## MVPマイルストーン（Phase 1）
 - 達成日: 2026/01/14
@@ -72,44 +86,12 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
 ## ビジョン（概要）
 FairSoil は「誠実さが損にならない」経済基盤を目指す。  
 最低限の生存（UBI）を保証し、搾取や外部化にコストを持たせる。  
-詳細は `docs/vision.md` を参照。
+詳細は `docs/vision_ja.md` を参照。
 
 
 ## コアメカニズム（詳細は docs/spec_ja.md）
 - 詳細仕様・数式・運用ルールは `docs/spec_ja.md` に集約。
 - README は初見向けの要約とスコープ明確化に集中。
-
-
----
-
-## Source: docs/vision_ja.md
-
-# FairSoil ビジョン（詳細）
-
-このドキュメントは README_ja.md から分離した「ビジョン詳細」です。  
-実装仕様は `docs/spec_ja.md` を参照してください。
-
-## ビジョン（要約）
-- FairSoil は「誠実さが損にならない」経済基盤を目指す。
-- UBI によって、望ましくない仕事を断っても生存が脅かされない状態を作る。
-- 社会的に必要だが困難/危険なタスクが、公正なインセンティブで報われる土壌を整える。
-
-## 前提と設計姿勢（「仕方ない」と「仕方なくない」の分離）
-- **前提:** 資源や良いポストは有限であり、競争自体はゼロにはならない。
-- **設計姿勢:** 「性格の悪い人が必ず勝つ」という状態は**ルール設計で変えられる**。  
-  外部化・情報非対称・生存の恐怖によって不正が得になる構造を、可視化・コスト化・UBIによる拒否権で反転させる。
-
-## システム vs 法（境界線の引き方）
-- **役割分担:** FairSoil は「正直者が損をしない」「無茶な搾取を記録する」「UBI を配る」というインセンティブの提供に徹する。暴力などの物理的犯罪や土地登記の強制力は現実の法・組織が担う。
-- **オラクルとしての法:** 裁判所などの判断結果を外部データとして取り込み、スコアや評価に反映するハイブリッド型で柔軟性を担保する。
-  - **取り込み条件:** 最終確定のみ反映し、係争中は保留扱いとする。
-  - **検証:** 取り込みフォーマットと署名検証を必須とする。
-- **効果:** すべてをプログラムで固定化するディストピアを避けつつ、現実社会との整合性を保つ。
-
-## 適用範囲と限界
-- **適用範囲:** FairSoil は法治と合意が機能する範囲で最大効果を発揮する。
-- **限界:** 武力・強制が支配する環境では、合意・透明性を前提とする仕組みは本質的に弱い。
-
 
 ---
 
@@ -844,3 +826,74 @@ foundryup
 cd /workspaces/FairSoil/contracts
 forge test
 ```
+
+---
+
+## Source: docs/vision_ja.md
+
+# FairSoil ビジョン（詳細）
+
+このドキュメントは README_ja.md から分離した「ビジョン詳細」です。  
+実装仕様は `docs/spec_ja.md` を参照してください。
+
+関連:
+- English vision: `docs/vision.md`
+- 英語仕様（要約）: `docs/spec_en.md`
+
+## ビジョン（要約）
+- FairSoil は「誠実さが損にならない」経済基盤を目指す。
+- UBI によって、望ましくない仕事を断っても生存が脅かされない状態を作る。
+- 社会的に必要だが困難/危険なタスクが、公正なインセンティブで報われる土壌を整える。
+
+## 前提と設計姿勢（「仕方ない」と「仕方なくない」の分離）
+- **前提:** 資源や良いポストは有限であり、競争自体はゼロにはならない。
+- **設計姿勢:** 「性格の悪い人が必ず勝つ」という状態は**ルール設計で変えられる**。  
+  外部化・情報非対称・生存の恐怖によって不正が得になる構造を、可視化・コスト化・UBIによる拒否権で反転させる。
+
+## システム vs 法（境界線の引き方）
+- **役割分担:** FairSoil は「正直者が損をしない」「無茶な搾取を記録する」「UBI を配る」というインセンティブの提供に徹する。暴力などの物理的犯罪や土地登記の強制力は現実の法・組織が担う。
+- **オラクルとしての法:** 裁判所などの判断結果を外部データとして取り込み、スコアや評価に反映するハイブリッド型で柔軟性を担保する。
+  - **取り込み条件:** 最終確定のみ反映し、係争中は保留扱いとする。
+  - **検証:** 取り込みフォーマットと署名検証を必須とする。
+- **効果:** すべてをプログラムで固定化するディストピアを避けつつ、現実社会との整合性を保つ。
+
+## 適用範囲と限界
+- **適用範囲:** FairSoil は法治と合意が機能する範囲で最大効果を発揮する。
+- **限界:** 武力・強制が支配する環境では、合意・透明性を前提とする仕組みは本質的に弱い。
+
+---
+
+## Source: docs/spec_future.md
+
+# FairSoil Phase2+ Notes
+
+This document captures ideas that are *not* part of the current on-chain scope.
+It exists to avoid mixing implemented behavior with future concepts in README_ja.md.
+
+## Phase2+ Ideas (Outline)
+- APPI confidence weighting (anti-manipulation).
+- Additional governance/incentive modules (QF/RPGF, forecasting, etc.).
+- Extended UX/AI assist features (off-chain only).
+
+## Phase2+ Ideas (Expanded, English)
+### 1) APPI Confidence Weighting
+- Add confidence to APPI contributions (e.g., minimum unique reporters, diversity, recency).
+- Downweight clustered or correlated reports to reduce price manipulation.
+
+### 2) Public Goods Funding Modules
+- Quadratic Funding (QF) for broad participation.
+- Retroactive Public Goods Funding (RPGF) for verified outcomes.
+
+### 3) Forecasting & Early Warning
+- Prediction markets or forecast staking for supply chain risks.
+- Reward early warnings that later prove correct (not trading profits).
+
+### 4) Insurance and Reinsurance Pools
+- Community-level insurance pools for incident risk.
+- Reinsurance layer for catastrophic events.
+
+### 5) Compliance Modules (Optional)
+- Pluggable compliance adapters for regional requirements.
+- Opt-in at community level, not global hard dependency.
+
+---
