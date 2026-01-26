@@ -6,6 +6,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 interface IFairSoilTokenA {
     function mint(address to, uint256 amount) external;
     function isPrimaryAddress(address account) external view returns (bool);
+    function decayRatePerSecond() external view returns (uint256);
 }
 
 interface IFairSoilTokenB {
@@ -21,6 +22,8 @@ contract SoilTreasury is Ownable {
 
     mapping(address => uint256) public lastClaimTimestamp;
     mapping(address => uint256) public integrityScore;
+    mapping(address => uint256) public lastAccruedDay;
+    mapping(address => mapping(uint256 => uint256)) public unclaimed;
 
     uint256 public governanceMinTokenB = 1 * 1e18;
     uint256 public governanceMinIntegrity = 100;
@@ -42,6 +45,9 @@ contract SoilTreasury is Ownable {
     event AdvanceCapBSet(uint256 capB);
     event DeficitAIssued(address indexed to, uint256 amount);
     event AdvanceBIssued(address indexed to, uint256 amount);
+    event UBIAccrued(address indexed user, uint256 day, uint256 amountA);
+    event Claimed(address indexed user, uint256 fromDay, uint256 toDay, uint256 grossA, uint256 decayedA);
+    event DecayApplied(address indexed user, uint256 amountA);
 
     constructor(address tokenAAddress, address tokenBAddress) Ownable(msg.sender) {
         tokenA = IFairSoilTokenA(tokenAAddress);
@@ -92,9 +98,69 @@ contract SoilTreasury is Ownable {
             "Already claimed today"
         );
 
+        uint256 currentDay = block.timestamp / 1 days;
+        lastAccruedDay[msg.sender] = currentDay;
         lastClaimTimestamp[msg.sender] = block.timestamp;
         tokenA.mint(msg.sender, dailyUBIAmount);
         emit UBIClaimed(msg.sender, dailyUBIAmount);
+    }
+
+    function accrueUBI() external {
+        require(tokenA.isPrimaryAddress(msg.sender), "Not World ID verified");
+        uint256 currentDay = block.timestamp / 1 days;
+        uint256 lastDay = lastAccruedDay[msg.sender];
+        if (lastDay == 0) {
+            lastAccruedDay[msg.sender] = currentDay;
+            unclaimed[msg.sender][currentDay] += dailyUBIAmount;
+            emit UBIAccrued(msg.sender, currentDay, dailyUBIAmount);
+            return;
+        }
+        if (currentDay <= lastDay) {
+            return;
+        }
+        for (uint256 day = lastDay + 1; day <= currentDay; day++) {
+            unclaimed[msg.sender][day] += dailyUBIAmount;
+            emit UBIAccrued(msg.sender, day, dailyUBIAmount);
+        }
+        lastAccruedDay[msg.sender] = currentDay;
+    }
+
+    function claimUnclaimed(uint256 fromDay, uint256 toDay) external {
+        require(tokenA.isPrimaryAddress(msg.sender), "Not World ID verified");
+        require(fromDay <= toDay, "Invalid range");
+        uint256 currentDay = block.timestamp / 1 days;
+        require(toDay <= currentDay, "Future day");
+
+        uint256 gross;
+        uint256 decayed;
+        uint256 decayRate = tokenA.decayRatePerSecond();
+        for (uint256 day = fromDay; day <= toDay; day++) {
+            uint256 amount = unclaimed[msg.sender][day];
+            if (amount == 0) {
+                continue;
+            }
+            gross += amount;
+            uint256 ageDays = currentDay - day;
+            if (ageDays <= 30) {
+                decayed += amount;
+            } else {
+                uint256 elapsed = (ageDays - 30) * 1 days;
+                uint256 decay = decayRate * elapsed;
+                if (decay >= 1e18) {
+                    // fully decayed
+                } else {
+                    decayed += (amount * (1e18 - decay)) / 1e18;
+                }
+            }
+            delete unclaimed[msg.sender][day];
+        }
+        require(gross > 0, "Nothing to claim");
+        if (decayed < gross) {
+            emit DecayApplied(msg.sender, gross - decayed);
+        }
+        tokenA.mint(msg.sender, decayed);
+        lastClaimTimestamp[msg.sender] = block.timestamp;
+        emit Claimed(msg.sender, fromDay, toDay, gross, decayed);
     }
 
     function emergencyMintA(address to, uint256 amount) external onlyOwner {
