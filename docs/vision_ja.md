@@ -3,6 +3,10 @@
 このドキュメントは README_ja.md から分離した「ビジョン詳細」です。  
 実装仕様は `docs/spec_ja.md` を参照してください。
 
+関連:
+- English vision: `docs/vision.md`
+- 英語仕様（要約）: `docs/spec_en.md`
+
 ## ビジョン（要約）
 - FairSoil は「誠実さが損にならない」経済基盤を目指す。
 - UBI によって、望ましくない仕事を断っても生存が脅かされない状態を作る。

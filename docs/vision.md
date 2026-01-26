@@ -3,6 +3,11 @@
 This document keeps the broader philosophy and long-term direction,
 separated from the current implementation scope in README_ja.md.
 
+Related:
+- Japanese vision: `docs/vision_ja.md`
+- Japanese spec (full detail): `docs/spec_ja.md`
+- English spec (summary): `docs/spec_en.md`
+
 ## Guiding Principles
 - Honesty and fairness should dominate short-term exploitation.
 - Core safety rails must be encoded (accounting rules, auditability, reversibility limits).
