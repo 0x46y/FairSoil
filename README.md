@@ -1,9 +1,9 @@
 # FairSoil
 
 FairSoil is a decentralized Universal Basic Income (UBI) protocol designed to cultivate a "fair soil" where integrity and honesty are rewarded, rather than short-term exploitation or cost externalization.
+The full Japanese version of this README is in `README_ja.md`.
 
 ## Documents
-- Detailed spec (JA): `docs/spec_ja.md`
 - Detailed spec (EN): `docs/spec_en.md`
 - Vision details: `docs/vision_en.md`
 - Phase2+ ideas: `docs/spec_future_en.md`
@@ -76,7 +76,6 @@ FairSoil is a decentralized Universal Basic Income (UBI) protocol designed to cu
 FairSoil aims to build an economy where honesty is rewarded and exploitation is costly.  
 UBI guarantees the freedom to refuse unfair work.  
 Details: `docs/vision_en.md`
-Japanese vision is in `README_ja.md`.
 
 ## Core Mechanisms (Details in docs/spec_en.md)
 - This README is an entry point; detailed specs and formulas live in `docs/spec_en.md`.
