@@ -13,6 +13,8 @@ interface IFairSoilTokenA {
 interface IFairSoilTokenB {
     function mint(address to, uint256 amount) external;
     function balanceOf(address account) external view returns (uint256);
+    function lock(address account, uint256 amount) external;
+    function unlock(address account, uint256 amount) external;
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }
 
@@ -179,6 +181,16 @@ contract SoilTreasury is Ownable {
     function setCircuitState(CircuitState newState) external onlyOwner {
         circuitState = newState;
         emit CircuitStateSet(newState);
+    }
+
+    function lockB(address account, uint256 amount) external onlyOwnerOrCovenant {
+        require(amount > 0, "Amount required");
+        tokenB.lock(account, amount);
+    }
+
+    function unlockB(address account, uint256 amount) external onlyOwnerOrCovenant {
+        require(amount > 0, "Amount required");
+        tokenB.unlock(account, amount);
     }
 
     function recordTreasuryIn(address from, uint256 amount, bytes32 reason) internal {
@@ -483,6 +495,7 @@ contract SoilTreasury is Ownable {
 
     function mintBByCrystallization(address worker, uint256 burnedA) external returns (uint256) {
         require(msg.sender == covenant, "Covenant only");
+        require(circuitState == CircuitState.Normal, "Circuit limited");
         if (burnedA == 0) {
             return 0;
         }

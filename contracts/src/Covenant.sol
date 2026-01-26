@@ -18,6 +18,8 @@ interface ISoilTreasury {
     function addPayScore(address account, uint256 points) external;
     function penalizeProcessScore(address account, uint256 points, string calldata reason) external;
     function adjustLiabilities(int256 deltaA, int256 deltaB, bytes32 reason) external;
+    function lockB(address account, uint256 amount) external;
+    function unlockB(address account, uint256 amount) external;
     function REASON_COV_CREATE() external view returns (bytes32);
     function REASON_COV_SETTLE() external view returns (bytes32);
 }
@@ -292,6 +294,7 @@ contract Covenant is Ownable {
             tokenA.safeTransferFrom(creator, address(this), tokenBReward);
         } else {
             tokenB.safeTransferFrom(creator, address(this), tokenBReward);
+            treasury.lockB(address(this), tokenBReward);
         }
 
         emit CovenantCreated(covenantId, creator, worker, tokenBReward, integrityPoints);
@@ -320,6 +323,7 @@ contract Covenant is Ownable {
                 data.tokenBReward - refund
             );
         } else {
+            treasury.unlockB(address(this), data.tokenBReward);
             tokenB.safeTransfer(data.creator, data.tokenBReward);
             emit EscrowReleased(
                 covenantId,
@@ -357,6 +361,7 @@ contract Covenant is Ownable {
                 data.tokenBReward - refund
             );
         } else {
+            treasury.unlockB(address(this), data.tokenBReward);
             tokenB.safeTransfer(data.creator, data.tokenBReward);
             emit EscrowReleased(
                 covenantId,
@@ -514,6 +519,10 @@ contract Covenant is Ownable {
                 workerShare + (creatorShare - refunded)
             );
         } else {
+            uint256 totalShare = workerShare + creatorShare;
+            if (totalShare > 0) {
+                treasury.unlockB(address(this), totalShare);
+            }
             if (workerShare > 0) {
                 tokenB.safeTransfer(data.worker, workerShare);
             }
