@@ -60,6 +60,11 @@ contract FairSoilInvariants is StdInvariant, Test {
     bool internal unknownTreasuryReason;
     bool internal unknownTreasuryInReason;
     uint256 internal treasuryInAmount;
+    bool internal treasuryOutAReasonMismatch;
+    bool internal treasuryOutBReasonMismatch;
+    uint256 internal lastOutATotal;
+    uint256 internal lastOutBTotal;
+    SoilTreasury.CircuitState internal lastCircuitState;
 
     function setUp() public {
         FairSoilTokenA implementation = new FairSoilTokenA();
@@ -216,16 +221,22 @@ contract FairSoilInvariants is StdInvariant, Test {
                     }
                 }
             } else if (topic0 == keccak256("TreasuryOutA(address,uint256,bytes32)")) {
-                (, uint256 amount, bytes32 reason) = abi.decode(entries[i].data, (uint256, bytes32));
+                (address to, uint256 amount, bytes32 reason) = abi.decode(entries[i].data, (address, uint256, bytes32));
                 treasuryOutAAmount += amount;
                 if (!_isAllowedTreasuryReason(reason)) {
                     unknownTreasuryReason = true;
                 }
+                if (!_isAllowedTreasuryOutAReason(reason, to)) {
+                    treasuryOutAReasonMismatch = true;
+                }
             } else if (topic0 == keccak256("TreasuryOutB(address,uint256,bytes32)")) {
-                (, uint256 amount, bytes32 reason) = abi.decode(entries[i].data, (uint256, bytes32));
+                (address to, uint256 amount, bytes32 reason) = abi.decode(entries[i].data, (address, uint256, bytes32));
                 treasuryOutBAmount += amount;
                 if (!_isAllowedTreasuryReason(reason)) {
                     unknownTreasuryReason = true;
+                }
+                if (!_isAllowedTreasuryOutBReason(reason, to)) {
+                    treasuryOutBReasonMismatch = true;
                 }
             } else if (topic0 == keccak256("TreasuryIn(address,uint256,bytes32)")) {
                 (, uint256 amount, bytes32 reason) = abi.decode(entries[i].data, (uint256, bytes32));
@@ -374,6 +385,35 @@ contract FairSoilInvariants is StdInvariant, Test {
         assertEq(treasury.treasuryOutBTotal(), treasuryOutBAmount);
         assertEq(treasury.treasuryInTotal(), treasuryInAmount);
     }
+
+    function invariant_treasuryOutReasonRouting() public {
+        _syncEscrowEvents();
+        assertFalse(treasuryOutAReasonMismatch);
+        assertFalse(treasuryOutBReasonMismatch);
+    }
+
+    // When halted, no new TreasuryOut should be emitted.
+    function invariant_noTreasuryOutWhileHalted() public {
+        _syncEscrowEvents();
+        SoilTreasury.CircuitState state = treasury.circuitState();
+        uint256 outA = treasury.treasuryOutATotal();
+        uint256 outB = treasury.treasuryOutBTotal();
+        if (state == SoilTreasury.CircuitState.Halted && lastCircuitState == SoilTreasury.CircuitState.Halted) {
+            assertEq(outA, lastOutATotal);
+            assertEq(outB, lastOutBTotal);
+        }
+        lastOutATotal = outA;
+        lastOutBTotal = outB;
+        lastCircuitState = state;
+    }
+
+    function invariant_deficitAdvanceAccountingBounds() public view {
+        // Outstanding deficit should never exceed total A out.
+        assertLe(treasury.deficitAOutstanding(), treasury.treasuryOutATotal());
+        // Outstanding advance should never exceed total B out.
+        assertLe(treasury.advanceBOutstanding(), treasury.treasuryOutBTotal());
+    }
+
 
     // Covenant payment mode invariants (Immediate/Escrow/Delayed).
     function invariant_paymentModeSettlementRules() public view {
@@ -1272,6 +1312,26 @@ contract FairSoilInvariants is StdInvariant, Test {
             reason == bytes32("ADVANCE") ||
             reason == bytes32("TASK") ||
             reason == bytes32("CRYSTAL");
+    }
+
+    function _isAllowedTreasuryOutAReason(bytes32 reason, address to) internal view returns (bool) {
+        if (reason == bytes32("UBI") || reason == bytes32("UBI_CLAIM")) {
+            return to != address(0);
+        }
+        if (reason == bytes32("DEFICIT")) {
+            return to != address(0);
+        }
+        return false;
+    }
+
+    function _isAllowedTreasuryOutBReason(bytes32 reason, address to) internal view returns (bool) {
+        if (reason == bytes32("ADVANCE")) {
+            return to != address(0);
+        }
+        if (reason == bytes32("TASK") || reason == bytes32("CRYSTAL")) {
+            return to != address(0);
+        }
+        return false;
     }
 
     function _isAllowedTreasuryInReason(bytes32 reason) internal pure returns (bool) {
