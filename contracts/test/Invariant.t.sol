@@ -27,6 +27,10 @@ contract FairSoilInvariants is StdInvariant, Test {
     InvariantTimeHandler internal timeHandler;
 
     address internal alice = address(0xA11CE);
+    uint256 internal escrowLockCount;
+    uint256 internal escrowReleaseCount;
+    uint256 internal escrowLockedAmount;
+    uint256 internal escrowReleasedAmount;
 
     function setUp() public {
         FairSoilTokenA implementation = new FairSoilTokenA();
@@ -59,6 +63,8 @@ contract FairSoilInvariants is StdInvariant, Test {
         covenant.resolveDispute(covenantId, 5_000, 0, 0);
         covenant.finalizeResolution(covenantId);
 
+        vm.recordLogs();
+
         creatorHandler = new InvariantCreatorHandler(
             address(treasury),
             address(covenant),
@@ -89,6 +95,24 @@ contract FairSoilInvariants is StdInvariant, Test {
         targetContract(address(workerHandler));
         targetContract(address(resolverHandler));
         targetContract(address(timeHandler));
+    }
+
+    function _syncEscrowEvents() internal {
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        for (uint256 i = 0; i < entries.length; i++) {
+            bytes32 topic0 = entries[i].topics[0];
+            if (topic0 == keccak256("EscrowLocked(uint256,uint8,uint256)")) {
+                escrowLockCount += 1;
+                (, uint256 amount) = abi.decode(entries[i].data, (uint8, uint256));
+                escrowLockedAmount += amount;
+            } else if (topic0 == keccak256("EscrowReleased(uint256,uint8,uint256,uint256,uint256)")) {
+                escrowReleaseCount += 1;
+                (, uint256 releasedToWorker, uint256 releasedToCreator, uint256 burnedAmount) =
+                    abi.decode(entries[i].data, (uint8, uint256, uint256, uint256));
+                escrowReleasedAmount += releasedToWorker + releasedToCreator + burnedAmount;
+            }
+        }
+        vm.recordLogs();
     }
 
     // R2 basic wiring sanity (Treasury pointers are consistent).
@@ -160,5 +184,12 @@ contract FairSoilInvariants is StdInvariant, Test {
             vm.expectRevert("Not proposed");
             covenant.finalizeResolution(0);
         }
+    }
+
+    // R7: escrow events should be emitted and releases should never exceed locks.
+    function invariant_escrowEventsBalanced() public {
+        _syncEscrowEvents();
+        assertGe(escrowLockCount, escrowReleaseCount);
+        assertGe(escrowLockedAmount, escrowReleasedAmount);
     }
 }
