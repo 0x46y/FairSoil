@@ -10,10 +10,12 @@ import {FairSoilTokenA} from "../src/FairSoilTokenA.sol";
 import {FairSoilTokenB} from "../src/FairSoilTokenB.sol";
 import {SoilTreasury} from "../src/SoilTreasury.sol";
 import {Covenant} from "../src/Covenant.sol";
+import {APPIOracle} from "../src/APPIOracle.sol";
 import {InvariantCreatorHandler} from "./InvariantCreatorHandler.sol";
 import {InvariantWorkerHandler} from "./InvariantWorkerHandler.sol";
 import {InvariantResolverHandler} from "./InvariantResolverHandler.sol";
 import {InvariantTimeHandler} from "./InvariantTimeHandler.sol";
+import {InvariantTreasuryHandler} from "./InvariantTreasuryHandler.sol";
 
 // Invariant skeleton for Phase 2. Fill the TODOs as contracts stabilize.
 contract FairSoilInvariants is StdInvariant, Test {
@@ -25,6 +27,8 @@ contract FairSoilInvariants is StdInvariant, Test {
     InvariantWorkerHandler internal workerHandler;
     InvariantResolverHandler internal resolverHandler;
     InvariantTimeHandler internal timeHandler;
+    InvariantTreasuryHandler internal treasuryHandler;
+    APPIOracle internal appiOracle;
 
     address internal alice = address(0xA11CE);
     uint256 internal escrowLockCount;
@@ -53,6 +57,13 @@ contract FairSoilInvariants is StdInvariant, Test {
         tokenA.setCovenant(address(covenant));
         treasury.setCovenant(address(covenant));
 
+        appiOracle = new APPIOracle(address(tokenA), address(treasury));
+        uint256[] memory categories = new uint256[](1);
+        categories[0] = 1;
+        appiOracle.setCategories(categories);
+        appiOracle.setThresholds(1, 0);
+        treasury.setAPPIOracle(address(appiOracle));
+
         treasury.claimUBI();
         tokenA.approve(address(covenant), 10e18);
         uint256 covenantId = covenant.createCovenant(alice, 10e18, 0, true);
@@ -77,14 +88,18 @@ contract FairSoilInvariants is StdInvariant, Test {
         );
         resolverHandler = new InvariantResolverHandler(address(covenant));
         timeHandler = new InvariantTimeHandler();
+        treasuryHandler = new InvariantTreasuryHandler(address(treasury), address(appiOracle));
 
         tokenA.setPrimaryAddress(address(creatorHandler), true);
         tokenA.setPrimaryAddress(address(workerHandler), true);
+        tokenA.setPrimaryAddress(address(treasuryHandler), true);
 
         treasury.setDeficitCapA(1_000_000e18);
         treasury.setAdvanceCapB(1_000_000e18);
         treasury.emergencyMintA(address(creatorHandler), 1_000e18);
         treasury.reportTaskCompleted(address(creatorHandler), 1_000e18, 0);
+
+        treasury.transferOwnership(address(treasuryHandler));
 
         vm.prank(address(creatorHandler));
         tokenA.approve(address(covenant), 1_000e18);
@@ -95,6 +110,7 @@ contract FairSoilInvariants is StdInvariant, Test {
         targetContract(address(workerHandler));
         targetContract(address(resolverHandler));
         targetContract(address(timeHandler));
+        targetContract(address(treasuryHandler));
     }
 
     function _syncEscrowEvents() internal {
@@ -121,13 +137,26 @@ contract FairSoilInvariants is StdInvariant, Test {
         assertEq(tokenB.treasury(), address(treasury));
     }
 
-    // TODO: R3 A Burn -> B Mint prohibition (crystallization-only path).
+    // R3: A Burn -> B Mint prohibition (crystallization-only path).
     function invariant_noBurnToMintB() public {
         uint256 supplyBefore = tokenB.totalSupply();
         vm.prank(address(0xBEEF));
         vm.expectRevert("Treasury only");
         tokenB.mint(address(0xBEEF), 1);
         assertEq(tokenB.totalSupply(), supplyBefore);
+
+        vm.prank(address(0xBEEF));
+        vm.expectRevert("Covenant only");
+        treasury.mintBByCrystallization(address(0xBEEF), 1);
+        assertEq(tokenB.totalSupply(), supplyBefore);
+
+        if (treasury.circuitState() != SoilTreasury.CircuitState.Halted) {
+            vm.prank(address(treasuryHandler));
+            treasury.emergencyMintA(address(covenant), 10e18);
+            vm.prank(address(covenant));
+            tokenA.burnFromCovenant(address(covenant), 10e18);
+            assertEq(tokenB.totalSupply(), supplyBefore);
+        }
     }
 
     // R1 minimal: payouts must go through explicit mint/burn/transfer paths (access control enforced).
@@ -149,22 +178,33 @@ contract FairSoilInvariants is StdInvariant, Test {
         tokenA.burnFromCovenant(address(0xBEEF), 1);
     }
 
-    // TODO: R5 Locked supply separation once B-locking is implemented.
+    // R5: Locked supply separation once B-locking is implemented.
     function invariant_circulatingBSupply() public view {
         uint256 total = tokenB.totalSupply();
         uint256 locked = tokenB.totalLocked();
         assertLe(locked, total);
         assertLe(tokenB.lockedBalance(address(treasury)), tokenB.balanceOf(address(treasury)));
         assertLe(tokenB.lockedBalance(alice), tokenB.balanceOf(alice));
+
+        uint256 trackedLocked =
+            tokenB.lockedBalance(address(treasury)) +
+            tokenB.lockedBalance(address(covenant)) +
+            tokenB.lockedBalance(address(creatorHandler)) +
+            tokenB.lockedBalance(address(workerHandler)) +
+            tokenB.lockedBalance(address(resolverHandler)) +
+            tokenB.lockedBalance(address(treasuryHandler)) +
+            tokenB.lockedBalance(address(this)) +
+            tokenB.lockedBalance(alice);
+        assertLe(trackedLocked, locked);
     }
 
-    // TODO: R6 caps for DeficitCap_A and AdvanceCap_B once tracked on-chain.
+    // R6: caps for DeficitCap_A and AdvanceCap_B.
     function invariant_capsRespected() public view {
         assertLe(treasury.deficitAOutstanding(), treasury.deficitCapA());
         assertLe(treasury.advanceBOutstanding(), treasury.advanceCapB());
     }
 
-    // TODO: Resolve state machine irreversibility.
+    // Resolve state machine irreversibility (Finalized is terminal).
     function invariant_resolveFinalizedIrreversible() public {
         (
             address creator,
@@ -183,6 +223,12 @@ contract FairSoilInvariants is StdInvariant, Test {
         if (creator != address(0) && status == Covenant.Status.IssueResolved) {
             vm.expectRevert("Not proposed");
             covenant.finalizeResolution(0);
+
+            vm.expectRevert("Not disputed");
+            covenant.resolveDispute(0, 5_000, 0, 0);
+
+            vm.expectRevert("Not reported");
+            covenant.acceptIssue(0);
         }
     }
 

@@ -68,14 +68,29 @@ contract SoilTreasury is Ownable {
     event UBIAccrued(address indexed user, uint256 day, uint256 amountA);
     event Claimed(address indexed user, uint256 fromDay, uint256 toDay, uint256 grossA, uint256 decayedA);
     event DecayApplied(address indexed user, uint256 amountA);
+    event TreasuryOutA(address indexed to, uint256 amount, bytes32 reason);
+    event TreasuryOutB(address indexed to, uint256 amount, bytes32 reason);
+    event TreasuryIn(address indexed from, uint256 amount, bytes32 reason);
     event APPIOracleSet(address indexed oracle);
     event APPIApplied(uint256 indexed day, uint256 appiValue, uint256 newDailyUBI);
     event APPIChangeLimitsSet(uint256 maxIncreaseBps, uint256 maxDecreaseBps);
     event CircuitStateSet(CircuitState state);
 
+    bytes32 private constant REASON_UBI = "UBI";
+    bytes32 private constant REASON_UBI_CLAIM = "UBI_CLAIM";
+    bytes32 private constant REASON_DEFICIT = "DEFICIT";
+    bytes32 private constant REASON_ADVANCE = "ADVANCE";
+    bytes32 private constant REASON_TASK = "TASK";
+    bytes32 private constant REASON_CRYSTAL = "CRYSTAL";
+
     constructor(address tokenAAddress, address tokenBAddress) Ownable(msg.sender) {
         tokenA = IFairSoilTokenA(tokenAAddress);
         tokenB = IFairSoilTokenB(tokenBAddress);
+    }
+
+    modifier onlyOwnerOrCovenant() {
+        require(msg.sender == owner() || msg.sender == covenant, "Owner or covenant only");
+        _;
     }
 
     function setDailyUBIAmount(uint256 newAmount) external onlyOwner {
@@ -167,6 +182,7 @@ contract SoilTreasury is Ownable {
         lastAccruedDay[msg.sender] = currentDay;
         lastClaimTimestamp[msg.sender] = block.timestamp;
         tokenA.mint(msg.sender, dailyUBIAmount);
+        emit TreasuryOutA(msg.sender, dailyUBIAmount, REASON_UBI);
         emit UBIClaimed(msg.sender, dailyUBIAmount);
     }
 
@@ -224,6 +240,7 @@ contract SoilTreasury is Ownable {
             emit DecayApplied(msg.sender, gross - decayed);
         }
         tokenA.mint(msg.sender, decayed);
+        emit TreasuryOutA(msg.sender, decayed, REASON_UBI_CLAIM);
         lastClaimTimestamp[msg.sender] = block.timestamp;
         emit Claimed(msg.sender, fromDay, toDay, gross, decayed);
     }
@@ -234,6 +251,7 @@ contract SoilTreasury is Ownable {
         require(deficitAOutstanding + amount <= deficitCapA, "Deficit cap");
         deficitAOutstanding += amount;
         tokenA.mint(to, amount);
+        emit TreasuryOutA(to, amount, REASON_DEFICIT);
         emit DeficitAIssued(to, amount);
     }
 
@@ -243,6 +261,7 @@ contract SoilTreasury is Ownable {
         require(advanceBOutstanding + amount <= advanceCapB, "Advance cap");
         advanceBOutstanding += amount;
         tokenB.mint(to, amount);
+        emit TreasuryOutB(to, amount, REASON_ADVANCE);
         emit AdvanceBIssued(to, amount);
     }
 
@@ -255,6 +274,7 @@ contract SoilTreasury is Ownable {
         require(tokenA.isPrimaryAddress(worker), "Worker not verified");
         if (tokenBReward > 0) {
             tokenB.mint(worker, tokenBReward);
+            emit TreasuryOutB(worker, tokenBReward, REASON_TASK);
         }
         if (integrityPoints > 0) {
             integrityScore[worker] += integrityPoints;
@@ -275,7 +295,11 @@ contract SoilTreasury is Ownable {
         emit TaskCompleted(worker, 0, integrityPoints);
     }
 
-    function penalizeProcessScore(address account, uint256 points, string calldata reason) external onlyOwner {
+    function penalizeProcessScore(
+        address account,
+        uint256 points,
+        string calldata reason
+    ) external onlyOwnerOrCovenant {
         uint256 current = processScore[account];
         if (points >= current) {
             processScore[account] = 0;
@@ -286,12 +310,12 @@ contract SoilTreasury is Ownable {
         emit PayPenaltyApplied(account, points, reason);
     }
 
-    function addPayScore(address account, uint256 points) external onlyOwner {
+    function addPayScore(address account, uint256 points) external onlyOwnerOrCovenant {
         payScore[account] += points;
         emit ScoreUpdated(account, payScore[account], processScore[account], civicsScore[account]);
     }
 
-    function penalizePayScore(address account, uint256 points) external onlyOwner {
+    function penalizePayScore(address account, uint256 points) external onlyOwnerOrCovenant {
         uint256 current = payScore[account];
         if (points >= current) {
             payScore[account] = 0;
@@ -305,7 +329,7 @@ contract SoilTreasury is Ownable {
         address account,
         uint256 points,
         string calldata reason
-    ) external onlyOwner {
+    ) external onlyOwnerOrCovenant {
         penalizePayScore(account, points);
         emit PayPenaltyApplied(account, points, reason);
     }
@@ -321,6 +345,7 @@ contract SoilTreasury is Ownable {
         }
         if (minted > 0) {
             tokenB.mint(worker, minted);
+            emit TreasuryOutB(worker, minted, REASON_CRYSTAL);
         }
         emit CrystallizationMinted(worker, minted, burnedA);
         return minted;

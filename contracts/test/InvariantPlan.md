@@ -27,6 +27,9 @@
   - `UBIAccrued(...)`
   - `Claimed(...)`
   - `DecayApplied(...)`
+  - `TreasuryOutA(...)`
+  - `TreasuryOutB(...)`
+  - `TreasuryIn(...)`
   - `DeficitAIssued(...)` (A発行)
   - `AdvanceBIssued(...)` (B前借り)
   - `CrystallizationMinted(...)`
@@ -51,7 +54,6 @@
   - `DisputeResolverSet(...)`
   - `MaliceSlashed(...)`
 - [ ] 監査上不足している場合の追加候補:
-  - `TreasuryIn(...)`, `TreasuryOutA(...)`, `TreasuryOutB(...)`
   - `SeigniorageA(...)`
   - `LiabilityChanged(...)`
   - `ReserveSnapshot(...)`
@@ -93,7 +95,6 @@
   - `SoilTreasury.emergencyMintA`
   - `SoilTreasury.emergencyAdvanceB`
   - `SoilTreasury.reportTaskCompleted`
-  - `SoilTreasury.reportTaskWithProcessScore`
   - `SoilTreasury.mintBByCrystallization`
   - `SoilTreasury.penalizeProcessScore`
   - `SoilTreasury.penalizePayScoreWithReason`
@@ -141,7 +142,6 @@
 
 - [ ] R3-1: B Mint の発生源を列挙（Covenant承認 / 結晶化 / 他）
   - `SoilTreasury.reportTaskCompleted`
-  - `SoilTreasury.reportTaskWithProcessScore`
   - `SoilTreasury.emergencyAdvanceB`
   - `SoilTreasury.mintBByCrystallization`
 - [ ] R3-2: A Burn の発生源から B Mint に到達する経路が存在しない
