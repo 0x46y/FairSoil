@@ -30,6 +30,9 @@ contract SoilTreasury is Ownable {
 
     mapping(address => uint256) public lastClaimTimestamp;
     mapping(address => uint256) public integrityScore;
+    mapping(address => uint256) public payScore;
+    mapping(address => uint256) public processScore;
+    mapping(address => uint256) public civicsScore;
     mapping(address => uint256) public lastAccruedDay;
     mapping(address => mapping(uint256 => uint256)) public unclaimed;
 
@@ -45,6 +48,7 @@ contract SoilTreasury is Ownable {
 
     event UBIClaimed(address indexed user, uint256 amount);
     event TaskCompleted(address indexed worker, uint256 tokenBReward, uint256 integrityPoints);
+    event ScoreUpdated(address indexed account, uint256 pay, uint256 process, uint256 civics);
     event CovenantSet(address indexed covenant);
     event CrystallizationRateSet(uint256 rateBps);
     event CrystallizationFeeSet(uint256 feeBps);
@@ -235,7 +239,9 @@ contract SoilTreasury is Ownable {
         }
         if (integrityPoints > 0) {
             integrityScore[worker] += integrityPoints;
+            civicsScore[worker] += integrityPoints;
         }
+        emit ScoreUpdated(worker, payScore[worker], processScore[worker], civicsScore[worker]);
         emit TaskCompleted(worker, tokenBReward, integrityPoints);
     }
 
@@ -244,8 +250,25 @@ contract SoilTreasury is Ownable {
         require(tokenA.isPrimaryAddress(worker), "Worker not verified");
         if (integrityPoints > 0) {
             integrityScore[worker] += integrityPoints;
+            processScore[worker] += integrityPoints;
         }
+        emit ScoreUpdated(worker, payScore[worker], processScore[worker], civicsScore[worker]);
         emit TaskCompleted(worker, 0, integrityPoints);
+    }
+
+    function addPayScore(address account, uint256 points) external onlyOwner {
+        payScore[account] += points;
+        emit ScoreUpdated(account, payScore[account], processScore[account], civicsScore[account]);
+    }
+
+    function penalizePayScore(address account, uint256 points) external onlyOwner {
+        uint256 current = payScore[account];
+        if (points >= current) {
+            payScore[account] = 0;
+        } else {
+            payScore[account] = current - points;
+        }
+        emit ScoreUpdated(account, payScore[account], processScore[account], civicsScore[account]);
     }
 
     function mintBByCrystallization(address worker, uint256 burnedA) external returns (uint256) {
