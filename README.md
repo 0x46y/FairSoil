@@ -13,15 +13,12 @@ FairSoil is a decentralized Universal Basic Income (UBI) protocol designed to cu
 ## Spec Links (By Section)
 - Core mechanisms: `docs/spec_en.md#core-mechanisms`
 - Accounting rules (Section 0): `docs/spec_en.md#0-2-ledger-classification`
-- Economy & distribution: `docs/spec_ja.md#経済分配`
-- IP & contribution: `docs/spec_ja.md#知財貢献`
-- Education & reskilling: `docs/spec_ja.md#教育再挑戦`
-- Governance & audit: `docs/spec_ja.md#ガバナンス監査`
-- Operations & safety: `docs/spec_ja.md#運用安全`
-- Adoption path: `docs/spec_ja.md#導入戦略-adoption-path`
-- Tech stack: `docs/spec_ja.md#技術スタック予定`
-- Minimum requirements: `docs/spec_ja.md#最低要件予定`
-- Dev environment: `docs/spec_ja.md#開発環境wsl2--foundry`
+- Consistency rules (R1–R7): `docs/spec_en.md#0-3-consistency-rules-r1r7`
+- Treasury income/outflow: `docs/spec_en.md#treasury-income--outflow-reasons`
+- Reserves & liabilities: `docs/spec_en.md#reserves--liabilities`
+- Evidence handling: `docs/spec_en.md#evidence-handling-policy`
+- Audit events: `docs/spec_en.md#audit-events-r7-minimal`
+- Scope: `docs/spec_en.md#scope`
 
 ## MVP Milestone (Phase 1)
 - Date: 2026/01/14
@@ -79,6 +76,7 @@ FairSoil is a decentralized Universal Basic Income (UBI) protocol designed to cu
 FairSoil aims to build an economy where honesty is rewarded and exploitation is costly.  
 UBI guarantees the freedom to refuse unfair work.  
 Details: `docs/vision_en.md`
+Japanese vision is in `README_ja.md`.
 
 ## Core Mechanisms (Details in docs/spec_en.md)
 - This README is an entry point; detailed specs and formulas live in `docs/spec_en.md`.

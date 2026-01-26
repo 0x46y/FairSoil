@@ -79,7 +79,7 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
 FairSoil は「誠実さが損にならない」経済基盤を目指す。  
 最低限の生存（UBI）を保証し、搾取や外部化にコストを持たせる。  
 詳細は `docs/vision_ja.md` を参照。  
-英語版ビジョンは `docs/vision_en.md`。
+英語版ビジョンは `README.md` に記載。
 
 
 ## コアメカニズム（詳細は docs/spec_ja.md）
