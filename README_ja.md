@@ -5,7 +5,7 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
 ## ドキュメント
 - 詳細仕様: `docs/spec_ja.md`
 - ビジョン詳細: `docs/vision_ja.md`
-- Phase2+ ideas: `docs/spec_future.md`
+- Phase2+ ideas: `docs/spec_future_ja.md`
 - 外部レビュー用まとめ（全仕様の統合版・マスター）: `docs/review_bundle_ja.md`
   - 再生成: `python scripts/build_review_bundle_ja.py`
 
@@ -36,7 +36,7 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
 **🟡 Phase2+ ideas（思想/将来案。実装対象外）**
 - APPIのconfidence強化、予測市場/QF/RPGF等の制度設計
 - 追加インセンティブ/ガバナンス拡張（詳細は別ドキュメントへ）
-  - 参考: `docs/spec_future.md`
+  - 参考: `docs/spec_future_ja.md`
 
 ## 今後の検討事項（運用メモ）
 - 文脈証拠（マルチメディア）の扱いは「オフチェーン保存＋オンチェーンは **evidenceHashのみ**」を前提とする。

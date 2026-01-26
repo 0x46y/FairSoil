@@ -1,30 +1,5 @@
 # FairSoil Phase2+ Notes
 
-This document captures ideas that are *not* part of the current on-chain scope.
-It exists to avoid mixing implemented behavior with future concepts in README_ja.md.
-
-## Phase2+ Ideas (Outline)
-- APPI confidence weighting (anti-manipulation).
-- Additional governance/incentive modules (QF/RPGF, forecasting, etc.).
-- Extended UX/AI assist features (off-chain only).
-
-## Phase2+ Ideas (Expanded, English)
-### 1) APPI Confidence Weighting
-- Add confidence to APPI contributions (e.g., minimum unique reporters, diversity, recency).
-- Downweight clustered or correlated reports to reduce price manipulation.
-
-### 2) Public Goods Funding Modules
-- Quadratic Funding (QF) for broad participation.
-- Retroactive Public Goods Funding (RPGF) for verified outcomes.
-
-### 3) Forecasting & Early Warning
-- Prediction markets or forecast staking for supply chain risks.
-- Reward early warnings that later prove correct (not trading profits).
-
-### 4) Insurance and Reinsurance Pools
-- Community-level insurance pools for incident risk.
-- Reinsurance layer for catastrophic events.
-
-### 5) Compliance Modules (Optional)
-- Pluggable compliance adapters for regional requirements.
-- Opt-in at community level, not global hard dependency.
+This file now points to language-specific versions:
+- English: `docs/spec_future_en.md`
+- 日本語: `docs/spec_future_ja.md`

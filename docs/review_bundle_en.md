@@ -1,7 +1,7 @@
 # FairSoil Review Bundle (EN)
 
 This file bundles the core documents for external review.  
-Note: This is a generated bundle. The sources are README.md / docs/spec_en.md / docs/vision.md / docs/spec_future.md.
+Note: This is a generated bundle. The sources are README.md / docs/spec_en.md / docs/vision.md / docs/spec_future_en.md.
 
 ---
 
@@ -15,7 +15,7 @@ FairSoil is a decentralized Universal Basic Income (UBI) protocol designed to cu
 - Detailed spec (JA): `docs/spec_ja.md`
 - Detailed spec (EN): `docs/spec_en.md`
 - Vision details: `docs/vision.md`
-- Phase2+ ideas: `docs/spec_future.md`
+- Phase2+ ideas: `docs/spec_future_en.md`
 - Review bundle (full consolidated master): `docs/review_bundle_en.md`
   - Regenerate: `python scripts/build_review_bundle_en.py`
 
@@ -89,7 +89,7 @@ Details: `docs/vision.md`
 - Automated reward scaling for emergency, high-risk, or essential tasks (e.g., disaster relief, healthcare) where supply is low.
 
 ## Phase2+ Drafts
-Detailed draft specs and future ideas live in `docs/spec_future.md`.
+Detailed draft specs and future ideas live in `docs/spec_future_en.md`.
 
 ---
 
@@ -159,7 +159,7 @@ Reason constants are on-chain: `SoilTreasury.REASON_*`.
 
 ## Scope
 Phase1 scope is implemented (Treasury/TokenA/TokenB/Covenant + audit/invariant coverage).  
-Phase2+ ideas live in `docs/spec_future.md`.
+Phase2+ ideas live in `docs/spec_future_en.md`.
 
 ---
 
@@ -203,7 +203,7 @@ Related:
 
 ---
 
-## Source: docs/spec_future.md
+## Source: docs/spec_future_en.md
 
 # FairSoil Phase2+ Notes
 

@@ -15,13 +15,13 @@ SOURCES = [
     ("README_ja.md", REPO_ROOT / "README_ja.md"),
     ("docs/spec_ja.md", REPO_ROOT / "docs" / "spec_ja.md"),
     ("docs/vision_ja.md", REPO_ROOT / "docs" / "vision_ja.md"),
-    ("docs/spec_future.md", REPO_ROOT / "docs" / "spec_future.md"),
+    ("docs/spec_future_ja.md", REPO_ROOT / "docs" / "spec_future_ja.md"),
 ]
 
 HEADER = """# FairSoil Review Bundle (JA)
 
 このファイルは日本語レビュー用の主要文書まとめです。  
-注意: これは結合生成物です。正本は各ドキュメント（README_ja.md / docs/spec_ja.md / docs/vision_ja.md / docs/spec_future.md）を参照してください。
+注意: これは結合生成物です。正本は各ドキュメント（README_ja.md / docs/spec_ja.md / docs/vision_ja.md / docs/spec_future_ja.md）を参照してください。
 """
 
 

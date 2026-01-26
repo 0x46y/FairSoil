@@ -1,7 +1,7 @@
 # FairSoil Review Bundle (JA)
 
 このファイルは日本語レビュー用の主要文書まとめです。  
-注意: これは結合生成物です。正本は各ドキュメント（README_ja.md / docs/spec_ja.md / docs/vision_ja.md / docs/spec_future.md）を参照してください。
+注意: これは結合生成物です。正本は各ドキュメント（README_ja.md / docs/spec_ja.md / docs/vision_ja.md / docs/spec_future_ja.md）を参照してください。
 
 ---
 
@@ -14,7 +14,7 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
 ## ドキュメント
 - 詳細仕様: `docs/spec_ja.md`
 - ビジョン詳細: `docs/vision_ja.md`
-- Phase2+ ideas: `docs/spec_future.md`
+- Phase2+ ideas: `docs/spec_future_ja.md`
 - 外部レビュー用まとめ（全仕様の統合版・マスター）: `docs/review_bundle_ja.md`
   - 再生成: `python scripts/build_review_bundle_ja.py`
 
@@ -45,7 +45,7 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
 **🟡 Phase2+ ideas（思想/将来案。実装対象外）**
 - APPIのconfidence強化、予測市場/QF/RPGF等の制度設計
 - 追加インセンティブ/ガバナンス拡張（詳細は別ドキュメントへ）
-  - 参考: `docs/spec_future.md`
+  - 参考: `docs/spec_future_ja.md`
 
 ## 今後の検討事項（運用メモ）
 - 文脈証拠（マルチメディア）の扱いは「オフチェーン保存＋オンチェーンは **evidenceHashのみ**」を前提とする。
@@ -864,37 +864,37 @@ forge test
 
 ---
 
-## Source: docs/spec_future.md
+## Source: docs/spec_future_ja.md
 
-# FairSoil Phase2+ Notes
+# FairSoil Phase2+ ノート（日本語）
 
-This document captures ideas that are *not* part of the current on-chain scope.
-It exists to avoid mixing implemented behavior with future concepts in README_ja.md.
+このドキュメントは、**現時点のオンチェーン実装に含まれない将来案**をまとめたものです。  
+README_ja.md の実装済み仕様と混在しないよう、Phase2+の構想はここへ集約します。
 
-## Phase2+ Ideas (Outline)
-- APPI confidence weighting (anti-manipulation).
-- Additional governance/incentive modules (QF/RPGF, forecasting, etc.).
-- Extended UX/AI assist features (off-chain only).
+## Phase2+ 構想（概要）
+- APPI の confidence 強化（価格操作耐性）。
+- 追加のガバナンス/インセンティブ・モジュール（QF/RPGF、予測など）。
+- UX/AI 支援の拡張（オフチェーンのみ）。
 
-## Phase2+ Ideas (Expanded, English)
-### 1) APPI Confidence Weighting
-- Add confidence to APPI contributions (e.g., minimum unique reporters, diversity, recency).
-- Downweight clustered or correlated reports to reduce price manipulation.
+## Phase2+ 構想（詳細）
+### 1) APPI Confidence 強化
+- APPI の寄与に confidence を付与（例: 最小報告人数、多様性、鮮度）。
+- 相関の高い報告を減衰し、価格操作を抑える。
 
-### 2) Public Goods Funding Modules
-- Quadratic Funding (QF) for broad participation.
-- Retroactive Public Goods Funding (RPGF) for verified outcomes.
+### 2) 公共財ファンディング・モジュール
+- Quadratic Funding（QF）で幅広い参加を促進。
+- Retroactive Public Goods Funding（RPGF）で成果確認後に報酬。
 
-### 3) Forecasting & Early Warning
-- Prediction markets or forecast staking for supply chain risks.
-- Reward early warnings that later prove correct (not trading profits).
+### 3) 予測と早期警告
+- サプライチェーン等のリスクに対する予測市場/ステーキング。
+- 「当てた利益」ではなく、**後に正しいと証明された早期警告**を報酬化。
 
-### 4) Insurance and Reinsurance Pools
-- Community-level insurance pools for incident risk.
-- Reinsurance layer for catastrophic events.
+### 4) 保険・再保険プール
+- コミュニティ単位の保険プールで事故リスクを吸収。
+- 大災害向けに再保険レイヤーを用意。
 
-### 5) Compliance Modules (Optional)
-- Pluggable compliance adapters for regional requirements.
-- Opt-in at community level, not global hard dependency.
+### 5) コンプライアンス・モジュール（任意）
+- 地域要件に合わせた差し替え可能なアダプタ。
+- コミュニティ単位で opt-in（全体強制にはしない）。
 
 ---

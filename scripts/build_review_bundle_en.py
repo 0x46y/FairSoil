@@ -15,13 +15,13 @@ SOURCES = [
     ("README.md", REPO_ROOT / "README.md"),
     ("docs/spec_en.md", REPO_ROOT / "docs" / "spec_en.md"),
     ("docs/vision.md", REPO_ROOT / "docs" / "vision.md"),
-    ("docs/spec_future.md", REPO_ROOT / "docs" / "spec_future.md"),
+    ("docs/spec_future_en.md", REPO_ROOT / "docs" / "spec_future_en.md"),
 ]
 
 HEADER = """# FairSoil Review Bundle (EN)
 
 This file bundles the core documents for external review.  
-Note: This is a generated bundle. The sources are README.md / docs/spec_en.md / docs/vision.md / docs/spec_future.md.
+Note: This is a generated bundle. The sources are README.md / docs/spec_en.md / docs/vision.md / docs/spec_future_en.md.
 """
 
 

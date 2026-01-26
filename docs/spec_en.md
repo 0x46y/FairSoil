@@ -62,4 +62,4 @@ Reason constants are on-chain: `SoilTreasury.REASON_*`.
 
 ## Scope
 Phase1 scope is implemented (Treasury/TokenA/TokenB/Covenant + audit/invariant coverage).  
-Phase2+ ideas live in `docs/spec_future.md`.
+Phase2+ ideas live in `docs/spec_future_en.md`.
