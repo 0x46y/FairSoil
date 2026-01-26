@@ -7,16 +7,39 @@ FairSoil is a decentralized Universal Basic Income (UBI) protocol designed to cu
 - Completed: End-to-end tests across Token A (decay), Token B (asset), SoilTreasury, and Covenant.
 - Verified result: Covenant approvals automatically trigger reward payout and integrity score updates.
 
-## Vision
-To create a digital economic foundation where:
-- Being "honest" and "reliable" is economically advantageous.
-- Everyone has the "freedom to refuse" undesirable work through UBI.
-- Socially essential but difficult/dangerous tasks are fairly rewarded through dynamic incentives.
+## Scope (Phase1 / Phase2+)
+**✅ Phase1(MVP) scope (implemented)**
+- SoilTreasury (caps, circuit breaker, oracle hooks, UBI ledger, liabilities/reserves)
+- TokenA/TokenB (decay/lock/circulating)
+- Covenant (payment modes, 2-step resolve)
 
-### System vs Law (Boundary Design)
-- **Role split:** FairSoil focuses on incentives: "honest people should not lose," "record unreasonable exploitation," and "distribute UBI." Physical enforcement such as violence prevention or land registration is handled by real-world law and institutions.
-- **Law as oracle:** Court decisions and similar judgments are imported as external data and reflected in scores and evaluations to preserve flexibility.
-- **Effect:** Avoids a rigid programmatic dystopia while maintaining consistency with real society.
+**🟡 Phase2+ ideas (not implemented)**
+- APPI confidence weighting, governance/incentive modules (QF/RPGF/forecasting)
+- Additional UX/AI support (off-chain)
+
+## On-chain minimal events (User/Dispute)
+- `UBIAccrued(user, day, amountA)`
+- `Claimed(user, fromDay, toDay, grossA, decayedA)`
+- `DecayApplied(scope, amountA)`
+- `CovenantCreated(id, templateHash, parties)`
+- `IssueReported(covenantId, issueId, evidenceHash)`
+- `Resolved(covenantId, issueId, stage, payoutA, payoutB, integrityDelta, finalizedAt)`
+
+## Accounting audit events (R7 minimal)
+- `TreasuryIn(from, amount, reason)`
+- `TreasuryOutA(to, amount, reason)`
+- `TreasuryOutB(to, amount, reason)`
+- `LiabilityChanged(deltaA, deltaB, reason)`
+- `ReserveSnapshot(reservesA, reservesB)`
+
+## Vision (Summary)
+FairSoil aims to build an economy where honesty is rewarded and exploitation is costly.  
+UBI guarantees the freedom to refuse unfair work.  
+Details: `docs/vision.md`
+
+## Evidence Handling (Policy)
+- Evidence is stored off-chain; on-chain only keeps **evidenceHash**.
+- evidenceUri is reference-only and kept off-chain to avoid link rot/privacy risk.
 
 ## Core Mechanisms
 
@@ -48,76 +71,8 @@ To create a digital economic foundation where:
 ### 4. Dynamic Incentives for Essential Tasks
 - Automated reward scaling for emergency, high-risk, or essential tasks (e.g., disaster relief, healthcare) where supply is low.
 
-## Specifications (Draft)
-
-### Economic and Distribution
-#### 1. Hybrid Dynamic Rewards and Public Pool (Infrastructure and Emergencies)
-- **Emergency tasks (Type A):** "Start at the maximum reward and decay over time." The fastest responder earns the highest honor and reward.
-- **Infrastructure / 3K tasks (Type B):** Ongoing maintenance. Rewards rise when no one takes it, but priority notifications to proven workers prevent a chicken race.
-- **Funding (Soil Treasury):** Public infrastructure rewards are minted from system-wide decay (burn) to prevent individual bankruptcy while balancing inflation.
-
-#### 2. Human Limits and Technology Investment Protocol (When Money Cannot Solve It)
-- **Spec:** If a task is so high-risk/high-load that no one accepts even at the system cap, the system automatically flags it as "human execution prohibited."
-- **Investment shift:** The elevated reward is redirected from wages to funding automation/robotics.
-- **Philosophy:** Do not force humans to sell their lives. If tech cannot catch up, the system encourages closing/abandoning the infrastructure rather than sacrificing people.
-
-#### 3. Unconditional UBI as "Slack"
-- **Spec:** Token A distribution is not tied to integrity score or labor performance.
-- **Claim model:** Daily accrual builds an unclaimed balance; users can claim in daily/weekly/monthly batches. Unclaimed balance has no decay for 30 days, then normal decay applies.
-- **Purpose:** Guarantee survival even when people are too tired to be "superhuman."
-- **Effect:** Even if rewards are high, people can say "no" to unwanted work because financial anxiety is removed.
-
-#### 4. Visualizing Exploitative Workload and Unreasonable Demands
-- **Spec:** Contracts must state estimated effort and rest/holiday rules. If actual workload or deadline pressure far exceeds the estimate, it is recorded as an Issue and the employer score drops.
-- **Effect:** Employer behavior becomes transparent, so exploitative employers lose workers (especially those with UBI-backed freedom).
-
-#### 5. On-Chain "Success Rate / Retention Rate" Statistics
-- **Spec:** Automatically track how many people tried, how many dropped out, and average retention per employer.
-- **Effect:** Identifies projects that "look funded" but have high churn, allowing workers to defend themselves in advance.
-
-#### 6. Shift from "Completion Liability" to "Honest Process (Time)"
-- **Spec:** Pay for time spent correctly following agreed procedures, not just outcomes. If a task is structurally impossible, early discovery and reporting earns near-completion rewards.
-- **Effect:** Eliminates dishonest management such as "I didn't know" or "hide it until the end," and encourages early debugging.
-- **Issue reporting design:** Workers can claim a relief rate between 0–100% to cover both zero-effort cases and severe creator-side faults. Creators choose Accept or Dispute; Dispute only changes state today and is reserved for future DAO arbitration. Malice slashing is defined as a placeholder to deter information-asymmetry abuse and will be wired to arbitration later.
-
-#### 7. Incentives for "Building Things That Last"
-- **Spec:** As long as a product continues to be used (not replaced), the creator receives ongoing maintenance rewards from the Soil Treasury.
-- **Visible depreciation:** Record predicted durability; if actual lifespan exceeds it, grant integrity score bonuses.
-- **Effect:** Rewards long-term quality instead of one-off sales.
-
-#### 8. Eliminating Information Asymmetry (Disclose What Sellers Want Hidden)
-- **Spec:** Attach durability, repair history, and depreciation trends as NFTs (or metadata) to products/services.
-- **Effect:** Buyers can see information sellers might want to hide ("breaks quickly," "poor maintainability").
-
-#### 9. Resource Liquidity and Anti-Monopoly (Resource Liquidity)
-- **Spec:** Owners self-assess and publish value for physical resources (land, critical infrastructure), and continuously pay a "soil return tax (Token B)" to the Soil Treasury based on that valuation.
-- **Harberger Tax:** Higher valuation increases tax burden; lower valuation allows others to buy at that price. Keeps valuations aligned with market reality.
-- **Deposit model:** When holding a resource, lock Token B as relocation/guarantee deposit. Refusal to transfer or violation triggers forfeiture and strong integrity penalties.
-- **Two-layer enforcement:** On-chain transfers usage rights/revenue immediately; off-chain enforcement uses legal oracles for registration/physical possession.
-- **Effect:** Concentration of wealth becomes costly and resources flow to optimal users.
-
-#### 10. Productivity-Backed Value (Productivity-backed Value)
-- **Spec:** Token B issuance is linked to verified real-world value (infrastructure recovery, quality products).
-- **Verification model:** Use Proof of Process with signed logs/sensor data for automatic checks. Disputes trigger decentralized post-audit; fraud slashes deposits.
-- **Effect:** Aligns issuance with productivity and maintains trust against external currencies.
-
-#### 11. Progressive Decay and Survival Buffer (Progressive Decay & Survival Buffer)
-- **Spec:** No decay for the basic balance equal to minimum living cost (0%). Dynamic decay applies only to surplus assets. The Survival Buffer is not a fixed number; it follows a CPI-derived minimum living cost from the oracle in section 12.
-- **Uniqueness:** Survival Buffer applies only to a World ID verified primary address; unverified addresses always decay.
-- **Initial parameter example:** Survival Buffer uses a 30-day CPI moving average, updates weekly, and is capped at ±3% per week.
-- **Effect:** Prevents stability costs from falling on everyday people while enabling redistribution and circulation.
-
-#### 12. Purchasing Power Oracle (Purchasing Power Oracle)
-- **Spec:** Track external price indices (e.g., CPI) and auto-adjust Token A distribution and the Survival Buffer baseline. Token B issuance is separated from this control loop.
-- **Supply control:** When distribution increases, decay rate is raised in sync. Upper/lower bounds and smoothing (moving averages) limit short-term volatility.
-- **Initial parameter example:** CPI input uses a 30-day moving average; Token A distribution adjusts by ±5% per week, decay rate by ±2% per week; outliers are excluded beyond 3σ.
-- **Effect:** UBI retains real purchasing power during inflation.
-
-#### 13. Emergency Advance Protocol (Emergency Advance Protocol)
-- **Spec:** During disasters, allow temporary issuance as an advance on future Token B rewards. A recovery schedule is fixed at issuance.
-- **Recovery control:** Use dynamic stability conditions rather than fixed deadlines. Accelerate recovery during overheating, slow during headwinds. Token A distribution remains governed by the CPI oracle in section 12.
-- **Cap:** Set issuance limits or ratio caps to prevent abuse.
-- **Effect:** Saves short-term crises while preserving long-term stability (mean reversion).
+## Phase2+ Drafts
+Detailed draft specs and future ideas live in `docs/spec_future.md`.
 
 #### 14. Targeted Support for Integrity (Targeted Support for Integrity)
 - **Spec:** Users with 30-day average asset balance below a threshold and integrity score above a threshold receive increased next-day distribution. Average balance uses Token A + Token B (Token B at market value). Token B is valued by a 30-day TWAP from decentralized oracles (e.g., Chainlink).
