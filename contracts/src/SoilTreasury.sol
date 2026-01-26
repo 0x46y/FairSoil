@@ -160,6 +160,11 @@ contract SoilTreasury is Ownable {
         emit CircuitStateSet(newState);
     }
 
+    function recordTreasuryIn(address from, uint256 amount, bytes32 reason) external onlyOwner {
+        require(amount > 0, "Amount required");
+        emit TreasuryIn(from, amount, reason);
+    }
+
     function setDeficitCapA(uint256 newCapA) external onlyOwner {
         deficitCapA = newCapA;
         emit DeficitCapASet(newCapA);
