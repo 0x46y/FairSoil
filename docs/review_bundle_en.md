@@ -1,7 +1,7 @@
 # FairSoil Review Bundle (EN)
 
 This file bundles the core documents for external review.  
-Note: This is a generated bundle. The sources are README.md / docs/spec_en.md / docs/vision.md / docs/spec_future_en.md.
+Note: This is a generated bundle. The sources are README.md / docs/spec_en.md / docs/vision_en.md / docs/spec_future_en.md.
 
 ---
 
@@ -14,7 +14,7 @@ FairSoil is a decentralized Universal Basic Income (UBI) protocol designed to cu
 ## Documents
 - Detailed spec (JA): `docs/spec_ja.md`
 - Detailed spec (EN): `docs/spec_en.md`
-- Vision details: `docs/vision.md`
+- Vision details: `docs/vision_en.md`
 - Phase2+ ideas: `docs/spec_future_en.md`
 - Review bundle (full consolidated master): `docs/review_bundle_en.md`
   - Regenerate: `python scripts/build_review_bundle_en.py`
@@ -52,7 +52,7 @@ FairSoil is a decentralized Universal Basic Income (UBI) protocol designed to cu
 ## Vision (Summary)
 FairSoil aims to build an economy where honesty is rewarded and exploitation is costly.  
 UBI guarantees the freedom to refuse unfair work.  
-Details: `docs/vision.md`
+Details: `docs/vision_en.md`
 
 ## Evidence Handling (Policy)
 - Evidence is stored off-chain; on-chain only keeps **evidenceHash**.
@@ -163,7 +163,7 @@ Phase2+ ideas live in `docs/spec_future_en.md`.
 
 ---
 
-## Source: docs/vision.md
+## Source: docs/vision_en.md
 
 # FairSoil Vision (Expanded)
 

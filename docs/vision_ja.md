@@ -4,7 +4,7 @@
 実装仕様は `docs/spec_ja.md` を参照してください。
 
 関連:
-- English vision: `docs/vision.md`
+- English vision: `docs/vision_en.md`
 - 英語仕様（要約）: `docs/spec_en.md`
 
 ## ビジョン（要約）
