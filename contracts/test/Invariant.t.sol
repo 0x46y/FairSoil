@@ -42,6 +42,9 @@ contract FairSoilInvariants is StdInvariant, Test {
     mapping(uint256 => uint256) internal escrowReleaseCountById;
     mapping(uint256 => uint256) internal escrowLockCountById;
     bool internal invalidEscrowReleasePayload;
+    mapping(uint256 => bool) internal escrowReleaseMismatchById;
+    mapping(uint256 => bool) internal escrowReleaseTokenARulesBroken;
+    mapping(uint256 => bool) internal escrowReleaseTokenBRulesBroken;
     uint256 internal treasuryOutAAmount;
     uint256 internal treasuryOutBAmount;
     bool internal unknownTreasuryReason;
@@ -146,13 +149,26 @@ contract FairSoilInvariants is StdInvariant, Test {
                 uint256 releasedTotal = releasedToWorker + releasedToCreator + burnedAmount;
                 escrowReleasedAmount += releasedTotal;
                 escrowReleasedAmountById[covenantId] += releasedTotal;
+                uint256 tokenBReward = covenantsRewardOrZero(covenantId);
+                if (tokenBReward > 0 && releasedTotal != tokenBReward) {
+                    escrowReleaseMismatchById[covenantId] = true;
+                }
                 if (paymentToken == 0) {
                     if (burnedAmount != 0) {
                         invalidEscrowReleasePayload = true;
                     }
+                    if (releasedToWorker + releasedToCreator != tokenBReward) {
+                        escrowReleaseTokenBRulesBroken[covenantId] = true;
+                    }
                 } else {
                     if (releasedToWorker != 0) {
                         invalidEscrowReleasePayload = true;
+                    }
+                    if (releasedToCreator > tokenBReward || burnedAmount > tokenBReward) {
+                        escrowReleaseTokenARulesBroken[covenantId] = true;
+                    }
+                    if (releasedToCreator + burnedAmount != tokenBReward) {
+                        escrowReleaseTokenARulesBroken[covenantId] = true;
                     }
                 }
             } else if (topic0 == keccak256("TreasuryOutA(address,uint256,bytes32)")) {
@@ -695,6 +711,88 @@ contract FairSoilInvariants is StdInvariant, Test {
                 assertTrue(status != Covenant.Status.Approved);
             }
         }
+    }
+
+    // Settled must align with payment mode and status when escrow is released.
+    function invariant_escrowReleaseSettledConsistency() public {
+        _syncEscrowEvents();
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!escrowReleasedById[i]) {
+                continue;
+            }
+            (
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                Covenant.PaymentMode paymentMode,
+                Covenant.Status status,
+                bool settled
+            ) = covenant.covenants(i);
+
+            if (
+                status == Covenant.Status.Rejected ||
+                status == Covenant.Status.Cancelled ||
+                status == Covenant.Status.IssueResolved
+            ) {
+                assertTrue(settled);
+                continue;
+            }
+
+            if (paymentMode == Covenant.PaymentMode.Immediate && status == Covenant.Status.Submitted) {
+                assertTrue(settled);
+            }
+            if (paymentMode == Covenant.PaymentMode.Escrow && status == Covenant.Status.Approved) {
+                assertTrue(settled);
+            }
+        }
+    }
+
+    // EscrowReleased payload sum should match tokenBReward.
+    function invariant_escrowReleaseMatchesReward() public {
+        _syncEscrowEvents();
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!escrowReleasedById[i]) {
+                continue;
+            }
+            assertFalse(escrowReleaseMismatchById[i]);
+            assertFalse(escrowReleaseTokenARulesBroken[i]);
+            assertFalse(escrowReleaseTokenBRulesBroken[i]);
+        }
+    }
+
+    function covenantsRewardOrZero(uint256 covenantId) internal view returns (uint256) {
+        if (covenantId >= covenant.nextId()) {
+            return 0;
+        }
+        (
+            ,
+            ,
+            uint256 tokenBReward,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+
+        ) = covenant.covenants(covenantId);
+        return tokenBReward;
     }
 
     function _isAllowedTreasuryReason(bytes32 reason) internal pure returns (bool) {
