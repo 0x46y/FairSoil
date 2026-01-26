@@ -1,5 +1,7 @@
 # FairSoil Specification (JA)
 
+このドキュメントは README_ja.md の詳細仕様です。入口は README_ja.md を参照してください。
+
 ## コアメカニズム
 
 ### 1. デュアルトークンシステム

@@ -2,6 +2,12 @@
 
 FairSoil は、誠実さと正直さが短期的な搾取やコストの外部化よりも報われる「公正な土壌」を育むことを目的とした、分散型ベーシックインカム（UBI）プロトコルです。
 
+## ドキュメント
+- 詳細仕様: `docs/spec_ja.md`
+- ビジョン詳細: `docs/vision_ja.md`
+- Phase2+ ideas: `docs/spec_future.md`
+- 外部レビュー用まとめ: `docs/review_bundle_ja.md`
+
 ## MVPマイルストーン（Phase 1）
 - 達成日: 2026/01/14
 - 完了内容: Token A（減衰）、Token B（資産）、Soil Treasury（金庫）、Covenant（掟）の全結合テストを完了。

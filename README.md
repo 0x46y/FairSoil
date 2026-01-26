@@ -2,6 +2,12 @@
 
 FairSoil is a decentralized Universal Basic Income (UBI) protocol designed to cultivate a "fair soil" where integrity and honesty are rewarded, rather than short-term exploitation or cost externalization.
 
+## Documents
+- Detailed spec (JA): `docs/spec_ja.md`
+- Vision details: `docs/vision.md`
+- Phase2+ ideas: `docs/spec_future.md`
+- Review bundle: `docs/review_bundle_en.md`
+
 ## MVP Milestone (Phase 1)
 - Date: 2026/01/14
 - Completed: End-to-end tests across Token A (decay), Token B (asset), SoilTreasury, and Covenant.

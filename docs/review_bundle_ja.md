@@ -1,6 +1,6 @@
 # FairSoil Review Bundle (JA)
 
-このファイルは外部レビュー用に主要文書を1つにまとめたものです。
+このファイルは日本語レビュー用の主要文書まとめです。
 
 ---
 
@@ -76,7 +76,11 @@ FairSoil は「誠実さが損にならない」経済基盤を目指す。
 
 ---
 
-## Source: docs/vision.md
+## Source: docs/vision_ja.md
+
+# FairSoil Vision (JA)
+
+README_ja.md から分離したビジョン詳細です。
 
 # FairSoil Vision (Expanded)
 
@@ -841,39 +845,3 @@ foundryup
 cd /workspaces/FairSoil/contracts
 forge test
 ```
-
-
----
-
-## Source: docs/spec_future.md
-
-# FairSoil Phase2+ Notes
-
-This document captures ideas that are *not* part of the current on-chain scope.
-It exists to avoid mixing implemented behavior with future concepts in README_ja.md.
-
-## Phase2+ Ideas (Outline)
-- APPI confidence weighting (anti-manipulation).
-- Additional governance/incentive modules (QF/RPGF, forecasting, etc.).
-- Extended UX/AI assist features (off-chain only).
-
-## Phase2+ Ideas (Expanded, English)
-### 1) APPI Confidence Weighting
-- Add confidence to APPI contributions (e.g., minimum unique reporters, diversity, recency).
-- Downweight clustered or correlated reports to reduce price manipulation.
-
-### 2) Public Goods Funding Modules
-- Quadratic Funding (QF) for broad participation.
-- Retroactive Public Goods Funding (RPGF) for verified outcomes.
-
-### 3) Forecasting & Early Warning
-- Prediction markets or forecast staking for supply chain risks.
-- Reward early warnings that later prove correct (not trading profits).
-
-### 4) Insurance and Reinsurance Pools
-- Community-level insurance pools for incident risk.
-- Reinsurance layer for catastrophic events.
-
-### 5) Compliance Modules (Optional)
-- Pluggable compliance adapters for regional requirements.
-- Opt-in at community level, not global hard dependency.
