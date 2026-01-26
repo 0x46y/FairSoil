@@ -14,11 +14,17 @@ interface IFairSoilTokenB {
     function balanceOf(address account) external view returns (uint256);
 }
 
+interface IAPPIOracle {
+    function dailyIndex(uint256 day) external view returns (uint256);
+}
+
 // Soil Treasury: manages UBI distribution for Token A.
 contract SoilTreasury is Ownable {
     IFairSoilTokenA public immutable tokenA;
     IFairSoilTokenB public immutable tokenB;
     uint256 public dailyUBIAmount = 100 * 1e18;
+    IAPPIOracle public appiOracle;
+    uint256 public lastAPPI;
 
     mapping(address => uint256) public lastClaimTimestamp;
     mapping(address => uint256) public integrityScore;
@@ -48,6 +54,8 @@ contract SoilTreasury is Ownable {
     event UBIAccrued(address indexed user, uint256 day, uint256 amountA);
     event Claimed(address indexed user, uint256 fromDay, uint256 toDay, uint256 grossA, uint256 decayedA);
     event DecayApplied(address indexed user, uint256 amountA);
+    event APPIOracleSet(address indexed oracle);
+    event APPIApplied(uint256 indexed day, uint256 appiValue, uint256 newDailyUBI);
 
     constructor(address tokenAAddress, address tokenBAddress) Ownable(msg.sender) {
         tokenA = IFairSoilTokenA(tokenAAddress);
@@ -78,6 +86,20 @@ contract SoilTreasury is Ownable {
     function setCovenant(address newCovenant) external onlyOwner {
         covenant = newCovenant;
         emit CovenantSet(newCovenant);
+    }
+
+    function setAPPIOracle(address newOracle) external onlyOwner {
+        appiOracle = IAPPIOracle(newOracle);
+        emit APPIOracleSet(newOracle);
+    }
+
+    function applyAPPI(uint256 day) external onlyOwner {
+        require(address(appiOracle) != address(0), "APPI oracle not set");
+        uint256 value = appiOracle.dailyIndex(day);
+        require(value > 0, "APPI unavailable");
+        lastAPPI = value;
+        dailyUBIAmount = value;
+        emit APPIApplied(day, value, dailyUBIAmount);
     }
 
     function setDeficitCapA(uint256 newCapA) external onlyOwner {
