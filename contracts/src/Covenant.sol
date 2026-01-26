@@ -38,6 +38,12 @@ contract Covenant is Ownable {
         TokenA
     }
 
+    enum PaymentMode {
+        Immediate,
+        Escrow,
+        Delayed
+    }
+
     struct CovenantData {
         address creator;
         address worker;
@@ -50,7 +56,9 @@ contract Covenant is Ownable {
         uint256 proposedIntegrityPoints;
         uint256 proposedSlashingPenalty;
         PaymentToken paymentToken;
+        PaymentMode paymentMode;
         Status status;
+        bool settled;
     }
 
     IERC20 public immutable tokenB;
@@ -141,6 +149,16 @@ contract Covenant is Ownable {
         uint256 integrityPoints,
         bool payInTokenA
     ) external returns (uint256 covenantId) {
+        return createCovenantWithMode(worker, tokenBReward, integrityPoints, payInTokenA, PaymentMode.Escrow);
+    }
+
+    function createCovenantWithMode(
+        address worker,
+        uint256 tokenBReward,
+        uint256 integrityPoints,
+        bool payInTokenA,
+        PaymentMode paymentMode
+    ) public returns (uint256 covenantId) {
         require(worker != address(0), "Worker required");
         require(msg.sender != worker, "Self-dealing not allowed");
         require(tokenBReward > 0, "Reward required");
@@ -159,7 +177,9 @@ contract Covenant is Ownable {
             proposedIntegrityPoints: 0,
             proposedSlashingPenalty: 0,
             paymentToken: payInTokenA ? PaymentToken.TokenA : PaymentToken.TokenB,
-            status: Status.Open
+            paymentMode: paymentMode,
+            status: Status.Open,
+            settled: false
         });
 
         if (payInTokenA) {
@@ -179,6 +199,10 @@ contract Covenant is Ownable {
         require(data.status == Status.Open, "Not open");
 
         data.status = Status.Submitted;
+        if (data.paymentMode == PaymentMode.Immediate && !data.settled) {
+            _releaseEscrow(covenantId, data.tokenBReward, 0);
+            data.settled = true;
+        }
         emit CovenantSubmitted(covenantId, msg.sender);
     }
 
@@ -189,25 +213,9 @@ contract Covenant is Ownable {
         require(data.status == Status.Submitted, "Not submitted");
 
         data.status = Status.Approved;
-        if (data.paymentToken == PaymentToken.TokenA) {
-            tokenA.burnFromCovenant(address(this), data.tokenBReward);
-            treasury.mintBByCrystallization(data.worker, data.tokenBReward);
-            emit EscrowReleased(
-                covenantId,
-                data.paymentToken,
-                0,
-                0,
-                data.tokenBReward
-            );
-        } else {
-            tokenB.safeTransfer(data.worker, data.tokenBReward);
-            emit EscrowReleased(
-                covenantId,
-                data.paymentToken,
-                data.tokenBReward,
-                0,
-                0
-            );
+        if (!data.settled && data.paymentMode == PaymentMode.Escrow) {
+            _releaseEscrow(covenantId, data.tokenBReward, 0);
+            data.settled = true;
         }
         if (data.integrityPoints > 0) {
             treasury.addIntegrityFromCovenant(data.worker, data.integrityPoints);
@@ -221,6 +229,7 @@ contract Covenant is Ownable {
         require(data.creator != address(0), "Unknown covenant");
         require(msg.sender == data.creator, "Creator only");
         require(data.status == Status.Submitted, "Not submitted");
+        require(!data.settled, "Already settled");
 
         data.status = Status.Rejected;
         if (data.paymentToken == PaymentToken.TokenA) {
@@ -254,6 +263,7 @@ contract Covenant is Ownable {
         require(data.creator != address(0), "Unknown covenant");
         require(msg.sender == data.creator, "Creator only");
         require(data.status == Status.Open, "Not open");
+        require(!data.settled, "Already settled");
 
         data.status = Status.Cancelled;
         if (data.paymentToken == PaymentToken.TokenA) {
@@ -291,6 +301,7 @@ contract Covenant is Ownable {
         CovenantData storage data = covenants[covenantId];
         require(data.creator != address(0), "Unknown covenant");
         require(msg.sender == data.worker, "Worker only");
+        require(!data.settled, "Already settled");
         require(
             data.status == Status.Open ||
                 data.status == Status.Submitted ||
@@ -313,41 +324,8 @@ contract Covenant is Ownable {
         data.status = Status.IssueResolved;
         uint256 workerShare = (data.tokenBReward * data.issueClaimBps) / ISSUE_BPS_DENOMINATOR;
         uint256 creatorShare = data.tokenBReward - workerShare;
-        if (data.paymentToken == PaymentToken.TokenA) {
-            uint256 refunded = 0;
-            if (workerShare > 0) {
-                tokenA.burnFromCovenant(address(this), workerShare);
-                treasury.mintBByCrystallization(data.worker, workerShare);
-            }
-            if (creatorShare > 0) {
-                uint256 refund = tokenA.applyEscrowDecay(creatorShare, data.escrowStart);
-                if (refund > 0) {
-                    tokenA.safeTransfer(data.creator, refund);
-                }
-                refunded = refund;
-            }
-            emit EscrowReleased(
-                covenantId,
-                data.paymentToken,
-                0,
-                refunded,
-                workerShare + (creatorShare - refunded)
-            );
-        } else {
-            if (workerShare > 0) {
-                tokenB.safeTransfer(data.worker, workerShare);
-            }
-            if (creatorShare > 0) {
-                tokenB.safeTransfer(data.creator, creatorShare);
-            }
-            emit EscrowReleased(
-                covenantId,
-                data.paymentToken,
-                workerShare,
-                creatorShare,
-                0
-            );
-        }
+        _releaseEscrow(covenantId, workerShare, creatorShare);
+        data.settled = true;
         treasury.addIntegrityFromCovenant(data.worker, ISSUE_INTEGRITY_POINTS);
 
         emit IssueAccepted(covenantId, msg.sender, data.issueClaimBps);
@@ -401,6 +379,33 @@ contract Covenant is Ownable {
         uint256 workerShare =
             (data.tokenBReward * data.proposedWorkerPayoutBps) / ISSUE_BPS_DENOMINATOR;
         uint256 creatorShare = data.tokenBReward - workerShare;
+        _releaseEscrow(covenantId, workerShare, creatorShare);
+        data.settled = true;
+        if (data.proposedIntegrityPoints > 0) {
+            treasury.addIntegrityFromCovenant(data.worker, data.proposedIntegrityPoints);
+        }
+        if (data.proposedSlashingPenalty > 0) {
+            emit MaliceSlashed(
+                covenantId,
+                data.creator,
+                data.worker,
+                data.proposedSlashingPenalty
+            );
+        }
+        emit DisputeResolved(
+            covenantId,
+            data.proposedWorkerPayoutBps,
+            data.proposedIntegrityPoints,
+            data.proposedSlashingPenalty
+        );
+    }
+
+    function _releaseEscrow(
+        uint256 covenantId,
+        uint256 workerShare,
+        uint256 creatorShare
+    ) internal {
+        CovenantData storage data = covenants[covenantId];
         if (data.paymentToken == PaymentToken.TokenA) {
             uint256 refunded = 0;
             if (workerShare > 0) {
@@ -436,22 +441,5 @@ contract Covenant is Ownable {
                 0
             );
         }
-        if (data.proposedIntegrityPoints > 0) {
-            treasury.addIntegrityFromCovenant(data.worker, data.proposedIntegrityPoints);
-        }
-        if (data.proposedSlashingPenalty > 0) {
-            emit MaliceSlashed(
-                covenantId,
-                data.creator,
-                data.worker,
-                data.proposedSlashingPenalty
-            );
-        }
-        emit DisputeResolved(
-            covenantId,
-            data.proposedWorkerPayoutBps,
-            data.proposedIntegrityPoints,
-            data.proposedSlashingPenalty
-        );
     }
 }

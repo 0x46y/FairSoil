@@ -210,3 +210,42 @@ contract CovenantEscrowDecayTest is Test {
         assertLt(balanceAfter - balanceBefore, 100e18);
     }
 }
+
+    function testImmediatePaysOnSubmit() public {
+        vm.prank(creator);
+        uint256 covenantId = covenant.createCovenantWithMode(
+            worker,
+            100e18,
+            0,
+            false,
+            Covenant.PaymentMode.Immediate
+        );
+
+        vm.expectEmit(true, true, true, true);
+        emit Covenant.EscrowReleased(covenantId, Covenant.PaymentToken.TokenB, 100e18, 0, 0);
+        vm.prank(worker);
+        covenant.submitWork(covenantId);
+    }
+
+    function testDelayedDoesNotPayOnApprove() public {
+        vm.prank(creator);
+        uint256 covenantId = covenant.createCovenantWithMode(
+            worker,
+            100e18,
+            0,
+            false,
+            Covenant.PaymentMode.Delayed
+        );
+
+        vm.prank(worker);
+        covenant.submitWork(covenantId);
+
+        vm.recordLogs();
+        vm.prank(creator);
+        covenant.approveWork(covenantId);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        for (uint256 i = 0; i < entries.length; i++) {
+            assertTrue(entries[i].topics[0] != keccak256("EscrowReleased(uint256,uint8,uint256,uint256,uint256)"));
+        }
+    }
+}
