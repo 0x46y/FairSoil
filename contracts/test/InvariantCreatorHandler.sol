@@ -46,6 +46,17 @@ contract InvariantCreatorHandler {
         return covenant.createCovenantWithMode(worker, reward, integrity, payInTokenA, paymentMode);
     }
 
+    function createAppealCovenant(
+        uint256 originalId,
+        uint256 reward,
+        uint256 integrity,
+        bool payInTokenA,
+        uint8 mode
+    ) external returns (uint256) {
+        Covenant.PaymentMode paymentMode = Covenant.PaymentMode(mode % 3);
+        return covenant.createAppealCovenant(originalId, reward, integrity, payInTokenA, paymentMode);
+    }
+
     function approveWork(uint256 covenantId) external {
         covenant.approveWork(covenantId);
     }

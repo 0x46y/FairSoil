@@ -76,6 +76,8 @@ contract Covenant is Ownable {
     address public disputeResolver;
 
     mapping(uint256 => CovenantData) public covenants;
+    mapping(uint256 => uint256) public appealCovenantOf;
+    mapping(uint256 => uint256) public originalCovenantOf;
 
     event CovenantCreated(
         uint256 indexed covenantId,
@@ -89,6 +91,7 @@ contract Covenant is Ownable {
     event CovenantApprovalFinalized(uint256 indexed covenantId, address indexed creator);
     event CovenantRejected(uint256 indexed covenantId, address indexed creator);
     event CovenantCancelled(uint256 indexed covenantId, address indexed creator);
+    event AppealCovenantCreated(uint256 indexed originalId, uint256 indexed appealId);
     event EscrowLocked(uint256 indexed covenantId, PaymentToken paymentToken, uint256 amount);
     event EscrowReleased(
         uint256 indexed covenantId,
@@ -167,39 +170,40 @@ contract Covenant is Ownable {
         bool payInTokenA,
         PaymentMode paymentMode
     ) public returns (uint256 covenantId) {
-        require(worker != address(0), "Worker required");
-        require(msg.sender != worker, "Self-dealing not allowed");
-        require(tokenBReward > 0, "Reward required");
-        require(tokenA.isPrimaryAddress(worker), "Worker not verified");
+        covenantId = _createCovenantInternal(
+            msg.sender,
+            worker,
+            tokenBReward,
+            integrityPoints,
+            payInTokenA,
+            paymentMode
+        );
+    }
 
-        covenantId = nextId++;
-        covenants[covenantId] = CovenantData({
-            creator: msg.sender,
-            worker: worker,
-            tokenBReward: tokenBReward,
-            integrityPoints: integrityPoints,
-            issueClaimBps: 0,
-            escrowStart: block.timestamp,
-            milestoneProgress: 0,
-            proposedWorkerPayoutBps: 0,
-            proposedIntegrityPoints: 0,
-            proposedSlashingPenalty: 0,
-            paymentToken: payInTokenA ? PaymentToken.TokenA : PaymentToken.TokenB,
-            paymentMode: paymentMode,
-            status: Status.Open,
-            settled: false
-        });
+    function createAppealCovenant(
+        uint256 originalId,
+        uint256 tokenBReward,
+        uint256 integrityPoints,
+        bool payInTokenA,
+        PaymentMode paymentMode
+    ) external returns (uint256 appealId) {
+        CovenantData storage original = covenants[originalId];
+        require(original.creator != address(0), "Unknown covenant");
+        require(original.status == Status.IssueResolved, "Not resolved");
+        require(msg.sender == original.creator, "Creator only");
+        require(appealCovenantOf[originalId] == 0, "Appeal exists");
 
-        _tagLiability(covenantId, 0, int256(tokenBReward), treasury.REASON_COV_CREATE());
-
-        if (payInTokenA) {
-            tokenA.safeTransferFrom(msg.sender, address(this), tokenBReward);
-        } else {
-            tokenB.safeTransferFrom(msg.sender, address(this), tokenBReward);
-        }
-
-        emit CovenantCreated(covenantId, msg.sender, worker, tokenBReward, integrityPoints);
-        emit EscrowLocked(covenantId, covenants[covenantId].paymentToken, tokenBReward);
+        appealId = _createCovenantInternal(
+            msg.sender,
+            original.worker,
+            tokenBReward,
+            integrityPoints,
+            payInTokenA,
+            paymentMode
+        );
+        appealCovenantOf[originalId] = appealId;
+        originalCovenantOf[appealId] = originalId;
+        emit AppealCovenantCreated(originalId, appealId);
     }
 
     function submitWork(uint256 covenantId) external {
@@ -249,6 +253,49 @@ contract Covenant is Ownable {
         _tagLiability(covenantId, 0, -int256(data.tokenBReward), treasury.REASON_COV_SETTLE());
 
         emit CovenantApprovalFinalized(covenantId, msg.sender);
+    }
+
+    function _createCovenantInternal(
+        address creator,
+        address worker,
+        uint256 tokenBReward,
+        uint256 integrityPoints,
+        bool payInTokenA,
+        PaymentMode paymentMode
+    ) internal returns (uint256 covenantId) {
+        require(worker != address(0), "Worker required");
+        require(creator != worker, "Self-dealing not allowed");
+        require(tokenBReward > 0, "Reward required");
+        require(tokenA.isPrimaryAddress(worker), "Worker not verified");
+
+        covenantId = nextId++;
+        covenants[covenantId] = CovenantData({
+            creator: creator,
+            worker: worker,
+            tokenBReward: tokenBReward,
+            integrityPoints: integrityPoints,
+            issueClaimBps: 0,
+            escrowStart: block.timestamp,
+            milestoneProgress: 0,
+            proposedWorkerPayoutBps: 0,
+            proposedIntegrityPoints: 0,
+            proposedSlashingPenalty: 0,
+            paymentToken: payInTokenA ? PaymentToken.TokenA : PaymentToken.TokenB,
+            paymentMode: paymentMode,
+            status: Status.Open,
+            settled: false
+        });
+
+        _tagLiability(covenantId, 0, int256(tokenBReward), treasury.REASON_COV_CREATE());
+
+        if (payInTokenA) {
+            tokenA.safeTransferFrom(creator, address(this), tokenBReward);
+        } else {
+            tokenB.safeTransferFrom(creator, address(this), tokenBReward);
+        }
+
+        emit CovenantCreated(covenantId, creator, worker, tokenBReward, integrityPoints);
+        emit EscrowLocked(covenantId, covenants[covenantId].paymentToken, tokenBReward);
     }
 
     function rejectWork(uint256 covenantId) external {
