@@ -1193,6 +1193,29 @@ contract FairSoilInvariants is StdInvariant, Test {
         }
     }
 
+    function invariant_resolutionProposedRequiresDispute() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!resolutionProposedEventById[i]) {
+                continue;
+            }
+            assertTrue(issueDisputedEventById[i]);
+        }
+    }
+
+    function invariant_approvedNotRejectedOrCancelled() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!approvedEventById[i]) {
+                continue;
+            }
+            assertFalse(rejectedEventById[i]);
+            assertFalse(cancelledEventById[i]);
+        }
+    }
+
     // EscrowReleased payload sum should match tokenBReward.
     function invariant_escrowReleaseMatchesReward() public {
         _syncEscrowEvents();
