@@ -10,6 +10,19 @@ FairSoil is a decentralized Universal Basic Income (UBI) protocol designed to cu
 - Review bundle (full consolidated master): `docs/review_bundle_en.md`
   - Regenerate: `python scripts/build_review_bundle_en.py`
 
+## Spec Links (By Section)
+- Core mechanisms: `docs/spec_en.md#core-mechanisms`
+- Accounting rules (Section 0): `docs/spec_en.md#0-2-ledger-classification`
+- Economy & distribution: `docs/spec_ja.md#経済分配`
+- IP & contribution: `docs/spec_ja.md#知財貢献`
+- Education & reskilling: `docs/spec_ja.md#教育再挑戦`
+- Governance & audit: `docs/spec_ja.md#ガバナンス監査`
+- Operations & safety: `docs/spec_ja.md#運用安全`
+- Adoption path: `docs/spec_ja.md#導入戦略-adoption-path`
+- Tech stack: `docs/spec_ja.md#技術スタック予定`
+- Minimum requirements: `docs/spec_ja.md#最低要件予定`
+- Dev environment: `docs/spec_ja.md#開発環境wsl2--foundry`
+
 ## MVP Milestone (Phase 1)
 - Date: 2026/01/14
 - Completed: End-to-end tests across Token A (decay), Token B (asset), SoilTreasury, and Covenant.
@@ -24,6 +37,12 @@ FairSoil is a decentralized Universal Basic Income (UBI) protocol designed to cu
 **🟡 Phase2+ ideas (not implemented)**
 - APPI confidence weighting, governance/incentive modules (QF/RPGF/forecasting)
 - Additional UX/AI support (off-chain)
+
+## Operational Notes (Draft)
+- Evidence is stored off-chain; on-chain only keeps **evidenceHash**.
+- report/dispute records include **evidenceHash** and a short statement; evidenceUri stays off-chain.
+- AI summaries are off-chain, used for issue framing only (not decisions).
+- Resolve uses two-step finalization and one-time appeal to reduce mistakes.
 
 ## On-chain minimal events (User/Dispute)
 - `UBIAccrued(user, day, amountA)`
@@ -40,44 +59,26 @@ FairSoil is a decentralized Universal Basic Income (UBI) protocol designed to cu
 - `LiabilityChanged(deltaA, deltaB, reason)`
 - `ReserveSnapshot(reservesA, reservesB)`
 
+## Unclaimed UBI Reference (Correctness First)
+- **Ledger model:** keep daily buckets `unclaimed[day] = amountA`.
+- **Claim processing:** use `age = nowDay - day` and apply decay per day, then sum.
+- **Anti-evasion:** decay is applied by issue date, not by split-claims (Spec 3).
+- **Optimize later:** use checkpoints or compression only after correctness is proven.
+
+## On-chain / Off-chain Boundary (Minimal)
+**On-chain (minimal)**
+- Covenant IDs, state transitions (Issue/Dispute/Resolve), payouts, lock/unlock, penalties, reference hashes.
+
+**Off-chain but tamper-evident**
+- evidenceUri, summaries, timeline notes, attachments (IPFS etc).
+
+**Off-chain only**
+- AI summary generation process, models, prompts (hashes only if needed).
+
 ## Vision (Summary)
 FairSoil aims to build an economy where honesty is rewarded and exploitation is costly.  
 UBI guarantees the freedom to refuse unfair work.  
 Details: `docs/vision_en.md`
 
-## Evidence Handling (Policy)
-- Evidence is stored off-chain; on-chain only keeps **evidenceHash**.
-- evidenceUri is reference-only and kept off-chain to avoid link rot/privacy risk.
-
-## Core Mechanisms
-
-### 1. Dual Token System
-- **Token A (Flow):** A "decaying" currency for daily transactions.
-  - Distributed daily to all verified humans.
-  - Automatically loses value/amount over time (e.g., 30-day half-life) to encourage circulation.
-  - **Claim model:** Accrues daily into an unclaimed balance; users can claim in daily/weekly/monthly batches.
-  - **Unclaimed decay:** No decay for the first 30 days; normal decay applies from day 31 to discourage long-term hoarding.
-  - **Self-limits:** Users can set withdrawal frequency and caps.
-  - **Delegated profile:** Allowed only with time limits, user revocation rights, and audit logs.
-    - **Guardrails:** Maximum validity window (e.g., 90 days) with automatic expiry.
-    - **Guardrails:** The user can revoke or change delegation immediately; veto power always remains with the user.
-    - **Guardrails:** Delegated changes are recorded in audit logs and are third-party verifiable.
-    - **Guardrails:** Delegation is limited to claim frequency/caps; destination changes and asset transfers are disallowed.
-    - **Guardrails:** Granting or renewing delegation requires explicit user consent and re-confirmation.
-- **Token B (Asset):** A permanent value store.
-  - Earned through high-integrity actions and socially essential contributions.
-  - Cannot be obtained through simple hoarding of Token A.
-
-### 2. Integrity-Based Evaluation
-- Rewards are based on "integrity" (not just "doing good," but "not cheating").
-- Penalizes "cost externalization" (pushing risks/costs onto others).
-- Uses Proof of Process to verify that safety and procedural standards were met.
-
-### 3. Sybil Resistance
-- Integrated with **World ID** to ensure each participant is a unique human being.
-
-### 4. Dynamic Incentives for Essential Tasks
-- Automated reward scaling for emergency, high-risk, or essential tasks (e.g., disaster relief, healthcare) where supply is low.
-
-## Phase2+ Drafts
-Detailed draft specs and future ideas live in `docs/spec_future_en.md`.
+## Core Mechanisms (Details in docs/spec_en.md)
+- This README is an entry point; detailed specs and formulas live in `docs/spec_en.md`.
