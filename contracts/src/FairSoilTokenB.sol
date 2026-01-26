@@ -51,4 +51,13 @@ contract FairSoilTokenB is ERC20, Ownable {
         }
         super._update(from, to, amount);
     }
+
+    function circulatingSupply() external view returns (uint256) {
+        return totalSupply() - totalLocked;
+    }
+
+    function unlockedBalanceOf(address account) external view returns (uint256) {
+        uint256 balance = balanceOf(account);
+        return balance - lockedBalance[account];
+    }
 }
