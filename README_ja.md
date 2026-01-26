@@ -142,6 +142,11 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
     - `ADV_SETTLE`（前借りの負債解消）  
     - `COV_CREATE`（掟作成での負債化）  
     - `COV_SETTLE`（掟決済での負債解消）
+  - **返済メモ:** `settleAdvanceB(from, amount)` は `from` が指定されている場合、`transferFrom` により B を回収して解消する
+  - **返済メモ（補足）:** `from = 0x0` の場合は外部回収を行わず、Treasury保有残高の範囲で解消する
+  - **運用メモ:** 返済の実行主体は `Treasury`（管理者/ガバナンス）とし、返済ルールはガバナンス決定で更新可能とする
+  - **監査メモ:** `advanceBOutstanding + advanceBSettledTotal == Advance(B)発行総量` を満たすこと
+  - **インセンティブ案:** 前借り返済者に少額の B ボーナスを付与、あるいは誠実スコアの加点を検討
   - **実装メモ:** reason 定数は `SoilTreasury.REASON_*` としてオンチェーン参照可能
 - **発行（Seigniorage）:** ルールに基づく新規発行（例：A の減価に連動する補填ミント 等）  
   - ※Seigniorage は「収入」ではなく「供給操作」として別枠管理する

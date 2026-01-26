@@ -7,10 +7,12 @@ import {APPIOracle} from "../src/APPIOracle.sol";
 contract InvariantTreasuryHandler {
     SoilTreasury public treasury;
     APPIOracle public oracle;
+    address public owner;
 
     constructor(address treasuryAddress, address oracleAddress) {
         treasury = SoilTreasury(treasuryAddress);
         oracle = APPIOracle(oracleAddress);
+        owner = msg.sender;
     }
 
     function claimUBI() external {
@@ -76,6 +78,11 @@ contract InvariantTreasuryHandler {
     }
 
     function settleAdvanceB(uint256 amount) external {
+        uint256 normalized = 1 + (amount % 1e18);
+        treasury.settleAdvanceB(address(0), normalized);
+    }
+
+    function settleAdvanceBFromSelf(uint256 amount) external {
         uint256 normalized = 1 + (amount % 1e18);
         treasury.settleAdvanceB(address(this), normalized);
     }

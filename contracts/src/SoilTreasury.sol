@@ -13,6 +13,7 @@ interface IFairSoilTokenA {
 interface IFairSoilTokenB {
     function mint(address to, uint256 amount) external;
     function balanceOf(address account) external view returns (uint256);
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }
 
 interface IAPPIOracle {
@@ -56,6 +57,7 @@ contract SoilTreasury is Ownable {
     uint256 public treasuryInTotal;
     uint256 public treasuryOutATotal;
     uint256 public treasuryOutBTotal;
+    uint256 public advanceBSettledTotal;
     uint256 public liabilitiesA;
     uint256 public liabilitiesB;
     uint256 public lastReservesA;
@@ -399,8 +401,12 @@ contract SoilTreasury is Ownable {
     function settleAdvanceB(address from, uint256 amount) external onlyOwner {
         require(amount > 0, "Amount required");
         require(advanceBOutstanding >= amount, "Advance underflow");
+        if (from != address(0)) {
+            require(tokenB.transferFrom(from, address(this), amount), "Transfer failed");
+        }
         require(tokenB.balanceOf(address(this)) >= amount, "Insufficient reserves");
         advanceBOutstanding -= amount;
+        advanceBSettledTotal += amount;
         adjustLiabilities(0, -int256(amount), REASON_ADVANCE_SETTLE);
         emit AdvanceBSettled(from, amount);
     }

@@ -163,6 +163,11 @@ contract FairSoilInvariants is StdInvariant, Test {
         vm.prank(address(creatorHandler));
         tokenB.approve(address(covenant), 1_000e18);
 
+        vm.prank(address(creatorHandler));
+        tokenB.transfer(address(treasuryHandler), 500e18);
+        vm.prank(address(treasuryHandler));
+        tokenB.approve(address(treasury), 500e18);
+
         targetContract(address(creatorHandler));
         targetContract(address(workerHandler));
         targetContract(address(resolverHandler));
@@ -790,6 +795,10 @@ contract FairSoilInvariants is StdInvariant, Test {
         assertEq(treasuryOutBAmount, treasuryOutBAdvance + treasuryOutBTask + treasuryOutBCrystal);
         assertEq(treasury.deficitAOutstanding(), treasuryOutADeficit);
         assertEq(treasury.advanceBOutstanding(), treasuryOutBAdvance);
+    }
+
+    function invariant_advanceIssuedEqualsOutstandingPlusSettled() public view {
+        assertEq(treasuryOutBAdvance, treasury.advanceBOutstanding() + treasury.advanceBSettledTotal());
     }
 
     function invariant_treasuryInReasonTotals() public {
