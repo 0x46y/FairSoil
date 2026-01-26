@@ -13,6 +13,20 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
 - AI要約は判定ではなく「論点整理」の支援としてオフチェーンで提供する。
 - 裁定（Resolve）は二段階確定・確認ダイアログ・再審請求（1回）などで誤操作を抑止する。
 
+## オンチェーン最小イベント（監査の骨）
+- `UBIAccrued(user, day, amountA)`
+- `Claimed(user, fromDay, toDay, grossA, decayedA)`
+- `DecayApplied(scope, amountA)`
+- `CovenantCreated(id, templateHash, parties)`
+- `IssueReported(covenantId, issueId, evidenceHash, evidenceUri)`
+- `Resolved(covenantId, issueId, stage, payoutA, payoutB, integrityDelta, finalizedAt)`
+
+## 未受領UBIの参照実装（正しさ優先）
+- **台帳モデル:** `unclaimed[day] = amountA` の日次バケットを保持する。
+- **請求時処理:** `age = nowDay - day` を基準に減価係数を適用し、合算して請求額を確定する。
+- **減価回避の防止:** 請求の分割ではなく「発生日基準」で減価を適用する（仕様3と整合）。
+- **最適化は後回し:** まず正確性を優先し、必要に応じてチェックポイント方式で圧縮する。
+
 ## オンチェーン/オフチェーン境界（最小定義）
 **オンチェーンで確定するもの（最小）**
 - 掟ID、状態遷移（Issue/Dispute/Resolve）、支払額、ロック/アンロック、ペナルティ結果、参照ハッシュ
@@ -323,6 +337,17 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
 - **補足:** 高難度・不確実案件では「誠実な失敗」も価値として評価し、挑戦コストを社会で分担する。
 - **状態遷移（最小）:** `Issue -> {Accept | Dispute} -> Resolve`  
   Dispute は DAO 裁定へ移行し、Resolve は二段階確定（Proposed -> Finalized）と再審請求（1回）を許容する。
+- **状態機械（最小）:**  
+  `None -> Open -> {Accepted | Disputed}`  
+  `Disputed -> Proposed -> Finalized`  
+  `Finalized -> ReopenedOnce`（再審は1回のみ、条件付き）  
+  **不変条件:** Finalized 後の支払いは原則不可逆。再審は「追加補填/別建て清算」で扱い、巻き戻しは避ける。
+- **発火条件（最小）:**  
+  - `Open -> Accepted`: 作業完了の提出 + 依頼者承認  
+  - `Open -> Disputed`: 期限超過/不備報告/依頼者異議  
+  - `Disputed -> Proposed`: 裁定案が提示された時  
+  - `Proposed -> Finalized`: 確認トランザクション完了  
+  - `Finalized -> ReopenedOnce`: 再審請求が期限内かつ条件を満たす場合のみ
 - **支払方式の標準化:** 掟の支払は、取引リスクに応じて以下の標準方式を選択する。  
   1) **即時払い:** 低額・低リスクの案件  
   2) **エスクロー:** 検収/段階払いに連動  
