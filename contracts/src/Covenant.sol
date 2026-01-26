@@ -14,6 +14,9 @@ interface IFairSoilTokenA is IERC20 {
 interface ISoilTreasury {
     function addIntegrityFromCovenant(address worker, uint256 integrityPoints) external;
     function mintBByCrystallization(address worker, uint256 burnedA) external returns (uint256);
+    function penalizePayScoreWithReason(address account, uint256 points, string calldata reason) external;
+    function addPayScore(address account, uint256 points) external;
+    function penalizeProcessScore(address account, uint256 points, string calldata reason) external;
 }
 
 // Covenant: escrowed Token B rewards released on approval after worker submission.
@@ -220,6 +223,7 @@ contract Covenant is Ownable {
         if (data.integrityPoints > 0) {
             treasury.addIntegrityFromCovenant(data.worker, data.integrityPoints);
         }
+        treasury.addPayScore(data.creator, 2);
 
         emit CovenantApproved(covenantId, msg.sender);
     }
@@ -254,6 +258,8 @@ contract Covenant is Ownable {
                 0
             );
         }
+        treasury.penalizePayScoreWithReason(data.creator, 10, "Rejected after submission");
+        treasury.penalizeProcessScore(data.worker, 5, "Rejected work");
 
         emit CovenantRejected(covenantId, msg.sender);
     }
@@ -288,6 +294,8 @@ contract Covenant is Ownable {
                 0
             );
         }
+        treasury.penalizePayScoreWithReason(data.creator, 5, "Cancelled covenant");
+        treasury.penalizeProcessScore(data.worker, 2, "Cancelled before completion");
 
         emit CovenantCancelled(covenantId, msg.sender);
     }
@@ -327,6 +335,7 @@ contract Covenant is Ownable {
         _releaseEscrow(covenantId, workerShare, creatorShare);
         data.settled = true;
         treasury.addIntegrityFromCovenant(data.worker, ISSUE_INTEGRITY_POINTS);
+        treasury.addPayScore(data.creator, 1);
 
         emit IssueAccepted(covenantId, msg.sender, data.issueClaimBps);
     }
@@ -384,6 +393,7 @@ contract Covenant is Ownable {
         if (data.proposedIntegrityPoints > 0) {
             treasury.addIntegrityFromCovenant(data.worker, data.proposedIntegrityPoints);
         }
+        treasury.addPayScore(data.creator, 1);
         if (data.proposedSlashingPenalty > 0) {
             emit MaliceSlashed(
                 covenantId,

@@ -17,18 +17,44 @@
 ### 1-1. 対象
 - [ ] SoilTreasury: `contracts/src/SoilTreasury.sol`
 - [ ] Covenant: `contracts/src/Covenant.sol`
-- [ ] TokenA (Flow): TODO: ファイル/インタフェース
-- [ ] TokenB (Asset): TODO: ファイル/インタフェース
+- [ ] TokenA (Flow): `contracts/src/FairSoilTokenA.sol`
+- [ ] TokenB (Asset): `contracts/src/FairSoilTokenB.sol`
 
 ### 1-2. “監査ログ”として必須イベント（要埋め）
 （イベント名は実装に合わせて追記）
-- [ ] `TreasuryIn(...)` : Fees/Taxes/Slashing/External
-- [ ] `TreasuryOutA(...)`
-- [ ] `TreasuryOutB(...)`
-- [ ] `SeigniorageA(...)`
-- [ ] `LiabilityChanged(...)`（未決報酬/前借り/救済クレジット等）
-- [ ] `ReserveSnapshot(...)`（任意。無い場合は残高照合で代替）
-- [ ] Covenant 系: `Issue(...)`, `Accept(...)`, `Dispute(...)`, `ResolveProposed(...)`, `ResolveFinalized(...)`, `AppealRequested(...)`
+- [ ] Treasury 系（現行）:
+  - `UBIClaimed(...)`
+  - `UBIAccrued(...)`
+  - `Claimed(...)`
+  - `DecayApplied(...)`
+  - `DeficitAIssued(...)` (A発行)
+  - `AdvanceBIssued(...)` (B前借り)
+  - `CrystallizationMinted(...)`
+  - `TaskCompleted(...)`
+  - `ScoreUpdated(...)`
+  - `PayPenaltyApplied(...)`
+  - `APPIApplied(...)`, `APPIOracleSet(...)`
+  - `CircuitStateSet(...)`
+- [ ] Covenant 系（現行）:
+  - `CovenantCreated(...)`
+  - `CovenantSubmitted(...)`
+  - `CovenantApproved(...)`
+  - `CovenantRejected(...)`
+  - `CovenantCancelled(...)`
+  - `EscrowLocked(...)`
+  - `EscrowReleased(...)`
+  - `IssueReported(...)`
+  - `IssueAccepted(...)`
+  - `IssueDisputed(...)`
+  - `ResolutionProposed(...)`
+  - `DisputeResolved(...)`
+  - `DisputeResolverSet(...)`
+  - `MaliceSlashed(...)`
+- [ ] 監査上不足している場合の追加候補:
+  - `TreasuryIn(...)`, `TreasuryOutA(...)`, `TreasuryOutB(...)`
+  - `SeigniorageA(...)`
+  - `LiabilityChanged(...)`
+  - `ReserveSnapshot(...)`
 
 ---
 
@@ -38,8 +64,18 @@
 - Appeal は 1 回のみ
 
 ### 2-1. 状態列挙（要埋め）
-- [ ] enum/定数の一覧: TODO
-- [ ] 状態遷移表（from -> to / 関数 / ガード条件）: TODO
+- [ ] enum/定数の一覧:
+  - `Open`, `Submitted`, `Approved`, `Rejected`, `Cancelled`, `IssueReported`, `Disputed`, `ResolutionProposed`, `IssueResolved`
+- [ ] 状態遷移表（from -> to / 関数 / ガード条件）:
+  - `Open -> Submitted` : `submitWork` (worker only)
+  - `Submitted -> Approved` : `approveWork` (creator only)
+  - `Submitted -> Rejected` : `rejectWork` (creator only)
+  - `Open -> Cancelled` : `cancel` (creator only)
+  - `Open/Submitted/IssueReported -> IssueReported` : `reportIssue` (worker only)
+  - `IssueReported -> IssueResolved` : `acceptIssue` (creator only)
+  - `IssueReported/Disputed -> Disputed` : `disputeIssue` (creator only)
+  - `Disputed/ResolutionProposed -> ResolutionProposed` : `resolveDispute` (resolver only)
+  - `ResolutionProposed -> IssueResolved` : `finalizeResolution` (creator or resolver)
 
 ---
 
@@ -51,7 +87,23 @@
 **意図:** あらゆる価値移転は「Mint / Treasury支出 / Transfer / Lock/Unlock」のどれかに分類できる。
 
 - [ ] R1-1: “支払系関数”を全列挙する（Treasury支払、Covenant決済、UBI請求、結晶化、罰則、手数料等）
-  - TODO: 関数一覧
+  - `SoilTreasury.claimUBI`
+  - `SoilTreasury.accrueUBI`
+  - `SoilTreasury.claimUnclaimed`
+  - `SoilTreasury.emergencyMintA`
+  - `SoilTreasury.emergencyAdvanceB`
+  - `SoilTreasury.reportTaskCompleted`
+  - `SoilTreasury.reportTaskWithProcessScore`
+  - `SoilTreasury.mintBByCrystallization`
+  - `SoilTreasury.penalizeProcessScore`
+  - `SoilTreasury.penalizePayScoreWithReason`
+  - `Covenant.submitWork`
+  - `Covenant.approveWork`
+  - `Covenant.rejectWork`
+  - `Covenant.cancel`
+  - `Covenant.acceptIssue`
+  - `Covenant.resolveDispute`
+  - `Covenant.finalizeResolution`
 - [ ] R1-2: 列挙した全関数が「許可イベントセット」を必ず発火する（または revert）
   - 許可イベント例: Mint(A/B), Transfer(A/B), Lock/Unlock(A/B), TreasuryOutA/B, TreasuryIn, Burn(A/B)
 - [ ] R1-3: “分類不能な支払” が起きる呼び出しは revert する
@@ -88,7 +140,10 @@
 **意図:** A の減価や罰則を “Bの財源” に変換する抜け道を封じる。
 
 - [ ] R3-1: B Mint の発生源を列挙（Covenant承認 / 結晶化 / 他）
-  - TODO: Mint(B) を起こす関数一覧
+  - `SoilTreasury.reportTaskCompleted`
+  - `SoilTreasury.reportTaskWithProcessScore`
+  - `SoilTreasury.emergencyAdvanceB`
+  - `SoilTreasury.mintBByCrystallization`
 - [ ] R3-2: A Burn の発生源から B Mint に到達する経路が存在しない
 - [ ] R3-3: 結晶化以外からの A→B 相当の価値移転が無い（内部Swapや特例ミント含む）
 

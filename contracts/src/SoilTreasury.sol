@@ -56,6 +56,7 @@ contract SoilTreasury is Ownable {
     event UBIClaimed(address indexed user, uint256 amount);
     event TaskCompleted(address indexed worker, uint256 tokenBReward, uint256 integrityPoints);
     event ScoreUpdated(address indexed account, uint256 pay, uint256 process, uint256 civics);
+    event PayPenaltyApplied(address indexed account, uint256 points, string reason);
     event CovenantSet(address indexed covenant);
     event CrystallizationRateSet(uint256 rateBps);
     event CrystallizationFeeSet(uint256 feeBps);
@@ -274,6 +275,17 @@ contract SoilTreasury is Ownable {
         emit TaskCompleted(worker, 0, integrityPoints);
     }
 
+    function penalizeProcessScore(address account, uint256 points, string calldata reason) external onlyOwner {
+        uint256 current = processScore[account];
+        if (points >= current) {
+            processScore[account] = 0;
+        } else {
+            processScore[account] = current - points;
+        }
+        emit ScoreUpdated(account, payScore[account], processScore[account], civicsScore[account]);
+        emit PayPenaltyApplied(account, points, reason);
+    }
+
     function addPayScore(address account, uint256 points) external onlyOwner {
         payScore[account] += points;
         emit ScoreUpdated(account, payScore[account], processScore[account], civicsScore[account]);
@@ -287,6 +299,15 @@ contract SoilTreasury is Ownable {
             payScore[account] = current - points;
         }
         emit ScoreUpdated(account, payScore[account], processScore[account], civicsScore[account]);
+    }
+
+    function penalizePayScoreWithReason(
+        address account,
+        uint256 points,
+        string calldata reason
+    ) external onlyOwner {
+        penalizePayScore(account, points);
+        emit PayPenaltyApplied(account, points, reason);
     }
 
     function mintBByCrystallization(address worker, uint256 burnedA) external returns (uint256) {
