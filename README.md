@@ -12,8 +12,8 @@ The full Japanese version of this README is in `README_ja.md`.
 
 ## Spec Links
 - Detailed spec (TOC): `docs/spec_en.md`
-- Accounting rules (Section 0): `docs/spec_en.md#0-2-ledger-classification`
-- Audit events: `docs/spec_en.md#audit-events-r7-minimal`
+- Accounting rules (Section 0): `docs/spec_en.md`
+- Audit events: `docs/spec_en.md`
 
 ## MVP Milestone (Phase 1)
 - Date: 2026/01/14
