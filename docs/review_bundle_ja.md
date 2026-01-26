@@ -10,6 +10,12 @@
 
 FairSoil は、誠実さと正直さが短期的な搾取やコストの外部化よりも報われる「公正な土壌」を育むことを目的とした、分散型ベーシックインカム（UBI）プロトコルです。
 
+## ドキュメント
+- 詳細仕様: `docs/spec_ja.md`
+- ビジョン詳細: `docs/vision_ja.md`
+- Phase2+ ideas: `docs/spec_future.md`
+- 外部レビュー用まとめ: `docs/review_bundle_ja.md`
+
 ## MVPマイルストーン（Phase 1）
 - 達成日: 2026/01/14
 - 完了内容: Token A（減衰）、Token B（資産）、Soil Treasury（金庫）、Covenant（掟）の全結合テストを完了。
@@ -78,40 +84,31 @@ FairSoil は「誠実さが損にならない」経済基盤を目指す。
 
 ## Source: docs/vision_ja.md
 
-# FairSoil Vision (JA)
+# FairSoil ビジョン（詳細）
 
-README_ja.md から分離したビジョン詳細です。
+このドキュメントは README_ja.md から分離した「ビジョン詳細」です。  
+実装仕様は `docs/spec_ja.md` を参照してください。
 
-# FairSoil Vision (Expanded)
+## ビジョン（要約）
+- FairSoil は「誠実さが損にならない」経済基盤を目指す。
+- UBI によって、望ましくない仕事を断っても生存が脅かされない状態を作る。
+- 社会的に必要だが困難/危険なタスクが、公正なインセンティブで報われる土壌を整える。
 
-This document keeps the broader philosophy and long-term direction,
-separated from the current implementation scope in README_ja.md.
+## 前提と設計姿勢（「仕方ない」と「仕方なくない」の分離）
+- **前提:** 資源や良いポストは有限であり、競争自体はゼロにはならない。
+- **設計姿勢:** 「性格の悪い人が必ず勝つ」という状態は**ルール設計で変えられる**。  
+  外部化・情報非対称・生存の恐怖によって不正が得になる構造を、可視化・コスト化・UBIによる拒否権で反転させる。
 
-## Guiding Principles
-- Honesty and fairness should dominate short-term exploitation.
-- Core safety rails must be encoded (accounting rules, auditability, reversibility limits).
-- Real-world constraints (law, force, geopolitics) are acknowledged as boundaries.
+## システム vs 法（境界線の引き方）
+- **役割分担:** FairSoil は「正直者が損をしない」「無茶な搾取を記録する」「UBI を配る」というインセンティブの提供に徹する。暴力などの物理的犯罪や土地登記の強制力は現実の法・組織が担う。
+- **オラクルとしての法:** 裁判所などの判断結果を外部データとして取り込み、スコアや評価に反映するハイブリッド型で柔軟性を担保する。
+  - **取り込み条件:** 最終確定のみ反映し、係争中は保留扱いとする。
+  - **検証:** 取り込みフォーマットと署名検証を必須とする。
+- **効果:** すべてをプログラムで固定化するディストピアを避けつつ、現実社会との整合性を保つ。
 
-## Vision Summary (from README_ja.md)
-- FairSoil aims to build a base where honesty is rewarded and exploitation is costly.
-- UBI provides the right to refuse unfair work without risking survival.
-- Socially necessary but hard tasks should be fairly incentivized by dynamic rewards.
-
-## Premises and Design Stance
-- Premise: resources and good positions are finite; competition never drops to zero.
-- Stance: “the worst people always win” is a rule-design problem, not a law of nature.
-- Externalization, information asymmetry, and survival fear are reversed via transparency, cost internalization, and UBI.
-
-## System vs. Law (Boundary)
-- Role split: FairSoil records incentives, disputes, and UBI; physical enforcement and property rights remain in real-world institutions.
-- Law as oracle: court outcomes can be imported to update scores or state.
-  - Only final decisions are accepted; ongoing disputes are held.
-  - Format and signature verification are required for ingestion.
-- Outcome: avoid dystopian total automation while retaining compatibility with real-world systems.
-
-## Applicability and Limits
-- Effective where law and consent function.
-- Weak in environments dominated by coercion or force.
+## 適用範囲と限界
+- **適用範囲:** FairSoil は法治と合意が機能する範囲で最大効果を発揮する。
+- **限界:** 武力・強制が支配する環境では、合意・透明性を前提とする仕組みは本質的に弱い。
 
 
 ---
@@ -119,6 +116,8 @@ separated from the current implementation scope in README_ja.md.
 ## Source: docs/spec_ja.md
 
 # FairSoil Specification (JA)
+
+このドキュメントは README_ja.md の詳細仕様です。入口は README_ja.md を参照してください。
 
 ## コアメカニズム
 
