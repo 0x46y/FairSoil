@@ -2,7 +2,7 @@
 """Build docs/review_bundle_ja.md by concatenating source docs.
 
 Usage:
-  python scripts/build_review_bundle.py
+  python scripts/build_review_bundle_ja.py
 """
 from __future__ import annotations
 

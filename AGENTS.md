@@ -33,7 +33,7 @@ NEXT_PUBLIC_COVENANT_ADDRESS=0x...
 - `README_ja.md` / `README.md` are entry points; keep them concise and link to specs.
 - Japanese and English docs are maintained in parallel.
 - Bundles are generated from source docs:
-  - JA: `python scripts/build_review_bundle.py`
+  - JA: `python scripts/build_review_bundle_ja.py`
   - EN: `python scripts/build_review_bundle_en.py`
 
 ## Milestones
