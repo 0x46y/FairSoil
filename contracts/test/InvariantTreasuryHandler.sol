@@ -16,6 +16,9 @@ contract InvariantTreasuryHandler {
     }
 
     function claimUBI() external {
+        if (treasury.circuitState() != SoilTreasury.CircuitState.Normal) {
+            return;
+        }
         uint256 lastClaim = treasury.lastClaimTimestamp(address(this));
         if (lastClaim != 0 && block.timestamp < lastClaim + 1 days) {
             return;
@@ -24,10 +27,24 @@ contract InvariantTreasuryHandler {
     }
 
     function accrueUBI() external {
+        if (treasury.circuitState() != SoilTreasury.CircuitState.Normal) {
+            return;
+        }
         treasury.accrueUBI();
     }
 
+    function accrueUBIBatched(uint256 maxDays) external {
+        if (treasury.circuitState() != SoilTreasury.CircuitState.Normal) {
+            return;
+        }
+        uint256 normalized = 1 + (maxDays % 14);
+        treasury.accrueUBIBatched(normalized);
+    }
+
     function claimUnclaimed(uint256 offset) external {
+        if (treasury.circuitState() != SoilTreasury.CircuitState.Normal) {
+            return;
+        }
         uint256 currentDay = block.timestamp / 1 days;
         if (currentDay == 0) {
             return;
@@ -49,6 +66,34 @@ contract InvariantTreasuryHandler {
             return;
         }
         treasury.claimUnclaimed(fromDay, toDay);
+    }
+
+    function claimUnclaimedBatched(uint256 offset, uint256 maxDays) external {
+        if (treasury.circuitState() != SoilTreasury.CircuitState.Normal) {
+            return;
+        }
+        uint256 currentDay = block.timestamp / 1 days;
+        if (currentDay == 0) {
+            return;
+        }
+        uint256 range = 1 + (offset % 7);
+        uint256 fromDay = currentDay > range ? currentDay - range : 0;
+        uint256 toDay = currentDay;
+        bool hasAmount;
+        for (uint256 day = fromDay; day <= toDay; day++) {
+            if (treasury.unclaimed(address(this), day) > 0) {
+                hasAmount = true;
+                break;
+            }
+            if (day == toDay) {
+                break;
+            }
+        }
+        if (!hasAmount) {
+            return;
+        }
+        uint256 normalizedMax = 1 + (maxDays % 14);
+        treasury.claimUnclaimedBatched(fromDay, toDay, normalizedMax);
     }
 
     function submitPrice(uint256 price) external {

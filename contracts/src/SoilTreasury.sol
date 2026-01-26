@@ -79,6 +79,14 @@ contract SoilTreasury is Ownable {
     event AdvanceBIssued(address indexed to, uint256 amount);
     event UBIAccrued(address indexed user, uint256 day, uint256 amountA);
     event Claimed(address indexed user, uint256 fromDay, uint256 toDay, uint256 grossA, uint256 decayedA);
+    event ClaimedPartial(
+        address indexed user,
+        uint256 fromDay,
+        uint256 toDay,
+        uint256 processedToDay,
+        uint256 grossA,
+        uint256 decayedA
+    );
     event DecayApplied(address indexed user, uint256 amountA);
     event TreasuryOutA(address indexed to, uint256 amount, bytes32 reason);
     event TreasuryOutB(address indexed to, uint256 amount, bytes32 reason);
@@ -331,22 +339,39 @@ contract SoilTreasury is Ownable {
     function accrueUBI() external {
         require(tokenA.isPrimaryAddress(msg.sender), "Not World ID verified");
         require(circuitState == CircuitState.Normal, "Circuit limited");
+        _accrueUBI(msg.sender, type(uint256).max);
+    }
+
+    function accrueUBIBatched(uint256 maxDays) external {
+        require(tokenA.isPrimaryAddress(msg.sender), "Not World ID verified");
+        require(circuitState == CircuitState.Normal, "Circuit limited");
+        require(maxDays > 0, "Max days required");
+        _accrueUBI(msg.sender, maxDays);
+    }
+
+    function _accrueUBI(address account, uint256 maxDays) internal {
         uint256 currentDay = block.timestamp / 1 days;
-        uint256 lastDay = lastAccruedDay[msg.sender];
+        uint256 lastDay = lastAccruedDay[account];
         if (lastDay == 0) {
-            lastAccruedDay[msg.sender] = currentDay;
-            unclaimed[msg.sender][currentDay] += dailyUBIAmount;
-            emit UBIAccrued(msg.sender, currentDay, dailyUBIAmount);
+            lastAccruedDay[account] = currentDay;
+            unclaimed[account][currentDay] += dailyUBIAmount;
+            emit UBIAccrued(account, currentDay, dailyUBIAmount);
             return;
         }
         if (currentDay <= lastDay) {
             return;
         }
+        uint256 processed = 0;
         for (uint256 day = lastDay + 1; day <= currentDay; day++) {
-            unclaimed[msg.sender][day] += dailyUBIAmount;
-            emit UBIAccrued(msg.sender, day, dailyUBIAmount);
+            unclaimed[account][day] += dailyUBIAmount;
+            emit UBIAccrued(account, day, dailyUBIAmount);
+            processed += 1;
+            if (processed >= maxDays) {
+                lastAccruedDay[account] = day;
+                return;
+            }
         }
-        lastAccruedDay[msg.sender] = currentDay;
+        lastAccruedDay[account] = currentDay;
     }
 
     function claimUnclaimed(uint256 fromDay, uint256 toDay) external {
@@ -388,6 +413,61 @@ contract SoilTreasury is Ownable {
         _recordOutA(msg.sender, decayed, REASON_UBI_CLAIM);
         lastClaimTimestamp[msg.sender] = block.timestamp;
         emit Claimed(msg.sender, fromDay, toDay, gross, decayed);
+    }
+
+    function claimUnclaimedBatched(
+        uint256 fromDay,
+        uint256 toDay,
+        uint256 maxDays
+    ) external returns (uint256 nextDay, uint256 gross, uint256 decayed) {
+        require(tokenA.isPrimaryAddress(msg.sender), "Not World ID verified");
+        require(circuitState == CircuitState.Normal, "Circuit limited");
+        require(fromDay <= toDay, "Invalid range");
+        require(maxDays > 0, "Max days required");
+        uint256 currentDay = block.timestamp / 1 days;
+        require(toDay <= currentDay, "Future day");
+
+        uint256 decayRate = tokenA.decayRatePerSecond();
+        uint256 processed = 0;
+        uint256 day = fromDay;
+        for (; day <= toDay && processed < maxDays; day++) {
+            uint256 amount = unclaimed[msg.sender][day];
+            if (amount == 0) {
+                processed += 1;
+                continue;
+            }
+            gross += amount;
+            uint256 ageDays = currentDay - day;
+            if (ageDays <= 30) {
+                decayed += amount;
+            } else {
+                uint256 elapsed = (ageDays - 30) * 1 days;
+                uint256 decay = decayRate * elapsed;
+                if (decay >= 1e18) {
+                    // fully decayed
+                } else {
+                    decayed += (amount * (1e18 - decay)) / 1e18;
+                }
+            }
+            delete unclaimed[msg.sender][day];
+            processed += 1;
+        }
+
+        nextDay = day > toDay ? toDay + 1 : day;
+
+        if (gross == 0) {
+            emit ClaimedPartial(msg.sender, fromDay, toDay, nextDay, 0, 0);
+            return (nextDay, 0, 0);
+        }
+        require(canPayOutA(decayed), "Insufficient reserves");
+        if (decayed < gross) {
+            emit DecayApplied(msg.sender, gross - decayed);
+        }
+        tokenA.mint(msg.sender, decayed);
+        _recordOutA(msg.sender, decayed, REASON_UBI_CLAIM);
+        lastClaimTimestamp[msg.sender] = block.timestamp;
+        emit ClaimedPartial(msg.sender, fromDay, toDay, nextDay, gross, decayed);
+        return (nextDay, gross, decayed);
     }
 
     function emergencyMintA(address to, uint256 amount) external onlyOwner {

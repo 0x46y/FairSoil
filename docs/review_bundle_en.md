@@ -70,6 +70,9 @@ Full detail currently lives in `docs/spec_ja.md`.
 - **Token A (Flow):** Decaying currency for daily exchange. UBI accrues daily and can be claimed in batches.
 - **Token B (Asset):** Non‑decaying asset rewarded for verified contributions and integrity.
 
+Gas optimization (implementation-aligned): long-running accrual/claim can be chunked via
+`accrueUBIBatched` / `claimUnclaimedBatched`.
+
 ### Treasury (SoilTreasury)
 - Manages UBI distribution, reward issuance, caps, liabilities, reserves, and audit logs.
 - Circuit breaker guards issuance in abnormal conditions.
