@@ -9,12 +9,14 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {FairSoilTokenA} from "../src/FairSoilTokenA.sol";
 import {FairSoilTokenB} from "../src/FairSoilTokenB.sol";
 import {SoilTreasury} from "../src/SoilTreasury.sol";
+import {Covenant} from "../src/Covenant.sol";
 
 // Invariant skeleton for Phase 2. Fill the TODOs as contracts stabilize.
 contract FairSoilInvariants is StdInvariant, Test {
     FairSoilTokenA internal tokenA;
     FairSoilTokenB internal tokenB;
     SoilTreasury internal treasury;
+    Covenant internal covenant;
 
     address internal alice = address(0xA11CE);
 
@@ -33,6 +35,21 @@ contract FairSoilInvariants is StdInvariant, Test {
         tokenB.setTreasury(address(treasury));
 
         tokenA.setPrimaryAddress(alice, true);
+        tokenA.setPrimaryAddress(address(this), true);
+
+        covenant = new Covenant(address(tokenB), address(tokenA), address(treasury));
+        tokenA.setCovenant(address(covenant));
+        treasury.setCovenant(address(covenant));
+
+        treasury.claimUBI();
+        tokenA.approve(address(covenant), 10e18);
+        uint256 covenantId = covenant.createCovenant(alice, 10e18, 0, true);
+
+        vm.prank(alice);
+        covenant.reportIssue(covenantId, 5_000, "issue", "evidence");
+        covenant.disputeIssue(covenantId, "dispute", "evidence");
+        covenant.resolveDispute(covenantId, 5_000, 0, 0);
+        covenant.finalizeResolution(covenantId);
     }
 
     // R2 basic wiring sanity (Treasury pointers are consistent).
@@ -52,8 +69,11 @@ contract FairSoilInvariants is StdInvariant, Test {
 
     // TODO: R5 Locked supply separation once B-locking is implemented.
     function invariant_circulatingBSupply() public view {
-        // Placeholder: implement when locking is introduced.
-        assertTrue(true);
+        uint256 total = tokenB.totalSupply();
+        uint256 locked = tokenB.totalLocked();
+        assertLe(locked, total);
+        assertLe(tokenB.lockedBalance(address(treasury)), tokenB.balanceOf(address(treasury)));
+        assertLe(tokenB.lockedBalance(alice), tokenB.balanceOf(alice));
     }
 
     // TODO: R6 caps for DeficitCap_A and AdvanceCap_B once tracked on-chain.
@@ -63,8 +83,24 @@ contract FairSoilInvariants is StdInvariant, Test {
     }
 
     // TODO: Resolve state machine irreversibility.
-    function invariant_resolveFinalizedIrreversible() public view {
-        // Placeholder: implement when dispute flow is finalized.
-        assertTrue(true);
+    function invariant_resolveFinalizedIrreversible() public {
+        (
+            address creator,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            Covenant.Status status
+        ) = covenant.covenants(0);
+        if (creator != address(0) && status == Covenant.Status.IssueResolved) {
+            vm.expectRevert("Not proposed");
+            covenant.finalizeResolution(0);
+        }
     }
 }
