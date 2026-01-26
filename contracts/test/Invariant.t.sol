@@ -65,6 +65,7 @@ contract FairSoilInvariants is StdInvariant, Test {
     bool internal treasuryOutBReasonMismatch;
     uint256 internal lastOutATotal;
     uint256 internal lastOutBTotal;
+    uint256 internal lastInTotal;
     SoilTreasury.CircuitState internal lastCircuitState;
     uint256 internal treasuryOutADeficit;
     uint256 internal treasuryOutAUBI;
@@ -444,6 +445,19 @@ contract FairSoilInvariants is StdInvariant, Test {
         lastCircuitState = state;
     }
 
+    function invariant_treasuryTotalsMonotonic() public {
+        _syncEscrowEvents();
+        uint256 outA = treasury.treasuryOutATotal();
+        uint256 outB = treasury.treasuryOutBTotal();
+        uint256 inTotal = treasury.treasuryInTotal();
+        assertGe(outA, lastOutATotal);
+        assertGe(outB, lastOutBTotal);
+        assertGe(inTotal, lastInTotal);
+        lastOutATotal = outA;
+        lastOutBTotal = outB;
+        lastInTotal = inTotal;
+    }
+
     function invariant_deficitAdvanceAccountingBounds() public view {
         // Outstanding deficit should never exceed total A out.
         assertLe(treasury.deficitAOutstanding(), treasury.treasuryOutATotal());
@@ -491,6 +505,7 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (status == Covenant.Status.IssueResolved) {
                 assertTrue(settled);
             }
+            assertTrue(uint8(paymentMode) <= 2);
 
             if (paymentMode == Covenant.PaymentMode.Immediate) {
                 if (status == Covenant.Status.Submitted) {
@@ -1150,6 +1165,19 @@ contract FairSoilInvariants is StdInvariant, Test {
         }
     }
 
+    function invariant_disputeResolvedNotConflicting() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!disputeResolvedEventById[i]) {
+                continue;
+            }
+            assertFalse(approvedEventById[i]);
+            assertFalse(rejectedEventById[i]);
+            assertFalse(cancelledEventById[i]);
+        }
+    }
+
     function invariant_issueAcceptedImpliesIssueResolved() public view {
         uint256 count = covenant.nextId();
         uint256 limit = count > 10 ? 10 : count;
@@ -1170,6 +1198,19 @@ contract FairSoilInvariants is StdInvariant, Test {
                 continue;
             }
             assertTrue(issueReportedEventById[i]);
+        }
+    }
+
+    function invariant_issueAcceptedNotConflicting() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!issueAcceptedEventById[i]) {
+                continue;
+            }
+            assertFalse(approvedEventById[i]);
+            assertFalse(rejectedEventById[i]);
+            assertFalse(cancelledEventById[i]);
         }
     }
 
@@ -1240,6 +1281,57 @@ contract FairSoilInvariants is StdInvariant, Test {
                 continue;
             }
             assertTrue(createdEventById[i]);
+        }
+    }
+
+    function invariant_createdImpliesEscrowLocked() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!createdEventById[i]) {
+                continue;
+            }
+            assertTrue(escrowLockedById[i]);
+        }
+    }
+
+    function invariant_escrowLockedImpliesCreated() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!escrowLockedById[i]) {
+                continue;
+            }
+            assertTrue(createdEventById[i]);
+        }
+    }
+
+    function invariant_tokenBRewardNonZero() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            (
+                address creator,
+                address worker,
+                uint256 tokenBReward,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                Covenant.PaymentToken paymentToken,
+                Covenant.PaymentMode paymentMode,
+                Covenant.Status status,
+
+            ) = covenant.covenants(i);
+            assertGt(tokenBReward, 0);
+            assertTrue(worker != address(0));
+            assertTrue(creator != address(0));
+            assertTrue(creator != worker);
+            assertTrue(uint8(paymentToken) <= 1);
+            assertTrue(uint8(paymentMode) <= 2);
         }
     }
 
@@ -1357,6 +1449,33 @@ contract FairSoilInvariants is StdInvariant, Test {
             }
             assertFalse(rejectedEventById[i]);
             assertFalse(cancelledEventById[i]);
+            assertFalse(issueAcceptedEventById[i]);
+            assertFalse(disputeResolvedEventById[i]);
+        }
+    }
+
+    function invariant_rejectedNotCancelled() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!rejectedEventById[i]) {
+                continue;
+            }
+            assertFalse(cancelledEventById[i]);
+        }
+    }
+
+    function invariant_cancelledNotRejectedOrApproved() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!cancelledEventById[i]) {
+                continue;
+            }
+            assertFalse(rejectedEventById[i]);
+            assertFalse(approvedEventById[i]);
+            assertFalse(issueAcceptedEventById[i]);
+            assertFalse(disputeResolvedEventById[i]);
         }
     }
 
