@@ -21,8 +21,8 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
 
 ## 仕様リンク
 - 詳細仕様（目次）: `docs/spec_ja.md`
-- 会計ルール（0章）: `docs/spec_ja.md#0-会計ルール草案abtreasury`
-- ガバナンス・監査: `docs/spec_ja.md#ガバナンス監査`
+- 会計ルール（0章）: `docs/spec_ja.md`
+- ガバナンス・監査: `docs/spec_ja.md`
 
 ## MVPマイルストーン（Phase 1）
 - 達成日: 2026/01/14
