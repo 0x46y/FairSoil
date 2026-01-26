@@ -70,4 +70,19 @@ contract InvariantTreasuryHandler {
         SoilTreasury.CircuitState newState = SoilTreasury.CircuitState(state % 3);
         treasury.setCircuitState(newState);
     }
+
+    function recordTreasuryIn(uint256 amount, uint8 reasonType) external {
+        uint256 normalized = 1 + (amount % 1e18);
+        bytes32 reason;
+        if (reasonType % 4 == 0) {
+            reason = bytes32("FEE");
+        } else if (reasonType % 4 == 1) {
+            reason = bytes32("TAX");
+        } else if (reasonType % 4 == 2) {
+            reason = bytes32("SLASH");
+        } else {
+            reason = bytes32("EXTERNAL");
+        }
+        treasury.recordTreasuryIn(address(this), normalized, reason);
+    }
 }

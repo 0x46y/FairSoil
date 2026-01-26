@@ -45,6 +45,16 @@ contract FairSoilInvariants is StdInvariant, Test {
     mapping(uint256 => bool) internal escrowReleaseMismatchById;
     mapping(uint256 => bool) internal escrowReleaseTokenARulesBroken;
     mapping(uint256 => bool) internal escrowReleaseTokenBRulesBroken;
+    mapping(uint256 => bool) internal escrowReleaseLockedAmountMismatchById;
+    mapping(uint256 => bool) internal approvedEventById;
+    mapping(uint256 => bool) internal rejectedEventById;
+    mapping(uint256 => bool) internal cancelledEventById;
+    mapping(uint256 => bool) internal issueAcceptedEventById;
+    mapping(uint256 => bool) internal disputeResolvedEventById;
+    mapping(uint256 => bool) internal submittedEventById;
+    mapping(uint256 => bool) internal issueReportedEventById;
+    mapping(uint256 => bool) internal issueDisputedEventById;
+    mapping(uint256 => bool) internal resolutionProposedEventById;
     uint256 internal treasuryOutAAmount;
     uint256 internal treasuryOutBAmount;
     bool internal unknownTreasuryReason;
@@ -139,6 +149,33 @@ contract FairSoilInvariants is StdInvariant, Test {
                 (, uint256 amount) = abi.decode(entries[i].data, (uint8, uint256));
                 escrowLockedAmount += amount;
                 escrowLockedAmountById[covenantId] += amount;
+            } else if (topic0 == keccak256("CovenantApproved(uint256,address)")) {
+                uint256 covenantId = uint256(entries[i].topics[1]);
+                approvedEventById[covenantId] = true;
+            } else if (topic0 == keccak256("CovenantSubmitted(uint256,address)")) {
+                uint256 covenantId = uint256(entries[i].topics[1]);
+                submittedEventById[covenantId] = true;
+            } else if (topic0 == keccak256("CovenantRejected(uint256,address)")) {
+                uint256 covenantId = uint256(entries[i].topics[1]);
+                rejectedEventById[covenantId] = true;
+            } else if (topic0 == keccak256("CovenantCancelled(uint256,address)")) {
+                uint256 covenantId = uint256(entries[i].topics[1]);
+                cancelledEventById[covenantId] = true;
+            } else if (topic0 == keccak256("IssueAccepted(uint256,address,uint256)")) {
+                uint256 covenantId = uint256(entries[i].topics[1]);
+                issueAcceptedEventById[covenantId] = true;
+            } else if (topic0 == keccak256("IssueReported(uint256,address,uint256,string,string)")) {
+                uint256 covenantId = uint256(entries[i].topics[1]);
+                issueReportedEventById[covenantId] = true;
+            } else if (topic0 == keccak256("IssueDisputed(uint256,address,string,string)")) {
+                uint256 covenantId = uint256(entries[i].topics[1]);
+                issueDisputedEventById[covenantId] = true;
+            } else if (topic0 == keccak256("ResolutionProposed(uint256,uint256,uint256,uint256)")) {
+                uint256 covenantId = uint256(entries[i].topics[1]);
+                resolutionProposedEventById[covenantId] = true;
+            } else if (topic0 == keccak256("DisputeResolved(uint256,uint256,uint256,uint256)")) {
+                uint256 covenantId = uint256(entries[i].topics[1]);
+                disputeResolvedEventById[covenantId] = true;
             } else if (topic0 == keccak256("EscrowReleased(uint256,uint8,uint256,uint256,uint256)")) {
                 escrowReleaseCount += 1;
                 uint256 covenantId = uint256(entries[i].topics[1]);
@@ -169,6 +206,12 @@ contract FairSoilInvariants is StdInvariant, Test {
                     }
                     if (releasedToCreator + burnedAmount != tokenBReward) {
                         escrowReleaseTokenARulesBroken[covenantId] = true;
+                    }
+                    if (escrowLockedById[covenantId]) {
+                        uint256 lockedAmount = escrowLockedAmountById[covenantId];
+                        if (releasedToCreator + burnedAmount != lockedAmount) {
+                            escrowReleaseLockedAmountMismatchById[covenantId] = true;
+                        }
                     }
                 }
             } else if (topic0 == keccak256("TreasuryOutA(address,uint256,bytes32)")) {
@@ -757,6 +800,375 @@ contract FairSoilInvariants is StdInvariant, Test {
         }
     }
 
+    // Settled covenants must have an escrow release event.
+    function invariant_settledRequiresRelease() public {
+        _syncEscrowEvents();
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            (
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                bool settled
+            ) = covenant.covenants(i);
+            if (settled) {
+                assertTrue(escrowReleasedById[i]);
+            }
+        }
+    }
+
+    // EscrowReleased should imply settled for allowed release states.
+    function invariant_releaseImpliesSettled() public {
+        _syncEscrowEvents();
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!escrowReleasedById[i]) {
+                continue;
+            }
+            (
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                Covenant.Status status,
+                bool settled
+            ) = covenant.covenants(i);
+            if (
+                status == Covenant.Status.Rejected ||
+                status == Covenant.Status.Cancelled ||
+                status == Covenant.Status.IssueResolved ||
+                status == Covenant.Status.Approved ||
+                status == Covenant.Status.Submitted
+            ) {
+                assertTrue(settled);
+            }
+        }
+    }
+
+    // Settled implies terminal status or approved/submitted only where mode allows.
+    function invariant_settledStatusConsistency() public {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            (
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                Covenant.PaymentMode paymentMode,
+                Covenant.Status status,
+                bool settled
+            ) = covenant.covenants(i);
+            if (!settled) {
+                continue;
+            }
+            if (
+                status == Covenant.Status.Rejected ||
+                status == Covenant.Status.Cancelled ||
+                status == Covenant.Status.IssueResolved
+            ) {
+                continue;
+            }
+            if (paymentMode == Covenant.PaymentMode.Immediate && status == Covenant.Status.Submitted) {
+                continue;
+            }
+            if (paymentMode == Covenant.PaymentMode.Escrow && status == Covenant.Status.Approved) {
+                continue;
+            }
+            // Delayed should only settle on terminal states.
+            assertFalse(paymentMode == Covenant.PaymentMode.Delayed);
+            assertTrue(
+                status == Covenant.Status.Rejected ||
+                status == Covenant.Status.Cancelled ||
+                status == Covenant.Status.IssueResolved ||
+                status == Covenant.Status.Submitted ||
+                status == Covenant.Status.Approved
+            );
+        }
+    }
+
+    // Non-terminal active states should never be settled or released.
+    function invariant_activeStatesNotSettled() public {
+        _syncEscrowEvents();
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            (
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                Covenant.Status status,
+                bool settled
+            ) = covenant.covenants(i);
+            if (
+                status == Covenant.Status.Open ||
+                status == Covenant.Status.IssueReported ||
+                status == Covenant.Status.Disputed ||
+                status == Covenant.Status.ResolutionProposed
+            ) {
+                assertFalse(settled);
+                assertFalse(escrowReleasedById[i]);
+            }
+        }
+    }
+
+    // Submitted/Approved release must follow payment mode rules strictly.
+    function invariant_modeSpecificReleaseForSubmittedApproved() public {
+        _syncEscrowEvents();
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            (
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                Covenant.PaymentMode paymentMode,
+                Covenant.Status status,
+                bool settled
+            ) = covenant.covenants(i);
+
+            if (status == Covenant.Status.Submitted) {
+                if (paymentMode == Covenant.PaymentMode.Immediate) {
+                    assertTrue(escrowReleasedById[i]);
+                    assertTrue(settled);
+                } else {
+                    assertFalse(escrowReleasedById[i]);
+                    assertFalse(settled);
+                }
+            }
+
+            if (status == Covenant.Status.Approved) {
+                if (paymentMode == Covenant.PaymentMode.Escrow) {
+                    assertTrue(escrowReleasedById[i]);
+                    assertTrue(settled);
+                } else if (paymentMode == Covenant.PaymentMode.Immediate) {
+                    assertTrue(escrowReleasedById[i]);
+                    assertTrue(settled);
+                } else {
+                    assertFalse(escrowReleasedById[i]);
+                    assertFalse(settled);
+                }
+            }
+        }
+    }
+
+    // EscrowReleased must be tied to a known terminal decision event.
+    function invariant_releaseHasDecisionEvent() public {
+        _syncEscrowEvents();
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!escrowReleasedById[i]) {
+                continue;
+            }
+            bool hasDecision =
+                approvedEventById[i] ||
+                rejectedEventById[i] ||
+                cancelledEventById[i] ||
+                issueAcceptedEventById[i] ||
+                disputeResolvedEventById[i];
+            assertTrue(hasDecision);
+        }
+    }
+
+    // EscrowReleased must not occur when only non-terminal events exist.
+    function invariant_releaseNotFromNonTerminalOnly() public {
+        _syncEscrowEvents();
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!escrowReleasedById[i]) {
+                continue;
+            }
+            bool hasTerminalDecision =
+                approvedEventById[i] ||
+                rejectedEventById[i] ||
+                cancelledEventById[i] ||
+                issueAcceptedEventById[i] ||
+                disputeResolvedEventById[i];
+            bool onlyNonTerminal =
+                (submittedEventById[i] || issueReportedEventById[i]) &&
+                !hasTerminalDecision;
+            assertFalse(onlyNonTerminal);
+        }
+    }
+
+    // DisputeResolved must correspond to IssueResolved status.
+    function invariant_disputeResolvedImpliesIssueResolved() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!disputeResolvedEventById[i]) {
+                continue;
+            }
+            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            assertEq(status, Covenant.Status.IssueResolved);
+        }
+    }
+
+    function invariant_issueAcceptedImpliesIssueResolved() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!issueAcceptedEventById[i]) {
+                continue;
+            }
+            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            assertEq(status, Covenant.Status.IssueResolved);
+        }
+    }
+
+    function invariant_approvedNotIssueResolvedConflict() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!approvedEventById[i]) {
+                continue;
+            }
+            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            assertTrue(status == Covenant.Status.Approved || status == Covenant.Status.IssueResolved);
+        }
+    }
+
+    function invariant_rejectedImpliesRejectedStatus() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!rejectedEventById[i]) {
+                continue;
+            }
+            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            assertEq(status, Covenant.Status.Rejected);
+        }
+    }
+
+    function invariant_cancelledImpliesCancelledStatus() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!cancelledEventById[i]) {
+                continue;
+            }
+            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            assertEq(status, Covenant.Status.Cancelled);
+        }
+    }
+
+    function invariant_submittedImpliesSubmittedOrBeyond() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!submittedEventById[i]) {
+                continue;
+            }
+            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            assertTrue(status != Covenant.Status.Open);
+        }
+    }
+
+    function invariant_issueReportedImpliesIssueReportedStatus() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!issueReportedEventById[i]) {
+                continue;
+            }
+            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            assertTrue(
+                status == Covenant.Status.IssueReported ||
+                status == Covenant.Status.Disputed ||
+                status == Covenant.Status.ResolutionProposed ||
+                status == Covenant.Status.IssueResolved
+            );
+        }
+    }
+
+    function invariant_issueDisputedImpliesDisputedStatus() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!issueDisputedEventById[i]) {
+                continue;
+            }
+            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            assertTrue(
+                status == Covenant.Status.Disputed ||
+                status == Covenant.Status.ResolutionProposed ||
+                status == Covenant.Status.IssueResolved
+            );
+        }
+    }
+
+    function invariant_resolutionProposedImpliesStatus() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!resolutionProposedEventById[i]) {
+                continue;
+            }
+            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            assertTrue(
+                status == Covenant.Status.ResolutionProposed ||
+                status == Covenant.Status.IssueResolved
+            );
+        }
+    }
+
+    function invariant_disputeResolvedHasResolutionProposed() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!disputeResolvedEventById[i]) {
+                continue;
+            }
+            assertTrue(resolutionProposedEventById[i]);
+        }
+    }
+
     // EscrowReleased payload sum should match tokenBReward.
     function invariant_escrowReleaseMatchesReward() public {
         _syncEscrowEvents();
@@ -769,6 +1181,7 @@ contract FairSoilInvariants is StdInvariant, Test {
             assertFalse(escrowReleaseMismatchById[i]);
             assertFalse(escrowReleaseTokenARulesBroken[i]);
             assertFalse(escrowReleaseTokenBRulesBroken[i]);
+            assertFalse(escrowReleaseLockedAmountMismatchById[i]);
         }
     }
 
