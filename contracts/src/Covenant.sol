@@ -86,6 +86,7 @@ contract Covenant is Ownable {
     );
     event CovenantSubmitted(uint256 indexed covenantId, address indexed worker);
     event CovenantApproved(uint256 indexed covenantId, address indexed creator);
+    event CovenantApprovalFinalized(uint256 indexed covenantId, address indexed creator);
     event CovenantRejected(uint256 indexed covenantId, address indexed creator);
     event CovenantCancelled(uint256 indexed covenantId, address indexed creator);
     event EscrowLocked(uint256 indexed covenantId, PaymentToken paymentToken, uint256 amount);
@@ -232,6 +233,22 @@ contract Covenant is Ownable {
         treasury.addPayScore(data.creator, 2);
 
         emit CovenantApproved(covenantId, msg.sender);
+    }
+
+    function finalizeApproved(uint256 covenantId) external {
+        CovenantData storage data = covenants[covenantId];
+        require(data.creator != address(0), "Unknown covenant");
+        require(msg.sender == data.creator, "Creator only");
+        require(data.paymentMode == PaymentMode.Delayed, "Not delayed");
+        require(data.status == Status.Approved, "Not approved");
+        require(!data.settled, "Already settled");
+
+        data.status = Status.IssueResolved;
+        _releaseEscrow(covenantId, data.tokenBReward, 0);
+        data.settled = true;
+        _tagLiability(covenantId, 0, -int256(data.tokenBReward), treasury.REASON_COV_SETTLE());
+
+        emit CovenantApprovalFinalized(covenantId, msg.sender);
     }
 
     function rejectWork(uint256 covenantId) external {

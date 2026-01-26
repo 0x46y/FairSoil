@@ -50,6 +50,10 @@ contract InvariantCreatorHandler {
         covenant.approveWork(covenantId);
     }
 
+    function finalizeApproved(uint256 covenantId) external {
+        covenant.finalizeApproved(covenantId);
+    }
+
     function rejectWork(uint256 covenantId) external {
         covenant.rejectWork(covenantId);
     }
