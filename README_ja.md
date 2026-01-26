@@ -137,11 +137,20 @@ FairSoil は、誠実さと正直さが短期的な搾取やコストの外部�
     - `recordTax` → `TAX`  
     - `recordSlashing` → `SLASH`  
     - `recordExternalIn` → `EXTERNAL`
+  - **負債理由（Reason）:**  
+    - `ADV_LIAB`（前借りの負債化）  
+    - `ADV_SETTLE`（前借りの負債解消）  
+    - `COV_CREATE`（掟作成での負債化）  
+    - `COV_SETTLE`（掟決済での負債解消）
   - **実装メモ:** reason 定数は `SoilTreasury.REASON_*` としてオンチェーン参照可能
 - **発行（Seigniorage）:** ルールに基づく新規発行（例：A の減価に連動する補填ミント 等）  
   - ※Seigniorage は「収入」ではなく「供給操作」として別枠管理する
 - **負債（Liabilities）:** 未来のB報酬（前借り分）、未決の掟報酬、救済クレジット 等
 - **準備金（Reserves）:** Treasury が実際に保有する A/B 残高（支払能力の上限）
+  - **実装メモ:** Liabilities は `adjustLiabilities(deltaA, deltaB)` で増減し、Reserves は `snapshotReserves()` で記録する
+  - **運用メモ:** Reserves のスナップショットは「週次/重要イベント後/緊急時」に最低1回実施し、監査に利用する
+- **支払判定の目安:** `canPayOutA(amount)` / `canPayOutB(amount)` で準備金/赤字枠の範囲内かを事前判定できる
+  - **実装メモ:** UBI/緊急発行/報酬ミントは `canPayOut` によるガードを通過しないと実行できない
 
 > 補足（推奨）: 手数料は「(1) Treasuryが受領 → (2) 必要に応じて一部Burn」という順序で扱う。  
 > こうすることで「Burnが収入に見える」誤解を防ぎ、監査ログ上も追跡可能になる。

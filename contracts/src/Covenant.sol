@@ -17,6 +17,9 @@ interface ISoilTreasury {
     function penalizePayScoreWithReason(address account, uint256 points, string calldata reason) external;
     function addPayScore(address account, uint256 points) external;
     function penalizeProcessScore(address account, uint256 points, string calldata reason) external;
+    function adjustLiabilities(int256 deltaA, int256 deltaB, bytes32 reason) external;
+    function REASON_COV_CREATE() external view returns (bytes32);
+    function REASON_COV_SETTLE() external view returns (bytes32);
 }
 
 // Covenant: escrowed Token B rewards released on approval after worker submission.
@@ -126,6 +129,7 @@ contract Covenant is Ownable {
         uint256 integrityPoints,
         uint256 slashingPenalty
     );
+    event LiabilityTagged(uint256 indexed covenantId, int256 deltaA, int256 deltaB, bytes32 reason);
 
     constructor(address tokenBAddress, address tokenAAddress, address treasuryAddress)
         Ownable(msg.sender)
@@ -185,6 +189,8 @@ contract Covenant is Ownable {
             settled: false
         });
 
+        _tagLiability(covenantId, 0, int256(tokenBReward), treasury.REASON_COV_CREATE());
+
         if (payInTokenA) {
             tokenA.safeTransferFrom(msg.sender, address(this), tokenBReward);
         } else {
@@ -236,6 +242,7 @@ contract Covenant is Ownable {
         require(!data.settled, "Already settled");
 
         data.status = Status.Rejected;
+        _tagLiability(covenantId, 0, -int256(data.tokenBReward), treasury.REASON_COV_SETTLE());
         if (data.paymentToken == PaymentToken.TokenA) {
             uint256 refund = tokenA.applyEscrowDecay(data.tokenBReward, data.escrowStart);
             if (refund > 0) {
@@ -272,6 +279,7 @@ contract Covenant is Ownable {
         require(!data.settled, "Already settled");
 
         data.status = Status.Cancelled;
+        _tagLiability(covenantId, 0, -int256(data.tokenBReward), treasury.REASON_COV_SETTLE());
         if (data.paymentToken == PaymentToken.TokenA) {
             uint256 refund = tokenA.applyEscrowDecay(data.tokenBReward, data.escrowStart);
             if (refund > 0) {
@@ -334,6 +342,7 @@ contract Covenant is Ownable {
         uint256 creatorShare = data.tokenBReward - workerShare;
         _releaseEscrow(covenantId, workerShare, creatorShare);
         data.settled = true;
+        _tagLiability(covenantId, 0, -int256(data.tokenBReward), treasury.REASON_COV_SETTLE());
         treasury.addIntegrityFromCovenant(data.worker, ISSUE_INTEGRITY_POINTS);
         treasury.addPayScore(data.creator, 1);
 
@@ -390,6 +399,7 @@ contract Covenant is Ownable {
         uint256 creatorShare = data.tokenBReward - workerShare;
         _releaseEscrow(covenantId, workerShare, creatorShare);
         data.settled = true;
+        _tagLiability(covenantId, 0, -int256(data.tokenBReward), treasury.REASON_COV_SETTLE());
         if (data.proposedIntegrityPoints > 0) {
             treasury.addIntegrityFromCovenant(data.worker, data.proposedIntegrityPoints);
         }
@@ -416,6 +426,9 @@ contract Covenant is Ownable {
         uint256 creatorShare
     ) internal {
         CovenantData storage data = covenants[covenantId];
+        if (data.paymentMode == PaymentMode.Immediate) {
+            _tagLiability(covenantId, 0, -int256(workerShare + creatorShare), treasury.REASON_COV_SETTLE());
+        }
         if (data.paymentToken == PaymentToken.TokenA) {
             uint256 refunded = 0;
             if (workerShare > 0) {
@@ -451,5 +464,15 @@ contract Covenant is Ownable {
                 0
             );
         }
+    }
+
+    function _tagLiability(
+        uint256 covenantId,
+        int256 deltaA,
+        int256 deltaB,
+        bytes32 reason
+    ) internal {
+        treasury.adjustLiabilities(deltaA, deltaB, reason);
+        emit LiabilityTagged(covenantId, deltaA, deltaB, reason);
     }
 }

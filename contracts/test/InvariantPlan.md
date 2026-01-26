@@ -55,7 +55,7 @@
   - `MaliceSlashed(...)`
 - [ ] 監査上不足している場合の追加候補:
   - `SeigniorageA(...)`
-  - `LiabilityChanged(...)`
+  - `LiabilityChanged(...)`（必要に応じて必須化）
   - `ReserveSnapshot(...)`
 
 ---

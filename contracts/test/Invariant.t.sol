@@ -56,6 +56,21 @@ contract FairSoilInvariants is StdInvariant, Test {
     mapping(uint256 => bool) internal issueDisputedEventById;
     mapping(uint256 => bool) internal resolutionProposedEventById;
     mapping(uint256 => bool) internal createdEventById;
+    mapping(uint256 => bool) internal liabilityCreateEventById;
+    mapping(uint256 => bool) internal liabilitySettleEventById;
+    int256 internal liabilitiesDeltaA;
+    int256 internal liabilitiesDeltaB;
+    bool internal unknownLiabilityReason;
+    mapping(uint256 => int256) internal covenantLiabilityDeltaB;
+    mapping(uint256 => int256) internal covenantLiabilityDeltaBCreate;
+    mapping(uint256 => int256) internal covenantLiabilityDeltaBSettle;
+    mapping(uint256 => uint256) internal covenantLiabilityCreateCount;
+    mapping(uint256 => uint256) internal covenantLiabilitySettleCount;
+    int256 internal advanceLiabilityDeltaB;
+    int256 internal covenantLiabilityTotalB;
+    bool internal sawReserveSnapshot;
+    uint256 internal lastSnapshotA;
+    uint256 internal lastSnapshotB;
     uint256 internal treasuryOutAAmount;
     uint256 internal treasuryOutBAmount;
     bool internal unknownTreasuryReason;
@@ -197,6 +212,41 @@ contract FairSoilInvariants is StdInvariant, Test {
             } else if (topic0 == keccak256("DisputeResolved(uint256,uint256,uint256,uint256)")) {
                 uint256 covenantId = uint256(entries[i].topics[1]);
                 disputeResolvedEventById[covenantId] = true;
+            } else if (topic0 == keccak256("LiabilityChanged(int256,int256,bytes32)")) {
+                (int256 deltaA, int256 deltaB, bytes32 reason) = abi.decode(entries[i].data, (int256, int256, bytes32));
+                liabilitiesDeltaA += deltaA;
+                liabilitiesDeltaB += deltaB;
+                if (!_isAllowedLiabilityReason(reason)) {
+                    unknownLiabilityReason = true;
+                }
+            } else if (topic0 == keccak256("LiabilityTagged(uint256,int256,int256,bytes32)")) {
+                uint256 covenantId = uint256(entries[i].topics[1]);
+                (int256 deltaA, int256 deltaB, bytes32 reason) = abi.decode(entries[i].data, (int256, int256, bytes32));
+                covenantLiabilityDeltaB[covenantId] += deltaB;
+                if (reason == SoilTreasury.REASON_COV_CREATE) {
+                    liabilityCreateEventById[covenantId] = true;
+                    assertTrue(deltaB > 0);
+                    covenantLiabilityDeltaBCreate[covenantId] += deltaB;
+                    covenantLiabilityCreateCount[covenantId] += 1;
+                    covenantLiabilityTotalB += deltaB;
+                } else if (reason == SoilTreasury.REASON_COV_SETTLE) {
+                    liabilitySettleEventById[covenantId] = true;
+                    assertTrue(deltaB < 0 || deltaB == 0);
+                    covenantLiabilityDeltaBSettle[covenantId] += deltaB;
+                    covenantLiabilitySettleCount[covenantId] += 1;
+                    covenantLiabilityTotalB += deltaB;
+                } else if (reason == SoilTreasury.REASON_ADVANCE_LIABILITY) {
+                    advanceLiabilityDeltaB += deltaB;
+                } else if (reason == SoilTreasury.REASON_ADVANCE_SETTLE) {
+                    advanceLiabilityDeltaB += deltaB;
+                } else {
+                    unknownLiabilityReason = true;
+                }
+            } else if (topic0 == keccak256("ReserveSnapshot(uint256,uint256)")) {
+                (uint256 reservesA, uint256 reservesB) = abi.decode(entries[i].data, (uint256, uint256));
+                sawReserveSnapshot = true;
+                lastSnapshotA = reservesA;
+                lastSnapshotB = reservesB;
             } else if (topic0 == keccak256("EscrowReleased(uint256,uint8,uint256,uint256,uint256)")) {
                 escrowReleaseCount += 1;
                 uint256 covenantId = uint256(entries[i].topics[1]);
@@ -456,6 +506,275 @@ contract FairSoilInvariants is StdInvariant, Test {
         lastOutATotal = outA;
         lastOutBTotal = outB;
         lastInTotal = inTotal;
+    }
+
+    function invariant_liabilityDeltaMatchesState() public {
+        _syncEscrowEvents();
+        assertEq(int256(treasury.liabilitiesA()), liabilitiesDeltaA);
+        assertEq(int256(treasury.liabilitiesB()), liabilitiesDeltaB);
+        assertFalse(unknownLiabilityReason);
+    }
+
+    function invariant_covenantLiabilityZeroedOnSettled() public {
+        _syncEscrowEvents();
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            (
+                ,
+                ,
+                uint256 tokenBReward,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                Covenant.Status status,
+                bool settled
+            ) = covenant.covenants(i);
+            if (!settled) {
+                continue;
+            }
+            if (
+                status == Covenant.Status.Rejected ||
+                status == Covenant.Status.Cancelled ||
+                status == Covenant.Status.IssueResolved ||
+                status == Covenant.Status.Approved ||
+                status == Covenant.Status.Submitted
+            ) {
+                assertEq(covenantLiabilityDeltaB[i], 0);
+            }
+            assertLe(int256(tokenBReward), int256(type(int256).max));
+        }
+    }
+
+    function invariant_covenantLiabilityEventsPaired() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (liabilitySettleEventById[i]) {
+                assertTrue(liabilityCreateEventById[i]);
+            }
+        }
+    }
+
+    function invariant_liabilityCreateRequiresCovenantCreated() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!liabilityCreateEventById[i]) {
+                continue;
+            }
+            assertTrue(createdEventById[i]);
+        }
+    }
+
+    function invariant_liabilityCreateMatchesReward() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!liabilityCreateEventById[i]) {
+                continue;
+            }
+            (, , uint256 tokenBReward, , , , , , , , , , , ) = covenant.covenants(i);
+            assertEq(int256(tokenBReward), covenantLiabilityDeltaBCreate[i]);
+        }
+    }
+
+    function invariant_liabilitySettleMatchesReward() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!liabilitySettleEventById[i]) {
+                continue;
+            }
+            (, , uint256 tokenBReward, , , , , , , , , , , ) = covenant.covenants(i);
+            assertEq(-int256(tokenBReward), covenantLiabilityDeltaBSettle[i]);
+        }
+    }
+
+    function invariant_liabilityEventCounts() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (liabilityCreateEventById[i]) {
+                assertLe(covenantLiabilityCreateCount[i], 1);
+            }
+            if (liabilitySettleEventById[i]) {
+                assertLe(covenantLiabilitySettleCount[i], 1);
+            }
+        }
+    }
+
+    function invariant_liabilitySettleOnlyTerminal() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!liabilitySettleEventById[i]) {
+                continue;
+            }
+            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            assertTrue(
+                status == Covenant.Status.Rejected ||
+                status == Covenant.Status.Cancelled ||
+                status == Covenant.Status.IssueResolved ||
+                status == Covenant.Status.Approved ||
+                status == Covenant.Status.Submitted
+            );
+        }
+    }
+
+    function invariant_advanceLiabilityMatchesAdvanceOutstanding() public view {
+        assertEq(int256(treasury.advanceBOutstanding()), advanceLiabilityDeltaB);
+    }
+
+    function invariant_liabilitySplitMatchesTotal() public view {
+        assertEq(int256(treasury.liabilitiesB()), advanceLiabilityDeltaB + covenantLiabilityTotalB);
+    }
+
+    function invariant_covenantSettledHasLiabilitySettle() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            (
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                Covenant.Status status,
+                bool settled
+            ) = covenant.covenants(i);
+            if (!settled) {
+                continue;
+            }
+            if (
+                status == Covenant.Status.Rejected ||
+                status == Covenant.Status.Cancelled ||
+                status == Covenant.Status.IssueResolved ||
+                status == Covenant.Status.Approved ||
+                status == Covenant.Status.Submitted
+            ) {
+                assertTrue(liabilitySettleEventById[i]);
+            }
+        }
+    }
+
+    function invariant_covenantCreateThenSettleOnSettled() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!liabilityCreateEventById[i]) {
+                continue;
+            }
+            (, , , , , , , , , , , , Covenant.Status status, bool settled) = covenant.covenants(i);
+            if (settled) {
+                assertTrue(liabilitySettleEventById[i]);
+            }
+            if (
+                status == Covenant.Status.Rejected ||
+                status == Covenant.Status.Cancelled ||
+                status == Covenant.Status.IssueResolved
+            ) {
+                assertTrue(liabilitySettleEventById[i]);
+            }
+        }
+    }
+
+    function invariant_unsettledHasOutstandingLiability() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            (
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                Covenant.Status status,
+                bool settled
+            ) = covenant.covenants(i);
+            if (settled) {
+                continue;
+            }
+            if (liabilityCreateEventById[i]) {
+                assertTrue(covenantLiabilityDeltaB[i] > 0);
+            }
+            if (
+                status == Covenant.Status.Open ||
+                status == Covenant.Status.Submitted ||
+                status == Covenant.Status.IssueReported ||
+                status == Covenant.Status.Disputed ||
+                status == Covenant.Status.ResolutionProposed
+            ) {
+                if (liabilityCreateEventById[i]) {
+                    assertTrue(covenantLiabilityDeltaB[i] > 0);
+                }
+            }
+        }
+    }
+
+    function invariant_zeroLiabilityImpliesSettled() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!liabilityCreateEventById[i]) {
+                continue;
+            }
+            if (covenantLiabilityDeltaB[i] == 0) {
+                (, , , , , , , , , , , , , bool settled) = covenant.covenants(i);
+                assertTrue(settled);
+            }
+        }
+    }
+
+    function invariant_liabilitySettleImpliesZeroDelta() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!liabilitySettleEventById[i]) {
+                continue;
+            }
+            assertEq(covenantLiabilityDeltaB[i], 0);
+        }
+    }
+
+    function invariant_liabilityDeltaNonNegative() public view {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            if (!liabilityCreateEventById[i]) {
+                continue;
+            }
+            assertTrue(covenantLiabilityDeltaB[i] >= 0);
+        }
+    }
+
+    function invariant_reserveSnapshotMatchesState() public {
+        _syncEscrowEvents();
+        if (!sawReserveSnapshot) {
+            return;
+        }
+        assertEq(treasury.lastReservesA(), lastSnapshotA);
+        assertEq(treasury.lastReservesB(), lastSnapshotB);
     }
 
     function invariant_deficitAdvanceAccountingBounds() public view {
@@ -1554,5 +1873,13 @@ contract FairSoilInvariants is StdInvariant, Test {
             reason == SoilTreasury.REASON_TAX ||
             reason == SoilTreasury.REASON_SLASH ||
             reason == SoilTreasury.REASON_EXTERNAL;
+    }
+
+    function _isAllowedLiabilityReason(bytes32 reason) internal pure returns (bool) {
+        return
+            reason == SoilTreasury.REASON_ADVANCE_LIABILITY ||
+            reason == SoilTreasury.REASON_ADVANCE_SETTLE ||
+            reason == SoilTreasury.REASON_COV_CREATE ||
+            reason == SoilTreasury.REASON_COV_SETTLE;
     }
 }

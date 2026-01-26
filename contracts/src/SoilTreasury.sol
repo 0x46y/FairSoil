@@ -7,6 +7,7 @@ interface IFairSoilTokenA {
     function mint(address to, uint256 amount) external;
     function isPrimaryAddress(address account) external view returns (bool);
     function decayRatePerSecond() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
 }
 
 interface IFairSoilTokenB {
@@ -55,6 +56,10 @@ contract SoilTreasury is Ownable {
     uint256 public treasuryInTotal;
     uint256 public treasuryOutATotal;
     uint256 public treasuryOutBTotal;
+    uint256 public liabilitiesA;
+    uint256 public liabilitiesB;
+    uint256 public lastReservesA;
+    uint256 public lastReservesB;
 
     event UBIClaimed(address indexed user, uint256 amount);
     event TaskCompleted(address indexed worker, uint256 tokenBReward, uint256 integrityPoints);
@@ -78,6 +83,9 @@ contract SoilTreasury is Ownable {
     event APPIApplied(uint256 indexed day, uint256 appiValue, uint256 newDailyUBI);
     event APPIChangeLimitsSet(uint256 maxIncreaseBps, uint256 maxDecreaseBps);
     event CircuitStateSet(CircuitState state);
+    event ReserveSnapshot(uint256 reservesA, uint256 reservesB);
+    event LiabilityChanged(int256 deltaA, int256 deltaB, bytes32 reason);
+    event AdvanceBSettled(address indexed from, uint256 amount);
 
     bytes32 public constant REASON_UBI = "UBI";
     bytes32 public constant REASON_UBI_CLAIM = "UBI_CLAIM";
@@ -89,6 +97,10 @@ contract SoilTreasury is Ownable {
     bytes32 public constant REASON_TAX = "TAX";
     bytes32 public constant REASON_SLASH = "SLASH";
     bytes32 public constant REASON_EXTERNAL = "EXTERNAL";
+    bytes32 public constant REASON_ADVANCE_LIABILITY = "ADV_LIAB";
+    bytes32 public constant REASON_ADVANCE_SETTLE = "ADV_SETTLE";
+    bytes32 public constant REASON_COV_CREATE = "COV_CREATE";
+    bytes32 public constant REASON_COV_SETTLE = "COV_SETTLE";
 
     constructor(address tokenAAddress, address tokenBAddress) Ownable(msg.sender) {
         tokenA = IFairSoilTokenA(tokenAAddress);
@@ -202,6 +214,50 @@ contract SoilTreasury is Ownable {
         emit TreasuryOutB(to, amount, reason);
     }
 
+    function snapshotReserves() external onlyOwner {
+        uint256 reservesA = tokenA.balanceOf(address(this));
+        uint256 reservesB = tokenB.balanceOf(address(this));
+        lastReservesA = reservesA;
+        lastReservesB = reservesB;
+        emit ReserveSnapshot(reservesA, reservesB);
+    }
+
+    function canPayOutA(uint256 amount) public view returns (bool) {
+        uint256 reservesA = tokenA.balanceOf(address(this));
+        return reservesA >= amount || deficitAOutstanding + amount <= deficitCapA;
+    }
+
+    function canPayOutB(uint256 amount) public view returns (bool) {
+        uint256 reservesB = tokenB.balanceOf(address(this));
+        return reservesB >= amount;
+    }
+
+    function adjustLiabilities(
+        int256 deltaA,
+        int256 deltaB,
+        bytes32 reason
+    ) external onlyOwnerOrCovenant {
+        if (deltaA != 0) {
+            if (deltaA > 0) {
+                liabilitiesA += uint256(deltaA);
+            } else {
+                uint256 reduction = uint256(-deltaA);
+                require(liabilitiesA >= reduction, "Liability A underflow");
+                liabilitiesA -= reduction;
+            }
+        }
+        if (deltaB != 0) {
+            if (deltaB > 0) {
+                liabilitiesB += uint256(deltaB);
+            } else {
+                uint256 reduction = uint256(-deltaB);
+                require(liabilitiesB >= reduction, "Liability B underflow");
+                liabilitiesB -= reduction;
+            }
+        }
+        emit LiabilityChanged(deltaA, deltaB, reason);
+    }
+
     function _isAllowedTreasuryInReason(bytes32 reason) internal pure returns (bool) {
         return
             reason == REASON_FEE ||
@@ -247,6 +303,7 @@ contract SoilTreasury is Ownable {
             lastClaim == 0 || block.timestamp >= lastClaim + 1 days,
             "Already claimed today"
         );
+        require(canPayOutA(dailyUBIAmount), "Insufficient reserves");
 
         uint256 currentDay = block.timestamp / 1 days;
         lastAccruedDay[msg.sender] = currentDay;
@@ -306,6 +363,7 @@ contract SoilTreasury is Ownable {
             delete unclaimed[msg.sender][day];
         }
         require(gross > 0, "Nothing to claim");
+        require(canPayOutA(decayed), "Insufficient reserves");
         if (decayed < gross) {
             emit DecayApplied(msg.sender, gross - decayed);
         }
@@ -318,6 +376,7 @@ contract SoilTreasury is Ownable {
     function emergencyMintA(address to, uint256 amount) external onlyOwner {
         require(circuitState != CircuitState.Halted, "Circuit halted");
         require(amount > 0, "Amount required");
+        require(canPayOutA(amount), "Insufficient reserves");
         require(deficitAOutstanding + amount <= deficitCapA, "Deficit cap");
         deficitAOutstanding += amount;
         tokenA.mint(to, amount);
@@ -328,11 +387,22 @@ contract SoilTreasury is Ownable {
     function emergencyAdvanceB(address to, uint256 amount) external onlyOwner {
         require(circuitState != CircuitState.Halted, "Circuit halted");
         require(amount > 0, "Amount required");
+        require(canPayOutB(amount), "Insufficient reserves");
         require(advanceBOutstanding + amount <= advanceCapB, "Advance cap");
         advanceBOutstanding += amount;
         tokenB.mint(to, amount);
         _recordOutB(to, amount, REASON_ADVANCE);
+        adjustLiabilities(0, int256(amount), REASON_ADVANCE_LIABILITY);
         emit AdvanceBIssued(to, amount);
+    }
+
+    function settleAdvanceB(address from, uint256 amount) external onlyOwner {
+        require(amount > 0, "Amount required");
+        require(advanceBOutstanding >= amount, "Advance underflow");
+        require(tokenB.balanceOf(address(this)) >= amount, "Insufficient reserves");
+        advanceBOutstanding -= amount;
+        adjustLiabilities(0, -int256(amount), REASON_ADVANCE_SETTLE);
+        emit AdvanceBSettled(from, amount);
     }
 
     function reportTaskCompleted(
@@ -343,6 +413,7 @@ contract SoilTreasury is Ownable {
         require(circuitState == CircuitState.Normal, "Circuit limited");
         require(tokenA.isPrimaryAddress(worker), "Worker not verified");
         if (tokenBReward > 0) {
+            require(canPayOutB(tokenBReward), "Insufficient reserves");
             tokenB.mint(worker, tokenBReward);
             _recordOutB(worker, tokenBReward, REASON_TASK);
         }
@@ -414,6 +485,7 @@ contract SoilTreasury is Ownable {
             minted = (minted * (10_000 - crystallizationFeeBps)) / 10_000;
         }
         if (minted > 0) {
+            require(canPayOutB(minted), "Insufficient reserves");
             tokenB.mint(worker, minted);
             _recordOutB(worker, minted, REASON_CRYSTAL);
         }

@@ -71,6 +71,15 @@ contract InvariantTreasuryHandler {
         treasury.setCircuitState(newState);
     }
 
+    function snapshotReserves() external {
+        treasury.snapshotReserves();
+    }
+
+    function settleAdvanceB(uint256 amount) external {
+        uint256 normalized = 1 + (amount % 1e18);
+        treasury.settleAdvanceB(address(this), normalized);
+    }
+
     function recordTreasuryIn(uint256 amount, uint8 reasonType) external {
         uint256 normalized = 1 + (amount % 1e18);
         uint8 bucket = reasonType % 4;
