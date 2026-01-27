@@ -119,6 +119,8 @@ contract FairSoilInvariants is StdInvariant, Test {
     bool internal deficitCapExceeded;
     bool internal advanceCapExceeded;
     bool internal advanceSettleUnderflow;
+    mapping(uint256 => Covenant.Status) internal lastStatusById;
+    mapping(uint256 => bool) internal statusSeenById;
     bytes32 internal constant REASON_UBI = "UBI";
     bytes32 internal constant REASON_UBI_CLAIM = "UBI_CLAIM";
     bytes32 internal constant REASON_DEFICIT = "DEFICIT";
@@ -593,6 +595,26 @@ contract FairSoilInvariants is StdInvariant, Test {
 
             vm.expectRevert("Not reported");
             covenant.acceptIssue(0);
+        }
+    }
+
+    function invariant_terminalStatusIrreversible() public {
+        uint256 count = covenant.nextId();
+        uint256 limit = count > 10 ? 10 : count;
+        for (uint256 i = 0; i < limit; i++) {
+            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            if (statusSeenById[i]) {
+                Covenant.Status prior = lastStatusById[i];
+                if (
+                    prior == Covenant.Status.Rejected ||
+                    prior == Covenant.Status.Cancelled ||
+                    prior == Covenant.Status.IssueResolved
+                ) {
+                    assertEq(uint256(status), uint256(prior));
+                }
+            }
+            lastStatusById[i] = status;
+            statusSeenById[i] = true;
         }
     }
 
