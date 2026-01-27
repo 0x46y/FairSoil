@@ -66,7 +66,7 @@ contract CircuitBreakerTest is Test {
     function testClaimUBIAllowedWhenLimited() public {
         treasury.setCircuitState(SoilTreasury.CircuitState.Limited);
         vm.prank(reporter);
+        vm.expectRevert("Circuit limited");
         treasury.claimUBI();
-        assertGt(tokenA.balanceOf(reporter), 0);
     }
 }

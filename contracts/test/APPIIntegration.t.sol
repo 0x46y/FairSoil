@@ -50,6 +50,7 @@ contract APPIIntegrationTest is Test {
     }
 
     function testApplyAPPIClampsChanges() public {
+        treasury.setDailyUBIAmount(0);
         vm.prank(reporter1);
         oracle.submitPrice(1, 100);
         vm.prank(reporter2);
