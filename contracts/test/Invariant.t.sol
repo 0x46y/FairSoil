@@ -147,6 +147,7 @@ contract FairSoilInvariants is StdInvariant, Test {
 
         treasury.setDeficitCapA(1_000_000e18);
         treasury.setAdvanceCapB(1_000_000e18);
+        vm.recordLogs();
         treasury.claimUBI();
         tokenA.approve(address(covenant), 10e18);
         uint256 covenantId = covenant.createCovenant(alice, 10e18, 0, true);
@@ -156,8 +157,6 @@ contract FairSoilInvariants is StdInvariant, Test {
         covenant.disputeIssue(covenantId, "dispute", "evidence");
         covenant.resolveDispute(covenantId, 5_000, 0, 0);
         covenant.finalizeResolution(covenantId);
-
-        vm.recordLogs();
 
         creatorHandler = new InvariantCreatorHandler(
             address(treasury),
@@ -314,7 +313,8 @@ contract FairSoilInvariants is StdInvariant, Test {
                     }
                 }
             } else if (topic0 == keccak256("TreasuryOutA(address,uint256,bytes32)")) {
-                (address to, uint256 amount, bytes32 reason) = abi.decode(entries[i].data, (address, uint256, bytes32));
+                address to = address(uint160(uint256(entries[i].topics[1])));
+                (uint256 amount, bytes32 reason) = abi.decode(entries[i].data, (uint256, bytes32));
                 treasuryOutAAmount += amount;
                 if (!_isAllowedTreasuryReason(reason)) {
                     unknownTreasuryReason = true;
@@ -330,7 +330,8 @@ contract FairSoilInvariants is StdInvariant, Test {
                     treasuryOutAUBIClaim += amount;
                 }
             } else if (topic0 == keccak256("TreasuryOutB(address,uint256,bytes32)")) {
-                (address to, uint256 amount, bytes32 reason) = abi.decode(entries[i].data, (address, uint256, bytes32));
+                address to = address(uint160(uint256(entries[i].topics[1])));
+                (uint256 amount, bytes32 reason) = abi.decode(entries[i].data, (uint256, bytes32));
                 treasuryOutBAmount += amount;
                 if (!_isAllowedTreasuryReason(reason)) {
                     unknownTreasuryReason = true;
