@@ -108,6 +108,10 @@ contract FairSoilInvariants is StdInvariant, Test {
     uint256 internal lastMaxUbiIncreaseBpsEvent;
     uint256 internal lastMaxUbiDecreaseBpsEvent;
     uint256 internal lastAPPIEvent;
+    uint256 internal lastDailyUBIAmountEvent;
+    uint256 internal lastGovernanceMinTokenBEvent;
+    uint256 internal lastGovernanceMinIntegrityEvent;
+    address internal lastDisputeResolverEvent;
     uint256 internal trackedDeficitCapA;
     uint256 internal trackedAdvanceCapB;
     uint256 internal trackedDeficitOutstanding;
@@ -215,6 +219,10 @@ contract FairSoilInvariants is StdInvariant, Test {
         lastMaxUbiIncreaseBpsEvent = treasury.maxUbiIncreaseBps();
         lastMaxUbiDecreaseBpsEvent = treasury.maxUbiDecreaseBps();
         lastAPPIEvent = treasury.lastAPPI();
+        lastDailyUBIAmountEvent = treasury.dailyUBIAmount();
+        lastGovernanceMinTokenBEvent = treasury.governanceMinTokenB();
+        lastGovernanceMinIntegrityEvent = treasury.governanceMinIntegrity();
+        lastDisputeResolverEvent = covenant.disputeResolver();
 
         targetContract(address(creatorHandler));
         targetContract(address(workerHandler));
@@ -287,10 +295,21 @@ contract FairSoilInvariants is StdInvariant, Test {
             } else if (topic0 == keccak256("APPIApplied(uint256,uint256,uint256)")) {
                 (uint256 appiValue, uint256 newDailyUBI) = abi.decode(entries[i].data, (uint256, uint256));
                 lastAPPIEvent = appiValue;
+                lastDailyUBIAmountEvent = newDailyUBI;
                 // no-op read to avoid unused warnings
                 if (newDailyUBI == 0) {
                     assertTrue(true);
                 }
+            } else if (topic0 == keccak256("DailyUBIAmountSet(uint256)")) {
+                uint256 newAmount = abi.decode(entries[i].data, (uint256));
+                lastDailyUBIAmountEvent = newAmount;
+            } else if (topic0 == keccak256("GovernanceThresholdsSet(uint256,uint256)")) {
+                (uint256 minTokenB, uint256 minIntegrity) = abi.decode(entries[i].data, (uint256, uint256));
+                lastGovernanceMinTokenBEvent = minTokenB;
+                lastGovernanceMinIntegrityEvent = minIntegrity;
+            } else if (topic0 == keccak256("DisputeResolverSet(address)")) {
+                address resolver = address(uint160(uint256(entries[i].topics[1])));
+                lastDisputeResolverEvent = resolver;
             } else if (topic0 == keccak256("DeficitCapASet(uint256)")) {
                 uint256 newCap = abi.decode(entries[i].data, (uint256));
                 trackedDeficitCapA = newCap;
@@ -687,6 +706,10 @@ contract FairSoilInvariants is StdInvariant, Test {
         assertEq(treasury.maxUbiIncreaseBps(), lastMaxUbiIncreaseBpsEvent);
         assertEq(treasury.maxUbiDecreaseBps(), lastMaxUbiDecreaseBpsEvent);
         assertEq(treasury.lastAPPI(), lastAPPIEvent);
+        assertEq(treasury.dailyUBIAmount(), lastDailyUBIAmountEvent);
+        assertEq(treasury.governanceMinTokenB(), lastGovernanceMinTokenBEvent);
+        assertEq(treasury.governanceMinIntegrity(), lastGovernanceMinIntegrityEvent);
+        assertEq(covenant.disputeResolver(), lastDisputeResolverEvent);
     }
 
     // When halted, no new TreasuryOut should be emitted.

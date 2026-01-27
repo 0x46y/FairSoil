@@ -98,6 +98,8 @@ contract SoilTreasury is Ownable {
     event ReserveSnapshot(uint256 reservesA, uint256 reservesB);
     event LiabilityChanged(int256 deltaA, int256 deltaB, bytes32 reason);
     event AdvanceBSettled(address indexed from, uint256 amount);
+    event DailyUBIAmountSet(uint256 newAmount);
+    event GovernanceThresholdsSet(uint256 minTokenB, uint256 minIntegrity);
 
     bytes32 public constant REASON_UBI = "UBI";
     bytes32 public constant REASON_UBI_CLAIM = "UBI_CLAIM";
@@ -127,11 +129,13 @@ contract SoilTreasury is Ownable {
     function setDailyUBIAmount(uint256 newAmount) external onlyOwner {
         require(circuitState == CircuitState.Normal, "Circuit limited");
         dailyUBIAmount = newAmount;
+        emit DailyUBIAmountSet(newAmount);
     }
 
     function setGovernanceThresholds(uint256 minTokenB, uint256 minIntegrity) external onlyOwner {
         governanceMinTokenB = minTokenB;
         governanceMinIntegrity = minIntegrity;
+        emit GovernanceThresholdsSet(minTokenB, minIntegrity);
     }
 
     function setCrystallizationRateBps(uint256 newRateBps) external onlyOwner {
