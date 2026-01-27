@@ -7,6 +7,8 @@ Full detail currently lives in `docs/spec_ja.md`.
 ### Dual Tokens
 - **Token A (Flow):** Decaying currency for daily exchange. UBI accrues daily and can be claimed in batches.
 - **Token B (Asset):** Non‑decaying asset rewarded for verified contributions and integrity.
+  - **Locking (implementation-aligned):** Covenant escrow calls Treasury `lockB`; locked B cannot transfer
+    and is excluded from circulating supply until `unlockB`.
 
 Gas optimization (implementation-aligned): long-running accrual/claim can be chunked via
 `accrueUBIBatched` / `claimUnclaimedBatched`.
@@ -39,6 +41,7 @@ R2: Treasury outflow must be backed by reserves or explicit mint.
 R3: A burn must not mint B (A->B only via crystallization).  
 R4: No double pay.  
 R5: Locked B is excluded from circulating supply.  
+Implementation note: `lockedBalance`, `totalLocked`, and `unlockedBalanceOf` are available on Token B.
 R6: Deficit/Advance caps enforced.  
 R7: Audit logs required (TreasuryIn/Out, Liabilities, Reserves).
 
