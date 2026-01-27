@@ -16,20 +16,6 @@ export const tokenAAbi = [
     ],
     outputs: [{ name: "", type: "bool" }],
   },
-  {
-    type: "function",
-    name: "lockedBalance",
-    stateMutability: "view",
-    inputs: [{ name: "account", type: "address" }],
-    outputs: [{ name: "", type: "uint256" }],
-  },
-  {
-    type: "function",
-    name: "unlockedBalanceOf",
-    stateMutability: "view",
-    inputs: [{ name: "account", type: "address" }],
-    outputs: [{ name: "", type: "uint256" }],
-  },
 ] as const;
 
 export const tokenBAbi = [
@@ -49,6 +35,20 @@ export const tokenBAbi = [
       { name: "amount", type: "uint256" },
     ],
     outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "lockedBalance",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "unlockedBalanceOf",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
   },
 ] as const;
 
@@ -84,6 +84,23 @@ export const treasuryAbi = [
   },
   {
     type: "function",
+    name: "accrueUBI",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "claimUnclaimed",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "fromDay", type: "uint256" },
+      { name: "toDay", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
     name: "reportTaskCompleted",
     stateMutability: "nonpayable",
     inputs: [
@@ -106,6 +123,16 @@ export const treasuryAbi = [
     stateMutability: "view",
     inputs: [{ name: "account", type: "address" }],
     outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "unclaimed",
+    stateMutability: "view",
+    inputs: [
+      { name: "account", type: "address" },
+      { name: "day", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
   },
   {
     type: "function",

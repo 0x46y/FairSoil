@@ -143,6 +143,10 @@ export default function Home() {
   const [resolveClaims, setResolveClaims] = useState<Record<number, string>>({});
   const [resolveIntegrity, setResolveIntegrity] = useState<Record<number, string>>({});
   const [resolveSlashing, setResolveSlashing] = useState<Record<number, string>>({});
+  const [unclaimedDays, setUnclaimedDays] = useState<{ day: number; amount: bigint }[]>([]);
+  const [unclaimedFromDay, setUnclaimedFromDay] = useState("");
+  const [unclaimedToDay, setUnclaimedToDay] = useState("");
+  const [currentDayIndex, setCurrentDayIndex] = useState<number | null>(null);
   const [trailItems, setTrailItems] = useState<TrailItem[]>([]);
   const [trailNow, setTrailNow] = useState(() => Date.now());
   const trailIds = useRef(new Set<string>());
@@ -263,6 +267,10 @@ export default function Home() {
     if (tokenBUnlocked === undefined) return "--";
     return Number(formatUnits(tokenBUnlocked, 18)).toFixed(2);
   }, [tokenBUnlocked]);
+
+  const totalUnclaimed = useMemo(() => {
+    return unclaimedDays.reduce((sum, entry) => sum + entry.amount, 0n);
+  }, [unclaimedDays]);
 
   const formattedIntegrity = useMemo(() => {
     if (integrityScore === undefined) return "--";
@@ -604,6 +612,33 @@ export default function Home() {
     }
   }, [publicClient, covenantAddress]);
 
+  const loadUnclaimed = useCallback(async () => {
+    if (!publicClient || !treasuryAddress || !account.address) return;
+    const block = await publicClient.getBlock();
+    const day = Number(block.timestamp / 86400n);
+    setCurrentDayIndex(day);
+    const lookback = 6;
+    const entries: { day: number; amount: bigint }[] = [];
+    for (let offset = 0; offset <= lookback; offset += 1) {
+      const targetDay = day - offset;
+      if (targetDay < 0) continue;
+      const amount = (await publicClient.readContract({
+        address: treasuryAddress,
+        abi: treasuryAbi,
+        functionName: "unclaimed",
+        args: [account.address, BigInt(targetDay)],
+      })) as bigint;
+      entries.push({ day: targetDay, amount });
+    }
+    setUnclaimedDays(entries);
+    if (!unclaimedFromDay) {
+      setUnclaimedFromDay(String(Math.max(day - lookback, 0)));
+    }
+    if (!unclaimedToDay) {
+      setUnclaimedToDay(String(day));
+    }
+  }, [account.address, publicClient, treasuryAddress, unclaimedFromDay, unclaimedToDay]);
+
   const refreshAll = useCallback(async () => {
     await Promise.allSettled([
       refetchTokenA(),
@@ -613,6 +648,7 @@ export default function Home() {
       refetchIntegrity(),
       refetchEligibility(),
       refreshCovenants(),
+      loadUnclaimed(),
     ]);
   }, [
     refetchEligibility,
@@ -622,6 +658,7 @@ export default function Home() {
     refetchTokenBLocked,
     refetchTokenBUnlocked,
     refreshCovenants,
+    loadUnclaimed,
   ]);
 
   const postTransactionSync = useCallback(async () => {
@@ -691,6 +728,10 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    void loadUnclaimed();
+  }, [loadUnclaimed]);
+
+  useEffect(() => {
     if (!publicClient || !covenantAddress || !treasuryAddress) return;
     const unwatchCovenant = publicClient.watchContractEvent({
       address: covenantAddress,
@@ -728,6 +769,65 @@ export default function Home() {
       setTxStatus("idle");
       setTxAction(null);
     }
+  };
+
+  const handleAccrueUnclaimed = async () => {
+    if (!treasuryAddress) return;
+    try {
+      await runTransaction("accrueUBI", () =>
+        writeContractAsync({
+          address: treasuryAddress,
+          abi: treasuryAbi,
+          functionName: "accrueUBI",
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("Accrued unclaimed UBI.");
+    } catch (error) {
+      setTxError(formatTxError(error));
+      setTxSuccess(null);
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const handleClaimUnclaimed = async () => {
+    if (!treasuryAddress) return;
+    const fromDay = Number.parseInt(unclaimedFromDay || "", 10);
+    const toDay = Number.parseInt(unclaimedToDay || "", 10);
+    if (!Number.isFinite(fromDay) || !Number.isFinite(toDay) || fromDay < 0 || toDay < fromDay) {
+      setTxError("Invalid day range for unclaimed UBI.");
+      setTxSuccess(null);
+      return;
+    }
+    try {
+      await runTransaction("claimUnclaimed", () =>
+        writeContractAsync({
+          address: treasuryAddress,
+          abi: treasuryAbi,
+          functionName: "claimUnclaimed",
+          args: [BigInt(fromDay), BigInt(toDay)],
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("Unclaimed UBI claimed.");
+    } catch (error) {
+      setTxError(formatTxError(error));
+      setTxSuccess(null);
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const handleUseRecentDays = () => {
+    if (currentDayIndex === null) return;
+    const lookback = 6;
+    setUnclaimedFromDay(String(Math.max(currentDayIndex - lookback, 0)));
+    setUnclaimedToDay(String(currentDayIndex));
   };
 
   const handleReport = async () => {
@@ -1157,6 +1257,73 @@ export default function Home() {
             <div className={styles.cardFooter}>
               <span>Min Token B: 1</span>
               <span>Min Integrity: 100</span>
+            </div>
+          </article>
+          <article className={styles.card}>
+            <h3>Unclaimed UBI</h3>
+            <p>
+              Accrue daily UBI, then claim in batches. Amounts older than 30 days
+              decay at the Token A rate.
+            </p>
+            <div className={styles.unclaimedSummary}>
+              <span>Current day: {currentDayIndex ?? "--"}</span>
+              <span>Total (last 7 days): {formatTokenA(totalUnclaimed)}</span>
+            </div>
+            <div className={styles.unclaimedList}>
+              {unclaimedDays.map((entry) => (
+                <div key={entry.day} className={styles.unclaimedRow}>
+                  <span>Day {entry.day}</span>
+                  <span>{formatTokenA(entry.amount)}</span>
+                </div>
+              ))}
+            </div>
+            <div className={styles.taskForm}>
+              <div className={styles.taskRow}>
+                <label className={styles.taskField}>
+                  From day
+                  <input
+                    className={styles.taskInput}
+                    value={unclaimedFromDay}
+                    onChange={(event) => setUnclaimedFromDay(event.target.value)}
+                    placeholder="e.g. 12345"
+                  />
+                </label>
+                <label className={styles.taskField}>
+                  To day
+                  <input
+                    className={styles.taskInput}
+                    value={unclaimedToDay}
+                    onChange={(event) => setUnclaimedToDay(event.target.value)}
+                    placeholder="e.g. 12350"
+                  />
+                </label>
+              </div>
+              <div className={styles.unclaimedActions}>
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handleUseRecentDays}
+                  disabled={!account.address || missingEnv || isBusy}
+                >
+                  Use last 7 days
+                </button>
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handleAccrueUnclaimed}
+                  disabled={!account.address || missingEnv || isBusy}
+                >
+                  {actionLabel("accrueUBI", "Accrue UBI")}
+                </button>
+                <button
+                  className={styles.primaryButton}
+                  onClick={handleClaimUnclaimed}
+                  disabled={!account.address || missingEnv || isBusy}
+                >
+                  {actionLabel("claimUnclaimed", "Claim Unclaimed")}
+                </button>
+              </div>
+              <p className={styles.taskHint}>
+                Day index = block timestamp / 86,400. Claiming resets those days.
+              </p>
             </div>
           </article>
           <article className={styles.card}>
