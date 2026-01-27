@@ -300,6 +300,39 @@
   color: var(--ink-500);
 }
 
+.unclaimedSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+  font-size: 12px;
+  color: var(--ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.unclaimedList {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.unclaimedRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--ink-700);
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--sand-200);
+}
+
+.unclaimedActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0;
+}
+
 .cardFooter {
   display: flex;
   justify-content: space-between;
