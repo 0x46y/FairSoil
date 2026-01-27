@@ -46,3 +46,4 @@ Details: `docs/vision_en.md`
 
 ## Core Mechanisms (Details in docs/spec_en.md)
 - This README is an entry point; detailed specs and formulas live in `docs/spec_en.md`.
+a
