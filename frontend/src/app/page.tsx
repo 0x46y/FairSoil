@@ -177,6 +177,26 @@ export default function Home() {
     },
   });
 
+  const { data: tokenBLocked, refetch: refetchTokenBLocked } = useReadContract({
+    address: tokenBAddr,
+    abi: tokenBAbi,
+    functionName: "lockedBalance",
+    args: [address],
+    query: {
+      enabled: Boolean(tokenBAddress && account.address),
+    },
+  });
+
+  const { data: tokenBUnlocked, refetch: refetchTokenBUnlocked } = useReadContract({
+    address: tokenBAddr,
+    abi: tokenBAbi,
+    functionName: "unlockedBalanceOf",
+    args: [address],
+    query: {
+      enabled: Boolean(tokenBAddress && account.address),
+    },
+  });
+
   const { data: integrityScore, refetch: refetchIntegrity } = useReadContract({
     address: treasuryAddr,
     abi: treasuryAbi,
@@ -234,6 +254,16 @@ export default function Home() {
     return Number(formatUnits(tokenBBalance, 18)).toFixed(2);
   }, [tokenBBalance]);
 
+  const formattedTokenBLocked = useMemo(() => {
+    if (tokenBLocked === undefined) return "--";
+    return Number(formatUnits(tokenBLocked, 18)).toFixed(2);
+  }, [tokenBLocked]);
+
+  const formattedTokenBUnlocked = useMemo(() => {
+    if (tokenBUnlocked === undefined) return "--";
+    return Number(formatUnits(tokenBUnlocked, 18)).toFixed(2);
+  }, [tokenBUnlocked]);
+
   const formattedIntegrity = useMemo(() => {
     if (integrityScore === undefined) return "--";
     return integrityScore.toString();
@@ -268,10 +298,10 @@ export default function Home() {
   }, [covenantPayInTokenA, crystallizationRateBps, crystallizationFeeBps, covenantReward]);
 
   const hasInsufficientBalance = useMemo(() => {
-    const balance = covenantPayInTokenA ? tokenABalance : tokenBBalance;
+    const balance = covenantPayInTokenA ? tokenABalance : tokenBUnlocked;
     if (balance === undefined) return false;
     return covenantReward > balance;
-  }, [covenantPayInTokenA, covenantReward, tokenABalance, tokenBBalance]);
+  }, [covenantPayInTokenA, covenantReward, tokenABalance, tokenBUnlocked]);
 
   const buildTrailItemFromLog = useCallback((log: any, timestamp: number): TrailItem | null => {
     if (!log?.eventName) return null;
@@ -578,11 +608,21 @@ export default function Home() {
     await Promise.allSettled([
       refetchTokenA(),
       refetchTokenB(),
+      refetchTokenBLocked(),
+      refetchTokenBUnlocked(),
       refetchIntegrity(),
       refetchEligibility(),
       refreshCovenants(),
     ]);
-  }, [refetchEligibility, refetchIntegrity, refetchTokenA, refetchTokenB, refreshCovenants]);
+  }, [
+    refetchEligibility,
+    refetchIntegrity,
+    refetchTokenA,
+    refetchTokenB,
+    refetchTokenBLocked,
+    refetchTokenBUnlocked,
+    refreshCovenants,
+  ]);
 
   const postTransactionSync = useCallback(async () => {
     await refreshAll();
@@ -1091,7 +1131,11 @@ export default function Home() {
             <div className={styles.metric}>
               <p className={styles.metricLabel}>Token B assets</p>
               <p className={styles.metricValue}>{formattedTokenB}</p>
-              <p className={styles.metricFootnote}>Minted by Treasury</p>
+              <div className={styles.metricBreakdown}>
+                <span>Unlocked: {formattedTokenBUnlocked}</span>
+                <span>Locked: {formattedTokenBLocked}</span>
+              </div>
+              <p className={styles.metricFootnote}>Locked balance cannot be transferred.</p>
             </div>
             <div className={styles.metric}>
               <p className={styles.metricLabel}>Integrity score</p>
