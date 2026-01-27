@@ -45,6 +45,8 @@ const formatPercent = (bps: bigint) => {
   return Number.isInteger(percent) ? percent.toFixed(0) : percent.toFixed(1);
 };
 
+const disputeSteps = ["Reported", "Disputed", "Proposed", "Resolved"] as const;
+
 const formatEvidenceLink = (value: unknown) => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -74,7 +76,7 @@ const normalizeErrorMessage = (error: unknown) => {
   return String(error);
 };
 
-const formatTxError = (error: unknown) => {
+  const formatTxError = (error: unknown) => {
   const message = normalizeErrorMessage(error);
   const lower = message.toLowerCase();
   if (
@@ -100,6 +102,14 @@ const formatRelativeTime = (timestamp: number, nowMs: number) => {
 };
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const getDisputeStage = (status: number) => {
+  const isReported = status >= 5;
+  const isDisputed = status >= 6;
+  const isProposed = status >= 7;
+  const isResolved = status === 8;
+  return [isReported, isDisputed, isProposed, isResolved];
+};
 
 export default function Home() {
   const account = useAccount();
@@ -1567,6 +1577,27 @@ export default function Home() {
                   <span>{Number(item.issueClaimBps) / 100}%</span>
                   <span>{covenantStatusLabels[item.status] ?? "Unknown"}</span>
                   <div className={styles.covenantActions}>
+                    {item.status >= 5 ? (
+                      <div className={styles.disputeTrack}>
+                        {disputeSteps.map((label, index) => {
+                          const stage = getDisputeStage(item.status);
+                          const active = stage[index];
+                          return (
+                            <span
+                              key={`${item.id}-${label}`}
+                              className={`${styles.disputeStep} ${
+                                active ? styles.disputeStepActive : ""
+                              }`}
+                            >
+                              {label}
+                            </span>
+                          );
+                        })}
+                        <p className={styles.disputeHint}>
+                          Resolver must propose, then finalize the decision.
+                        </p>
+                      </div>
+                    ) : null}
                     {item.status === 0 &&
                     account.address &&
                     item.creator.toLowerCase() === account.address.toLowerCase() ? (
@@ -1637,6 +1668,11 @@ export default function Home() {
                             }
                             placeholder="https://..."
                           />
+                          {formatEvidenceLink(issueEvidenceUris[item.id]) ? (
+                            <div className={styles.issuePreview}>
+                              {formatEvidenceLink(issueEvidenceUris[item.id])}
+                            </div>
+                          ) : null}
                         </label>
                         <button
                           className={styles.secondaryButton}
@@ -1701,6 +1737,11 @@ export default function Home() {
                             }
                             placeholder="https://..."
                           />
+                          {formatEvidenceLink(disputeEvidenceUris[item.id]) ? (
+                            <div className={styles.issuePreview}>
+                              {formatEvidenceLink(disputeEvidenceUris[item.id])}
+                            </div>
+                          ) : null}
                         </label>
                         {item.status === 5 ? (
                           <button

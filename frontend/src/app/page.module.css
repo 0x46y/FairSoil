@@ -499,6 +499,41 @@
   flex-wrap: wrap;
 }
 
+.disputeTrack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px dashed var(--sand-200);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.disputeStep {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-500);
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-200);
+}
+
+.disputeStepActive {
+  color: var(--ink-900);
+  border-color: rgba(70, 66, 56, 0.4);
+  background: rgba(238, 228, 209, 0.6);
+}
+
+.disputeHint {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--ink-500);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .issueActions {
   display: grid;
   gap: 8px;
@@ -544,6 +579,14 @@
   font-family: inherit;
   resize: vertical;
   color: var(--ink-900);
+}
+
+.issuePreview {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--ink-500);
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .issueHelp {
