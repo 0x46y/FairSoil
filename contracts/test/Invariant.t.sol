@@ -100,6 +100,13 @@ contract FairSoilInvariants is StdInvariant, Test {
     uint256 internal treasuryInTax;
     uint256 internal treasuryInSlash;
     uint256 internal treasuryInExternal;
+    uint256 internal trackedDeficitCapA;
+    uint256 internal trackedAdvanceCapB;
+    uint256 internal trackedDeficitOutstanding;
+    uint256 internal trackedAdvanceOutstanding;
+    bool internal deficitCapExceeded;
+    bool internal advanceCapExceeded;
+    bool internal advanceSettleUnderflow;
     bytes32 internal constant REASON_UBI = "UBI";
     bytes32 internal constant REASON_UBI_CLAIM = "UBI_CLAIM";
     bytes32 internal constant REASON_DEFICIT = "DEFICIT";
@@ -147,6 +154,8 @@ contract FairSoilInvariants is StdInvariant, Test {
 
         treasury.setDeficitCapA(1_000_000e18);
         treasury.setAdvanceCapB(1_000_000e18);
+        trackedDeficitCapA = treasury.deficitCapA();
+        trackedAdvanceCapB = treasury.advanceCapB();
         vm.recordLogs();
         treasury.claimUBI();
         tokenA.approve(address(covenant), 10e18);
@@ -239,6 +248,38 @@ contract FairSoilInvariants is StdInvariant, Test {
             } else if (topic0 == keccak256("DisputeResolved(uint256,uint256,uint256,uint256)")) {
                 uint256 covenantId = uint256(entries[i].topics[1]);
                 disputeResolvedEventById[covenantId] = true;
+            } else if (topic0 == keccak256("DeficitCapASet(uint256)")) {
+                uint256 newCap = abi.decode(entries[i].data, (uint256));
+                trackedDeficitCapA = newCap;
+                if (trackedDeficitOutstanding > trackedDeficitCapA) {
+                    deficitCapExceeded = true;
+                }
+            } else if (topic0 == keccak256("AdvanceCapBSet(uint256)")) {
+                uint256 newCap = abi.decode(entries[i].data, (uint256));
+                trackedAdvanceCapB = newCap;
+                if (trackedAdvanceOutstanding > trackedAdvanceCapB) {
+                    advanceCapExceeded = true;
+                }
+            } else if (topic0 == keccak256("DeficitAIssued(address,uint256)")) {
+                uint256 amount = abi.decode(entries[i].data, (uint256));
+                trackedDeficitOutstanding += amount;
+                if (trackedDeficitOutstanding > trackedDeficitCapA) {
+                    deficitCapExceeded = true;
+                }
+            } else if (topic0 == keccak256("AdvanceBIssued(address,uint256)")) {
+                uint256 amount = abi.decode(entries[i].data, (uint256));
+                trackedAdvanceOutstanding += amount;
+                if (trackedAdvanceOutstanding > trackedAdvanceCapB) {
+                    advanceCapExceeded = true;
+                }
+            } else if (topic0 == keccak256("AdvanceBSettled(address,uint256)")) {
+                uint256 amount = abi.decode(entries[i].data, (uint256));
+                if (trackedAdvanceOutstanding < amount) {
+                    advanceSettleUnderflow = true;
+                    trackedAdvanceOutstanding = 0;
+                } else {
+                    trackedAdvanceOutstanding -= amount;
+                }
             } else if (topic0 == keccak256("LiabilityChanged(int256,int256,bytes32)")) {
                 (int256 deltaA, int256 deltaB, bytes32 reason) = abi.decode(entries[i].data, (int256, int256, bytes32));
                 liabilitiesDeltaA += deltaA;
@@ -440,6 +481,27 @@ contract FairSoilInvariants is StdInvariant, Test {
     function invariant_capsRespected() public view {
         assertLe(treasury.deficitAOutstanding(), treasury.deficitCapA());
         assertLe(treasury.advanceBOutstanding(), treasury.advanceCapB());
+    }
+
+    function invariant_deficitCapAppliedOnEvents() public {
+        _syncEscrowEvents();
+        assertFalse(deficitCapExceeded);
+    }
+
+    function invariant_advanceCapAppliedOnEvents() public {
+        _syncEscrowEvents();
+        assertFalse(advanceCapExceeded);
+    }
+
+    function invariant_advanceSettleNoUnderflow() public {
+        _syncEscrowEvents();
+        assertFalse(advanceSettleUnderflow);
+    }
+
+    function invariant_outstandingMatchesIssueSettleEvents() public {
+        _syncEscrowEvents();
+        assertEq(trackedDeficitOutstanding, treasury.deficitAOutstanding());
+        assertEq(trackedAdvanceOutstanding, treasury.advanceBOutstanding());
     }
 
     // Resolve state machine irreversibility (Finalized is terminal).
