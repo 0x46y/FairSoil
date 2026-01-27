@@ -333,6 +333,7 @@ contract Covenant is Ownable {
                 0
             );
         }
+        data.settled = true;
         treasury.penalizePayScoreWithReason(data.creator, 10, "Rejected after submission");
         treasury.penalizeProcessScore(data.worker, 5, "Rejected work");
 
@@ -371,6 +372,7 @@ contract Covenant is Ownable {
                 0
             );
         }
+        data.settled = true;
         treasury.penalizePayScoreWithReason(data.creator, 5, "Cancelled covenant");
         treasury.penalizeProcessScore(data.worker, 2, "Cancelled before completion");
 

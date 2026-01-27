@@ -100,6 +100,14 @@ contract FairSoilInvariants is StdInvariant, Test {
     uint256 internal treasuryInTax;
     uint256 internal treasuryInSlash;
     uint256 internal treasuryInExternal;
+    SoilTreasury.CircuitState internal lastCircuitStateEvent;
+    address internal lastCovenantEvent;
+    address internal lastAPPIOracleEvent;
+    uint256 internal lastCrystallizationRateBpsEvent;
+    uint256 internal lastCrystallizationFeeBpsEvent;
+    uint256 internal lastMaxUbiIncreaseBpsEvent;
+    uint256 internal lastMaxUbiDecreaseBpsEvent;
+    uint256 internal lastAPPIEvent;
     uint256 internal trackedDeficitCapA;
     uint256 internal trackedAdvanceCapB;
     uint256 internal trackedDeficitOutstanding;
@@ -199,6 +207,15 @@ contract FairSoilInvariants is StdInvariant, Test {
         vm.prank(address(treasuryHandler));
         tokenB.approve(address(treasury), 500e18);
 
+        lastCircuitStateEvent = treasury.circuitState();
+        lastCovenantEvent = treasury.covenant();
+        lastAPPIOracleEvent = address(treasury.appiOracle());
+        lastCrystallizationRateBpsEvent = treasury.crystallizationRateBps();
+        lastCrystallizationFeeBpsEvent = treasury.crystallizationFeeBps();
+        lastMaxUbiIncreaseBpsEvent = treasury.maxUbiIncreaseBps();
+        lastMaxUbiDecreaseBpsEvent = treasury.maxUbiDecreaseBps();
+        lastAPPIEvent = treasury.lastAPPI();
+
         targetContract(address(creatorHandler));
         targetContract(address(workerHandler));
         targetContract(address(resolverHandler));
@@ -248,6 +265,32 @@ contract FairSoilInvariants is StdInvariant, Test {
             } else if (topic0 == keccak256("DisputeResolved(uint256,uint256,uint256,uint256)")) {
                 uint256 covenantId = uint256(entries[i].topics[1]);
                 disputeResolvedEventById[covenantId] = true;
+            } else if (topic0 == keccak256("CircuitStateSet(uint8)")) {
+                uint8 newState = abi.decode(entries[i].data, (uint8));
+                lastCircuitStateEvent = SoilTreasury.CircuitState(newState);
+            } else if (topic0 == keccak256("CovenantSet(address)")) {
+                address newCovenant = address(uint160(uint256(entries[i].topics[1])));
+                lastCovenantEvent = newCovenant;
+            } else if (topic0 == keccak256("APPIOracleSet(address)")) {
+                address newOracle = address(uint160(uint256(entries[i].topics[1])));
+                lastAPPIOracleEvent = newOracle;
+            } else if (topic0 == keccak256("CrystallizationRateSet(uint256)")) {
+                uint256 newRate = abi.decode(entries[i].data, (uint256));
+                lastCrystallizationRateBpsEvent = newRate;
+            } else if (topic0 == keccak256("CrystallizationFeeSet(uint256)")) {
+                uint256 newFee = abi.decode(entries[i].data, (uint256));
+                lastCrystallizationFeeBpsEvent = newFee;
+            } else if (topic0 == keccak256("APPIChangeLimitsSet(uint256,uint256)")) {
+                (uint256 maxUp, uint256 maxDown) = abi.decode(entries[i].data, (uint256, uint256));
+                lastMaxUbiIncreaseBpsEvent = maxUp;
+                lastMaxUbiDecreaseBpsEvent = maxDown;
+            } else if (topic0 == keccak256("APPIApplied(uint256,uint256,uint256)")) {
+                (uint256 appiValue, uint256 newDailyUBI) = abi.decode(entries[i].data, (uint256, uint256));
+                lastAPPIEvent = appiValue;
+                // no-op read to avoid unused warnings
+                if (newDailyUBI == 0) {
+                    assertTrue(true);
+                }
             } else if (topic0 == keccak256("DeficitCapASet(uint256)")) {
                 uint256 newCap = abi.decode(entries[i].data, (uint256));
                 trackedDeficitCapA = newCap;
@@ -631,6 +674,19 @@ contract FairSoilInvariants is StdInvariant, Test {
         _syncEscrowEvents();
         assertFalse(treasuryOutAReasonMismatch);
         assertFalse(treasuryOutBReasonMismatch);
+    }
+
+    // R7: admin state changes must emit their corresponding events.
+    function invariant_adminStateChangesHaveEvents() public {
+        _syncEscrowEvents();
+        assertEq(uint256(treasury.circuitState()), uint256(lastCircuitStateEvent));
+        assertEq(treasury.covenant(), lastCovenantEvent);
+        assertEq(address(treasury.appiOracle()), lastAPPIOracleEvent);
+        assertEq(treasury.crystallizationRateBps(), lastCrystallizationRateBpsEvent);
+        assertEq(treasury.crystallizationFeeBps(), lastCrystallizationFeeBpsEvent);
+        assertEq(treasury.maxUbiIncreaseBps(), lastMaxUbiIncreaseBpsEvent);
+        assertEq(treasury.maxUbiDecreaseBps(), lastMaxUbiDecreaseBpsEvent);
+        assertEq(treasury.lastAPPI(), lastAPPIEvent);
     }
 
     // When halted, no new TreasuryOut should be emitted.
