@@ -45,7 +45,7 @@ const formatPercent = (bps: bigint) => {
   return Number.isInteger(percent) ? percent.toFixed(0) : percent.toFixed(1);
 };
 
-const disputeSteps = ["Reported", "Disputed", "Proposed", "Resolved"] as const;
+const disputeSteps = ["Requested", "Disputed", "Proposed", "Resolved"] as const;
 
 const formatEvidenceLink = (value: unknown) => {
   if (typeof value !== "string") return null;
@@ -338,7 +338,7 @@ export default function Home() {
         return {
           id,
           timestamp,
-          title: `Covenant #${covenantId} created`,
+          title: `Work agreement #${covenantId} created`,
           body: `Creator ${safeAddress(args.creator as string | undefined)} · Worker ${safeAddress(
             args.worker as string | undefined
           )}${parts.length ? ` · ${parts.join(" · ")}` : ""}`,
@@ -349,7 +349,7 @@ export default function Home() {
         return {
           id,
           timestamp,
-          title: `Covenant #${covenantId} submitted`,
+          title: `Work agreement #${covenantId} submitted`,
           body: `Submitted by ${safeAddress(args.worker as string | undefined)}`,
         };
       }
@@ -358,7 +358,7 @@ export default function Home() {
         return {
           id,
           timestamp,
-          title: `Covenant #${covenantId} approved`,
+          title: `Work agreement #${covenantId} approved`,
           body: `Approved by ${safeAddress(args.creator as string | undefined)} · Reward released`,
         };
       }
@@ -367,7 +367,7 @@ export default function Home() {
         return {
           id,
           timestamp,
-          title: `Covenant #${covenantId} rejected`,
+          title: `Work agreement #${covenantId} rejected`,
           body: `Rejected by ${safeAddress(args.creator as string | undefined)}`,
         };
       }
@@ -376,7 +376,7 @@ export default function Home() {
         return {
           id,
           timestamp,
-          title: `Covenant #${covenantId} cancelled`,
+          title: `Work agreement #${covenantId} cancelled`,
           body: `Cancelled by ${safeAddress(args.creator as string | undefined)}`,
         };
       }
@@ -391,7 +391,7 @@ export default function Home() {
         return {
           id,
           timestamp,
-          title: `Issue reported on covenant #${covenantId}`,
+          title: `Support requested for agreement #${covenantId}`,
           body: (
             <>
               Reported by {safeAddress(args.worker as string | undefined)} · Claim {claimPct}% ·{" "}
@@ -407,7 +407,7 @@ export default function Home() {
         return {
           id,
           timestamp,
-          title: `Issue accepted on covenant #${covenantId}`,
+          title: `Support accepted on agreement #${covenantId}`,
           body: `Accepted by ${safeAddress(args.creator as string | undefined)} · Claim ${claimPct}%`,
         };
       }
@@ -421,7 +421,7 @@ export default function Home() {
         return {
           id,
           timestamp,
-          title: `Issue disputed on covenant #${covenantId}`,
+          title: `Support disputed on agreement #${covenantId}`,
           body: (
             <>
               Disputed by {safeAddress(args.creator as string | undefined)} · {reason}
@@ -434,7 +434,7 @@ export default function Home() {
         return {
           id,
           timestamp,
-          title: "Dispute resolver updated",
+          title: "Support resolver updated",
           body: `Resolver ${safeAddress(args.resolver as string | undefined)}`,
         };
       }
@@ -445,7 +445,7 @@ export default function Home() {
         return {
           id,
           timestamp,
-          title: `Resolution proposed: covenant #${covenantId}`,
+          title: `Support proposal for agreement #${covenantId}`,
           body: `${formatPercent(payoutBps)}% payout to worker · +${integrityPoints.toString()} points`,
         };
       }
@@ -455,7 +455,7 @@ export default function Home() {
         return {
           id,
           timestamp,
-          title: `Malice slashed on covenant #${covenantId}`,
+          title: `Integrity penalty on agreement #${covenantId}`,
           body: `Creator ${safeAddress(args.creator as string | undefined)} · Worker ${safeAddress(
             args.worker as string | undefined
           )} · Penalty ${formatTokenB(penalty)}`,
@@ -468,7 +468,7 @@ export default function Home() {
         return {
           id,
           timestamp,
-          title: `Dispute resolved: covenant #${covenantId}`,
+          title: `Support resolved: agreement #${covenantId}`,
           body: `${formatPercent(payoutBps)}% payout to worker · +${integrityPoints.toString()} points`,
         };
       }
@@ -492,7 +492,7 @@ export default function Home() {
         return {
           id,
           timestamp,
-          title: "UBI claimed",
+          title: "Bonus claimed",
           body: `User ${safeAddress(args.user as string | undefined)} · +${formatTokenA(amount)}`,
         };
       }
@@ -500,7 +500,7 @@ export default function Home() {
         return {
           id,
           timestamp,
-          title: "Covenant linked to treasury",
+          title: "Agreement contract linked to treasury",
           body: `Contract ${safeAddress(args.covenant as string | undefined)}`,
         };
       }
@@ -793,7 +793,7 @@ export default function Home() {
       );
       await postTransactionSync();
       setTxError(null);
-      showSuccess("Accrued unclaimed UBI.");
+      showSuccess("Accrued bonus.");
     } catch (error) {
       setTxError(formatTxError(error));
       setTxSuccess(null);
@@ -808,7 +808,7 @@ export default function Home() {
     const fromDay = Number.parseInt(unclaimedFromDay || "", 10);
     const toDay = Number.parseInt(unclaimedToDay || "", 10);
     if (!Number.isFinite(fromDay) || !Number.isFinite(toDay) || fromDay < 0 || toDay < fromDay) {
-      setTxError("Invalid day range for unclaimed UBI.");
+      setTxError("Invalid day range for saved bonuses.");
       setTxSuccess(null);
       return;
     }
@@ -823,7 +823,7 @@ export default function Home() {
       );
       await postTransactionSync();
       setTxError(null);
-      showSuccess("Unclaimed UBI claimed.");
+      showSuccess("Saved bonus claimed.");
     } catch (error) {
       setTxError(formatTxError(error));
       setTxSuccess(null);
@@ -1146,10 +1146,10 @@ export default function Home() {
     "Approved",
     "Rejected",
     "Cancelled",
-    "Issue reported",
+    "Support requested",
     "Disputed",
-    "Resolution proposed",
-    "Issue resolved",
+    "Support proposed",
+    "Support resolved",
   ];
 
   return (
@@ -1209,7 +1209,7 @@ export default function Home() {
                 onClick={handleClaim}
                 disabled={!account.address || missingEnv || isBusy}
               >
-                {actionLabel("claimUBI", "Claim UBI")}
+                {actionLabel("claimUBI", "Claim Bonus")}
               </button>
               {account.address ? (
                 <button className={styles.secondaryButton} onClick={() => disconnect()}>
@@ -1236,7 +1236,7 @@ export default function Home() {
             <div className={styles.metric}>
               <p className={styles.metricLabel}>Token A balance</p>
               <p className={styles.metricValue}>{formattedTokenA}</p>
-              <p className={styles.metricFootnote}>Decay applies on-chain</p>
+              <p className={styles.metricFootnote}>Expires gradually on-chain</p>
             </div>
             <div className={styles.metric}>
               <p className={styles.metricLabel}>Token B assets</p>
@@ -1270,10 +1270,10 @@ export default function Home() {
             </div>
           </article>
           <article className={styles.card}>
-            <h3>Unclaimed UBI</h3>
+            <h3>Saved bonuses</h3>
             <p>
-              Accrue daily UBI, then claim in batches. Amounts older than 30 days
-              decay at the Token A rate.
+              Accrue daily bonuses, then claim in batches. Amounts older than 30 days
+              expire at the Token A rate.
             </p>
             <div className={styles.unclaimedSummary}>
               <span>Current day: {currentDayIndex ?? "--"}</span>
@@ -1321,14 +1321,14 @@ export default function Home() {
                   onClick={handleAccrueUnclaimed}
                   disabled={!account.address || missingEnv || isBusy}
                 >
-                  {actionLabel("accrueUBI", "Accrue UBI")}
+                  {actionLabel("accrueUBI", "Accrue Bonus")}
                 </button>
                 <button
                   className={styles.primaryButton}
                   onClick={handleClaimUnclaimed}
                   disabled={!account.address || missingEnv || isBusy}
                 >
-                  {actionLabel("claimUnclaimed", "Claim Unclaimed")}
+                  {actionLabel("claimUnclaimed", "Claim Bonus")}
                 </button>
               </div>
               <p className={styles.taskHint}>
@@ -1337,9 +1337,9 @@ export default function Home() {
             </div>
           </article>
           <article className={styles.card}>
-            <h3>Task completion</h3>
+            <h3>Verified contributions</h3>
             <p>
-              Report honest outcomes. Early issue reports still earn partial
+              Report verified outcomes. Support requests can still earn partial
               rewards.
             </p>
             <div className={styles.taskForm}>
@@ -1357,14 +1357,14 @@ export default function Home() {
               </label>
               <div className={styles.taskRow}>
                 <label className={styles.taskField}>
-                  Token B
+                  Token B bonus
                   <input
                     className={styles.taskInput}
                     value={taskTokenBAmount}
                     onChange={(event) => setTaskTokenBAmount(event.target.value)}
                     placeholder="500"
                   />
-                  <span className={styles.fieldHint}>Reward amount minted to the worker.</span>
+                  <span className={styles.fieldHint}>Bonus amount minted to the worker.</span>
                 </label>
                 <label className={styles.taskField}>
                   Integrity
@@ -1375,7 +1375,7 @@ export default function Home() {
                     placeholder="100"
                   />
                   <span className={styles.fieldHint}>
-                    Honesty points added to the worker’s score.
+                    Integrity points added to the worker’s score.
                   </span>
                 </label>
               </div>
@@ -1385,7 +1385,7 @@ export default function Home() {
               onClick={handleReport}
               disabled={!account.address || missingEnv || isBusy || !taskWorker}
             >
-              {actionLabel("reportTaskCompleted", "Report Task (admin)")}
+              {actionLabel("reportTaskCompleted", "Report Contribution (admin)")}
             </button>
             <p className={styles.taskHint}>
               Requires the owner wallet and a verified primary address.
@@ -1394,14 +1394,14 @@ export default function Home() {
           <article className={styles.card}>
             <h3>Soil Treasury</h3>
             <p>
-              Daily UBI set at 100 SOILA. Claims reset at 00:00 UTC.
+              Daily bonus set at 100 SOILA. Claims reset at 00:00 UTC.
             </p>
             <div className={styles.cardFooter}>
               <span>Next claim window: 03:12</span>
             </div>
           </article>
           <article className={styles.card}>
-            <h3>Create covenant</h3>
+            <h3>Create work agreement</h3>
             <p>
               Lock Token B rewards upfront so a worker can submit and get
               approved.
@@ -1469,9 +1469,9 @@ export default function Home() {
                 hasInsufficientBalance
               }
             >
-              {hasInsufficientBalance
+                {hasInsufficientBalance
                 ? "Insufficient Balance"
-                : actionLabel("createCovenant", "Create Covenant (approve + lock)")}
+                : actionLabel("createCovenant", "Create Agreement (approve + lock)")}
             </button>
             <div className={styles.stepNote}>
               <span className={styles.stepPill}>
@@ -1514,7 +1514,7 @@ export default function Home() {
                 <div>
                   <p className={styles.timelineTitle}>No activity yet</p>
                   <p className={styles.timelineBody}>
-                    Covenant and treasury events will appear here.
+                  Agreement and treasury events will appear here.
                   </p>
                 </div>
               </div>
@@ -1539,7 +1539,7 @@ export default function Home() {
         <section className={styles.covenantSection}>
           <div className={styles.covenantHeader}>
             <div>
-              <h2>Active covenants</h2>
+              <h2>Active agreements</h2>
               <p>Track escrowed work agreements created on this chain.</p>
             </div>
             <button
@@ -1562,7 +1562,7 @@ export default function Home() {
             </div>
             {covenants.length === 0 ? (
               <div className={styles.covenantRowEmpty}>
-                {isLoadingCovenants ? "Loading covenants..." : "No covenants yet."}
+                {isLoadingCovenants ? "Loading agreements..." : "No agreements yet."}
               </div>
             ) : (
               covenants.map((item) => (
@@ -1594,7 +1594,7 @@ export default function Home() {
                           );
                         })}
                         <p className={styles.disputeHint}>
-                          Resolver must propose, then finalize the decision.
+                          Resolver must propose, then finalize the support decision.
                         </p>
                       </div>
                     ) : null}
@@ -1625,7 +1625,7 @@ export default function Home() {
                     item.worker.toLowerCase() === account.address.toLowerCase() ? (
                       <div className={styles.issueActions}>
                         <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Claim %</span>
+                  <span className={styles.issueLabel}>Claim %</span>
                           <input
                             className={styles.issueInput}
                             value={issueClaims[item.id] ?? ""}
@@ -1642,7 +1642,7 @@ export default function Home() {
                           </span>
                         </label>
                         <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Reason</span>
+                          <span className={styles.issueLabel}>Support reason</span>
                           <textarea
                             className={styles.issueTextarea}
                             value={issueReasons[item.id] ?? ""}
@@ -1681,7 +1681,7 @@ export default function Home() {
                         >
                           {actionLabel(
                             `report-issue-${item.id}`,
-                            item.status === 5 ? "Update Issue" : "Report Issue"
+                            item.status === 5 ? "Update Request" : "Request Support"
                           )}
                         </button>
                       </div>
@@ -1711,7 +1711,7 @@ export default function Home() {
                     item.creator.toLowerCase() === account.address.toLowerCase() ? (
                       <>
                         <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Reason</span>
+                          <span className={styles.issueLabel}>Support reason</span>
                           <textarea
                             className={styles.issueTextarea}
                             value={disputeReasons[item.id] ?? ""}
@@ -1749,7 +1749,7 @@ export default function Home() {
                             onClick={() => handleAcceptIssue(item.id)}
                             disabled={isBusy}
                           >
-                            {actionLabel(`accept-issue-${item.id}`, "Accept Issue")}
+                          {actionLabel(`accept-issue-${item.id}`, "Accept Claim")}
                           </button>
                         ) : null}
                         <button
@@ -1801,7 +1801,7 @@ export default function Home() {
                           />
                         </label>
                         <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Slash B</span>
+                          <span className={styles.issueLabel}>Penalty (B)</span>
                           <input
                             className={styles.issueInput}
                             value={resolveSlashing[item.id] ?? ""}
@@ -1821,7 +1821,7 @@ export default function Home() {
                         >
                           {actionLabel(
                             `resolve-${item.id}`,
-                            item.status === 7 ? "Update Proposal" : "Propose Resolution"
+                            item.status === 7 ? "Update Proposal" : "Propose Support"
                           )}
                         </button>
                         {item.status === 7 ? (
@@ -1830,7 +1830,7 @@ export default function Home() {
                             onClick={() => handleFinalizeResolution(item.id)}
                             disabled={isBusy}
                           >
-                            {actionLabel(`finalize-${item.id}`, "Finalize Resolution")}
+                            {actionLabel(`finalize-${item.id}`, "Finalize Support")}
                           </button>
                         ) : null}
                       </div>
