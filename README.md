@@ -42,6 +42,9 @@ The full Japanese version of this README is in `README_ja.md`.
 - report/dispute records include **evidenceHash** and a short statement; evidenceUri stays off-chain.
 - AI summaries are off-chain, used for issue framing only (not decisions).
 - Resolve uses two-step finalization and one-time appeal to reduce mistakes.
+- **Adoption strategy (lightweight entry):** allow “view/try” before verification,
+  then unlock benefits by identity tier. Start with practical pain points
+  (e.g., attendance proof, local volunteering, anti‑scalping tickets).
 
 ## Where the details live
 - Event lists, audit events, unclaimed UBI reference, and on/off-chain boundaries are in `docs/spec_en.md`.

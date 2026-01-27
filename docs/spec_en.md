@@ -42,6 +42,15 @@ Gas optimization (implementation-aligned): long-running accrual/claim can be chu
   - UX note (implementation-aligned): UI should show the dispute steps
     (Reported → Disputed → Proposed → Resolved) and surface evidence URLs as links.
 
+### UI/UX Wording Abstraction (Implementation Direction)
+To reduce psychological friction, the frontend should use friendly labels while
+keeping formal terms for auditability.
+- Decay → Expiry / bonus deadline
+- Unclaimed Balance → Saved bonus
+- Dispute → Support request (Dispute)
+- Slashing → Integrity penalty (Slashing)
+- Covenant → Work agreement (Covenant)
+
 ## Accounting Rules (Minimal, Hard Constraints)
 ### 0-2. Ledger Classification
 Every value transfer must be classified as Mint/Burn/Transfer/Lock/Unlock.  

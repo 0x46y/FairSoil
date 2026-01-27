@@ -51,6 +51,9 @@ The full Japanese version of this README is in `README_ja.md`.
 - report/dispute records include **evidenceHash** and a short statement; evidenceUri stays off-chain.
 - AI summaries are off-chain, used for issue framing only (not decisions).
 - Resolve uses two-step finalization and one-time appeal to reduce mistakes.
+- **Adoption strategy (lightweight entry):** allow “view/try” before verification,
+  then unlock benefits by identity tier. Start with practical pain points
+  (e.g., attendance proof, local volunteering, anti‑scalping tickets).
 
 ## Where the details live
 - Event lists, audit events, unclaimed UBI reference, and on/off-chain boundaries are in `docs/spec_en.md`.
@@ -110,6 +113,15 @@ Gas optimization (implementation-aligned): long-running accrual/claim can be chu
 - Evidence is off‑chain; on‑chain uses evidence hash only.
   - UX note (implementation-aligned): UI should show the dispute steps
     (Reported → Disputed → Proposed → Resolved) and surface evidence URLs as links.
+
+### UI/UX Wording Abstraction (Implementation Direction)
+To reduce psychological friction, the frontend should use friendly labels while
+keeping formal terms for auditability.
+- Decay → Expiry / bonus deadline
+- Unclaimed Balance → Saved bonus
+- Dispute → Support request (Dispute)
+- Slashing → Integrity penalty (Slashing)
+- Covenant → Work agreement (Covenant)
 
 ## Accounting Rules (Minimal, Hard Constraints)
 ### 0-2. Ledger Classification
@@ -197,6 +209,12 @@ Related:
 ## Applicability and Limits
 - Effective where law and consent function.
 - Weak in environments dominated by coercion or force.
+
+## Mimicry Strategy (Strict Kernel, Friendly Shell)
+FairSoil keeps strict economic rules in the smart‑contract kernel, while the frontend
+uses familiar concepts (points, coupons, support) as an abstraction layer.  
+This keeps the core logic uncompromised while letting users experience honest outcomes
+through intuitive, everyday interactions.
 
 ---
 

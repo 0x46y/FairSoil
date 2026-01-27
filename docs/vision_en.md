@@ -33,3 +33,9 @@ Related:
 ## Applicability and Limits
 - Effective where law and consent function.
 - Weak in environments dominated by coercion or force.
+
+## Mimicry Strategy (Strict Kernel, Friendly Shell)
+FairSoil keeps strict economic rules in the smart‑contract kernel, while the frontend
+uses familiar concepts (points, coupons, support) as an abstraction layer.  
+This keeps the core logic uncompromised while letting users experience honest outcomes
+through intuitive, everyday interactions.
