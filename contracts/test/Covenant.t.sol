@@ -37,6 +37,9 @@ contract CovenantTest is Test {
         tokenA.setPrimaryAddress(creator, true);
         tokenA.setPrimaryAddress(worker, true);
 
+        vm.prank(address(treasury));
+        tokenB.mint(address(treasury), 10_000e18);
+
         treasury.reportTaskCompleted(creator, 1000e18, 0);
     }
 

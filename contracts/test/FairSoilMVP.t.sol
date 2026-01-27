@@ -31,6 +31,11 @@ contract FairSoilMVPTest is Test {
         tokenB.setTreasury(address(treasury));
 
         tokenA.setPrimaryAddress(alice, true);
+
+        vm.prank(address(treasury));
+        tokenA.mint(address(treasury), 10_000e18);
+        vm.prank(address(treasury));
+        tokenB.mint(address(treasury), 10_000e18);
     }
 
     function testMvpFlow() public {

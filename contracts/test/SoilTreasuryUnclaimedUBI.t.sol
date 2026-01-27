@@ -28,6 +28,11 @@ contract SoilTreasuryUnclaimedUBITest is Test {
         tokenB.setTreasury(address(treasury));
 
         tokenA.setPrimaryAddress(alice, true);
+
+        treasury.setDeficitCapA(1_000_000e18);
+        vm.prank(address(treasury));
+        tokenA.mint(address(treasury), 10_000e18);
+        vm.warp(1 days);
     }
 
     function testAccrueAndClaimNoDecayWithin30Days() public {

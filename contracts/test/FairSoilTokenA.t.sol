@@ -33,6 +33,10 @@ contract FairSoilTokenATest is Test {
 
         tokenA.setPrimaryAddress(alice, true);
         tokenA.setPrimaryAddress(bob, false);
+
+        treasury.setDeficitCapA(1_000_000e18);
+        vm.prank(address(treasury));
+        tokenA.mint(address(treasury), 10_000e18);
     }
 
     function testSurvivalBufferProtectedForPrimary() public {
