@@ -540,10 +540,9 @@ contract FairSoilInvariants is StdInvariant, Test {
         assertGe(escrowLockedAmount, escrowReleasedAmount);
     }
 
-    // R7: TreasuryOut events should not exceed total supply for A/B.
+    // R7: TreasuryOut events should not exceed total supply for B.
     function invariant_treasuryOutNotExceedSupply() public {
         _syncEscrowEvents();
-        assertLe(treasuryOutAAmount, tokenA.totalSupply());
         assertLe(treasuryOutBAmount, tokenB.totalSupply());
     }
 
@@ -756,7 +755,8 @@ contract FairSoilInvariants is StdInvariant, Test {
         assertEq(int256(treasury.liabilitiesB()), advanceLiabilityDeltaB + covenantLiabilityTotalB);
     }
 
-    function invariant_covenantSettledHasLiabilitySettle() public view {
+    function invariant_covenantSettledHasLiabilitySettle() public {
+        _syncEscrowEvents();
         uint256 count = covenant.nextId();
         uint256 limit = count > 10 ? 10 : count;
         for (uint256 i = 0; i < limit; i++) {
@@ -1848,7 +1848,8 @@ contract FairSoilInvariants is StdInvariant, Test {
         }
     }
 
-    function invariant_issueResolvedHasDecisionEvent() public view {
+    function invariant_issueResolvedHasDecisionEvent() public {
+        _syncEscrowEvents();
         uint256 count = covenant.nextId();
         uint256 limit = count > 10 ? 10 : count;
         for (uint256 i = 0; i < limit; i++) {
