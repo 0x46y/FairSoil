@@ -11,12 +11,12 @@ contract APPIOracleTest is Test {
     address internal primary = address(0xA11CE);
     address internal nonPrimary = address(0xBEEF);
 
-    uint256 internal integrityScore = 10;
+    uint256 internal integrityScoreValue = 10;
 
     function setUp() public {
         oracle = new APPIOracle(address(this), address(this));
         oracle.setCategories(_categories());
-        oracle.setThresholds(2, integrityScore);
+        oracle.setThresholds(2, integrityScoreValue);
     }
 
     function isPrimaryAddress(address account) external view returns (bool) {
@@ -25,7 +25,7 @@ contract APPIOracleTest is Test {
 
     function integrityScore(address account) external view returns (uint256) {
         if (account == primary) {
-            return integrityScore;
+            return integrityScoreValue;
         }
         return 0;
     }
@@ -37,7 +37,7 @@ contract APPIOracleTest is Test {
     }
 
     function testInsufficientIntegrityCannotReport() public {
-        oracle.setThresholds(1, integrityScore + 1);
+        oracle.setThresholds(1, integrityScoreValue + 1);
         vm.prank(primary);
         vm.expectRevert("Low integrity");
         oracle.submitPrice(1, 100);
@@ -62,7 +62,7 @@ contract APPIOracleTest is Test {
         vm.mockCall(
             address(this),
             abi.encodeWithSelector(this.integrityScore.selector, secondary),
-            abi.encode(integrityScore)
+            abi.encode(integrityScoreValue)
         );
 
         vm.prank(primary);

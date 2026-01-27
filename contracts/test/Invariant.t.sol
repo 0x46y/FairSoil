@@ -100,6 +100,20 @@ contract FairSoilInvariants is StdInvariant, Test {
     uint256 internal treasuryInTax;
     uint256 internal treasuryInSlash;
     uint256 internal treasuryInExternal;
+    bytes32 internal constant REASON_UBI = "UBI";
+    bytes32 internal constant REASON_UBI_CLAIM = "UBI_CLAIM";
+    bytes32 internal constant REASON_DEFICIT = "DEFICIT";
+    bytes32 internal constant REASON_ADVANCE = "ADVANCE";
+    bytes32 internal constant REASON_TASK = "TASK";
+    bytes32 internal constant REASON_CRYSTAL = "CRYSTAL";
+    bytes32 internal constant REASON_FEE = "FEE";
+    bytes32 internal constant REASON_TAX = "TAX";
+    bytes32 internal constant REASON_SLASH = "SLASH";
+    bytes32 internal constant REASON_EXTERNAL = "EXTERNAL";
+    bytes32 internal constant REASON_ADVANCE_LIABILITY = "ADV_LIAB";
+    bytes32 internal constant REASON_ADVANCE_SETTLE = "ADV_SETTLE";
+    bytes32 internal constant REASON_COV_CREATE = "COV_CREATE";
+    bytes32 internal constant REASON_COV_SETTLE = "COV_SETTLE";
 
     function setUp() public {
         FairSoilTokenA implementation = new FairSoilTokenA();
@@ -114,6 +128,8 @@ contract FairSoilInvariants is StdInvariant, Test {
         treasury = new SoilTreasury(address(tokenA), address(tokenB));
         tokenA.setTreasury(address(treasury));
         tokenB.setTreasury(address(treasury));
+        vm.prank(address(treasury));
+        tokenB.mint(address(treasury), 2_000e18);
 
         tokenA.setPrimaryAddress(alice, true);
         tokenA.setPrimaryAddress(address(this), true);
@@ -129,6 +145,8 @@ contract FairSoilInvariants is StdInvariant, Test {
         appiOracle.setThresholds(1, 0);
         treasury.setAPPIOracle(address(appiOracle));
 
+        treasury.setDeficitCapA(1_000_000e18);
+        treasury.setAdvanceCapB(1_000_000e18);
         treasury.claimUBI();
         tokenA.approve(address(covenant), 10e18);
         uint256 covenantId = covenant.createCovenant(alice, 10e18, 0, true);
@@ -158,9 +176,6 @@ contract FairSoilInvariants is StdInvariant, Test {
         tokenA.setPrimaryAddress(address(creatorHandler), true);
         tokenA.setPrimaryAddress(address(workerHandler), true);
         tokenA.setPrimaryAddress(address(treasuryHandler), true);
-
-        treasury.setDeficitCapA(1_000_000e18);
-        treasury.setAdvanceCapB(1_000_000e18);
         treasury.emergencyMintA(address(creatorHandler), 1_000e18);
         treasury.reportTaskCompleted(address(creatorHandler), 1_000e18, 0);
 
@@ -236,21 +251,21 @@ contract FairSoilInvariants is StdInvariant, Test {
                 uint256 covenantId = uint256(entries[i].topics[1]);
                 (int256 deltaA, int256 deltaB, bytes32 reason) = abi.decode(entries[i].data, (int256, int256, bytes32));
                 covenantLiabilityDeltaB[covenantId] += deltaB;
-                if (reason == SoilTreasury.REASON_COV_CREATE) {
+                if (reason == REASON_COV_CREATE) {
                     liabilityCreateEventById[covenantId] = true;
                     assertTrue(deltaB > 0);
                     covenantLiabilityDeltaBCreate[covenantId] += deltaB;
                     covenantLiabilityCreateCount[covenantId] += 1;
                     covenantLiabilityTotalB += deltaB;
-                } else if (reason == SoilTreasury.REASON_COV_SETTLE) {
+                } else if (reason == REASON_COV_SETTLE) {
                     liabilitySettleEventById[covenantId] = true;
                     assertTrue(deltaB < 0 || deltaB == 0);
                     covenantLiabilityDeltaBSettle[covenantId] += deltaB;
                     covenantLiabilitySettleCount[covenantId] += 1;
                     covenantLiabilityTotalB += deltaB;
-                } else if (reason == SoilTreasury.REASON_ADVANCE_LIABILITY) {
+                } else if (reason == REASON_ADVANCE_LIABILITY) {
                     advanceLiabilityDeltaB += deltaB;
-                } else if (reason == SoilTreasury.REASON_ADVANCE_SETTLE) {
+                } else if (reason == REASON_ADVANCE_SETTLE) {
                     advanceLiabilityDeltaB += deltaB;
                 } else {
                     unknownLiabilityReason = true;
@@ -307,11 +322,11 @@ contract FairSoilInvariants is StdInvariant, Test {
                 if (!_isAllowedTreasuryOutAReason(reason, to)) {
                     treasuryOutAReasonMismatch = true;
                 }
-                if (reason == SoilTreasury.REASON_DEFICIT) {
+                if (reason == REASON_DEFICIT) {
                     treasuryOutADeficit += amount;
-                } else if (reason == SoilTreasury.REASON_UBI) {
+                } else if (reason == REASON_UBI) {
                     treasuryOutAUBI += amount;
-                } else if (reason == SoilTreasury.REASON_UBI_CLAIM) {
+                } else if (reason == REASON_UBI_CLAIM) {
                     treasuryOutAUBIClaim += amount;
                 }
             } else if (topic0 == keccak256("TreasuryOutB(address,uint256,bytes32)")) {
@@ -323,15 +338,15 @@ contract FairSoilInvariants is StdInvariant, Test {
                 if (!_isAllowedTreasuryOutBReason(reason, to)) {
                     treasuryOutBReasonMismatch = true;
                 }
-                if (reason == SoilTreasury.REASON_ADVANCE) {
+                if (reason == REASON_ADVANCE) {
                     treasuryOutBAdvance += amount;
-                } else if (reason == SoilTreasury.REASON_TASK) {
+                } else if (reason == REASON_TASK) {
                     treasuryOutBTask += amount;
-                } else if (reason == SoilTreasury.REASON_CRYSTAL) {
+                } else if (reason == REASON_CRYSTAL) {
                     treasuryOutBCrystal += amount;
                 }
             } else if (topic0 == keccak256("TreasuryIn(address,uint256,bytes32)")) {
-                (, uint256 amount, bytes32 reason) = abi.decode(entries[i].data, (uint256, bytes32));
+                (uint256 amount, bytes32 reason) = abi.decode(entries[i].data, (uint256, bytes32));
                 treasuryInAmount += amount;
                 if (amount == 0) {
                     unknownTreasuryInReason = true;
@@ -339,13 +354,13 @@ contract FairSoilInvariants is StdInvariant, Test {
                 if (!_isAllowedTreasuryInReason(reason)) {
                     unknownTreasuryInReason = true;
                 }
-                if (reason == SoilTreasury.REASON_FEE) {
+                if (reason == REASON_FEE) {
                     treasuryInFee += amount;
-                } else if (reason == SoilTreasury.REASON_TAX) {
+                } else if (reason == REASON_TAX) {
                     treasuryInTax += amount;
-                } else if (reason == SoilTreasury.REASON_SLASH) {
+                } else if (reason == REASON_SLASH) {
                     treasuryInSlash += amount;
-                } else if (reason == SoilTreasury.REASON_EXTERNAL) {
+                } else if (reason == REASON_EXTERNAL) {
                     treasuryInExternal += amount;
                 }
             }
@@ -440,7 +455,9 @@ contract FairSoilInvariants is StdInvariant, Test {
             ,
             ,
             ,
-            Covenant.Status status
+            ,
+            Covenant.Status status,
+            bool settled
         ) = covenant.covenants(0);
         if (creator != address(0) && status == Covenant.Status.IssueResolved) {
             vm.expectRevert("Not proposed");
@@ -479,7 +496,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 Covenant.Status status,
                 bool settled
             ) = covenant.covenants(i);
-            assertEq(status, Covenant.Status.IssueResolved);
+            assertEq(uint256(status), uint256(Covenant.Status.IssueResolved));
 
             (
                 address appealCreator,
@@ -573,7 +590,7 @@ contract FairSoilInvariants is StdInvariant, Test {
     function invariant_noUBIOutWhileLimited() public {
         _syncEscrowEvents();
         SoilTreasury.CircuitState state = treasury.circuitState();
-        uint256 ubiOut = treasuryOutAUBI + treasuryOutAClaim;
+        uint256 ubiOut = treasuryOutAUBI + treasuryOutAUBIClaim;
         if (state == SoilTreasury.CircuitState.Limited && lastLimitedCircuitState == SoilTreasury.CircuitState.Limited) {
             assertEq(ubiOut, lastUBIOutTotal);
             assertEq(treasuryOutBTask, lastLimitedTaskOutTotal);
@@ -1586,7 +1603,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 continue;
             }
             (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
-            assertEq(status, Covenant.Status.IssueResolved);
+            assertEq(uint256(status), uint256(Covenant.Status.IssueResolved));
         }
     }
 
@@ -1611,7 +1628,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 continue;
             }
             (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
-            assertEq(status, Covenant.Status.IssueResolved);
+            assertEq(uint256(status), uint256(Covenant.Status.IssueResolved));
         }
     }
 
@@ -1670,7 +1687,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 continue;
             }
             (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
-            assertEq(status, Covenant.Status.Rejected);
+            assertEq(uint256(status), uint256(Covenant.Status.Rejected));
         }
     }
 
@@ -1682,7 +1699,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 continue;
             }
             (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
-            assertEq(status, Covenant.Status.Cancelled);
+            assertEq(uint256(status), uint256(Covenant.Status.Cancelled));
         }
     }
 
@@ -1945,29 +1962,29 @@ contract FairSoilInvariants is StdInvariant, Test {
 
     function _isAllowedTreasuryReason(bytes32 reason) internal pure returns (bool) {
         return
-            reason == SoilTreasury.REASON_UBI ||
-            reason == SoilTreasury.REASON_UBI_CLAIM ||
-            reason == SoilTreasury.REASON_DEFICIT ||
-            reason == SoilTreasury.REASON_ADVANCE ||
-            reason == SoilTreasury.REASON_TASK ||
-            reason == SoilTreasury.REASON_CRYSTAL;
+            reason == REASON_UBI ||
+            reason == REASON_UBI_CLAIM ||
+            reason == REASON_DEFICIT ||
+            reason == REASON_ADVANCE ||
+            reason == REASON_TASK ||
+            reason == REASON_CRYSTAL;
     }
 
     function _isAllowedTreasuryOutAReason(bytes32 reason, address to) internal view returns (bool) {
-        if (reason == SoilTreasury.REASON_UBI || reason == SoilTreasury.REASON_UBI_CLAIM) {
+        if (reason == REASON_UBI || reason == REASON_UBI_CLAIM) {
             return to != address(0);
         }
-        if (reason == SoilTreasury.REASON_DEFICIT) {
+        if (reason == REASON_DEFICIT) {
             return to != address(0);
         }
         return false;
     }
 
     function _isAllowedTreasuryOutBReason(bytes32 reason, address to) internal view returns (bool) {
-        if (reason == SoilTreasury.REASON_ADVANCE) {
+        if (reason == REASON_ADVANCE) {
             return to != address(0);
         }
-        if (reason == SoilTreasury.REASON_TASK || reason == SoilTreasury.REASON_CRYSTAL) {
+        if (reason == REASON_TASK || reason == REASON_CRYSTAL) {
             return to != address(0);
         }
         return false;
@@ -1975,17 +1992,17 @@ contract FairSoilInvariants is StdInvariant, Test {
 
     function _isAllowedTreasuryInReason(bytes32 reason) internal pure returns (bool) {
         return
-            reason == SoilTreasury.REASON_FEE ||
-            reason == SoilTreasury.REASON_TAX ||
-            reason == SoilTreasury.REASON_SLASH ||
-            reason == SoilTreasury.REASON_EXTERNAL;
+            reason == REASON_FEE ||
+            reason == REASON_TAX ||
+            reason == REASON_SLASH ||
+            reason == REASON_EXTERNAL;
     }
 
     function _isAllowedLiabilityReason(bytes32 reason) internal pure returns (bool) {
         return
-            reason == SoilTreasury.REASON_ADVANCE_LIABILITY ||
-            reason == SoilTreasury.REASON_ADVANCE_SETTLE ||
-            reason == SoilTreasury.REASON_COV_CREATE ||
-            reason == SoilTreasury.REASON_COV_SETTLE;
+            reason == REASON_ADVANCE_LIABILITY ||
+            reason == REASON_ADVANCE_SETTLE ||
+            reason == REASON_COV_CREATE ||
+            reason == REASON_COV_SETTLE;
     }
 }

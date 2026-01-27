@@ -258,7 +258,7 @@ contract SoilTreasury is Ownable {
         int256 deltaA,
         int256 deltaB,
         bytes32 reason
-    ) external onlyOwnerOrCovenant {
+    ) public onlyOwnerOrCovenant {
         if (deltaA != 0) {
             if (deltaA > 0) {
                 liabilitiesA += uint256(deltaA);
@@ -557,7 +557,7 @@ contract SoilTreasury is Ownable {
         emit ScoreUpdated(account, payScore[account], processScore[account], civicsScore[account]);
     }
 
-    function penalizePayScore(address account, uint256 points) external onlyOwnerOrCovenant {
+    function penalizePayScore(address account, uint256 points) public onlyOwnerOrCovenant {
         uint256 current = payScore[account];
         if (points >= current) {
             payScore[account] = 0;

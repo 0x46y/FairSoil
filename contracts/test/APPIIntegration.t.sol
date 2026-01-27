@@ -18,12 +18,12 @@ contract APPIIntegrationTest is Test {
     address internal reporter1 = address(0xA11CE);
     address internal reporter2 = address(0xBEEF);
 
-    uint256 internal integrityScore = 10;
+    uint256 internal integrityScoreValue = 10;
 
     function setUp() public {
         oracle = new APPIOracle(address(this), address(this));
         oracle.setCategories(_categories());
-        oracle.setThresholds(2, integrityScore);
+        oracle.setThresholds(2, integrityScoreValue);
 
         FairSoilTokenA implementation = new FairSoilTokenA();
         bytes memory initData = abi.encodeCall(FairSoilTokenA.initialize, (1e12));
@@ -44,7 +44,7 @@ contract APPIIntegrationTest is Test {
 
     function integrityScore(address account) external view returns (uint256) {
         if (account == reporter1 || account == reporter2) {
-            return integrityScore;
+            return integrityScoreValue;
         }
         return 0;
     }

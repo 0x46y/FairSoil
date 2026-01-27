@@ -127,7 +127,6 @@ contract CovenantEscrowFlowTest is Test {
         emit Covenant.EscrowReleased(covenantId, Covenant.PaymentToken.TokenB, 70e18, 30e18, 0);
         covenant.finalizeResolution(covenantId);
     }
-}
 
     function testIssueAcceptEmitsEscrowReleaseA() public {
         vm.prank(creator);
@@ -209,7 +208,6 @@ contract CovenantEscrowDecayTest is Test {
 
         assertLt(balanceAfter - balanceBefore, 100e18);
     }
-}
 
     function testImmediatePaysOnSubmit() public {
         vm.prank(creator);

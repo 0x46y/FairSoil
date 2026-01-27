@@ -121,8 +121,23 @@ contract CovenantTest is Test {
 
         covenant.resolveDispute(covenantId, 5000, 10, 0);
 
-        Covenant.CovenantData memory data = covenant.covenants(covenantId);
-        assertEq(uint256(data.status), uint256(Covenant.Status.ResolutionProposed));
+        (
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+            Covenant.Status status,
+            bool settled
+        ) = covenant.covenants(covenantId);
+        assertEq(uint256(status), uint256(Covenant.Status.ResolutionProposed));
         assertEq(tokenB.balanceOf(creator), creatorBefore);
         assertEq(tokenB.balanceOf(worker), workerBefore);
 
