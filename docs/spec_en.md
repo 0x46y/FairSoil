@@ -25,6 +25,16 @@ Gas optimization (implementation-aligned): long-running accrual/claim can be chu
 - **Limited:** Stop UBI (claim/accrue/unclaimed) and crystallization; viewing continues.
 - **Halted:** Stop UBI, crystallization, and emergency issuance; viewing only.
 
+### Sybil Resistance (Identity)
+- **Initial:** World ID for unique human verification.
+- **Modularity:** ID verification is pluggable across providers.
+- **Tiered identity (implementation direction):**
+  - Tier1: Email/social for read‑only onboarding
+  - Tier2: Passkey (device biometrics) for limited access
+  - Tier3: World ID or ZK‑NFC (government ID NFC proof) for full benefits
+  - **Nullifier separation:** distinct nullifiers for UBI / voting / analytics
+  - **Device binding:** theft resistance with re‑bind on device change
+
 ### Covenant (Escrowed Work)
 - Payment modes: Immediate / Escrow / Delayed.
 - Issue -> Dispute -> Resolve (two‑step finalize).

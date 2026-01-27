@@ -30,6 +30,13 @@ The full Japanese version of this README is in `README_ja.md`.
 - APPI confidence weighting, governance/incentive modules (QF/RPGF/forecasting)
 - Additional UX/AI support (off-chain)
 
+## Identity (experimental core, adoption-friendly entry)
+- **Tier 1:** Email / social login for read‑only onboarding
+- **Tier 2:** Passkey (device biometrics) for limited access
+- **Tier 3:** World ID or ZK‑NFC (government ID NFC proof) for full benefits
+- **Nullifier separation:** distinct nullifiers for UBI / voting / analytics
+- **Device binding:** theft resistance with re‑bind on device change
+
 ## Operational Notes (Draft)
 - Evidence is stored off-chain; on-chain only keeps **evidenceHash**.
 - report/dispute records include **evidenceHash** and a short statement; evidenceUri stays off-chain.
