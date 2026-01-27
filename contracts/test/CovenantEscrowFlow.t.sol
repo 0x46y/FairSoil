@@ -189,9 +189,14 @@ contract CovenantEscrowDecayTest is Test {
 
         treasury.setDeficitCapA(1_000_000e18);
         treasury.emergencyMintA(creator, 1_000e18);
+        vm.prank(address(treasury));
+        tokenB.mint(address(treasury), 10_000e18);
+        treasury.reportTaskCompleted(creator, 1_000e18, 0);
 
         vm.prank(creator);
         tokenA.approve(address(covenant), 1_000e18);
+        vm.prank(creator);
+        tokenB.approve(address(covenant), 1_000e18);
     }
 
     function testRejectWorkAppliesDecayToRefund() public {
