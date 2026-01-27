@@ -82,6 +82,13 @@ contract FairSoilInvariants is StdInvariant, Test {
     uint256 internal lastOutBTotal;
     uint256 internal lastInTotal;
     uint256 internal lastUBIOutTotal;
+    uint256 internal lastLimitedOutATotal;
+    uint256 internal lastLimitedOutBTotal;
+    uint256 internal lastLimitedDeficitOutTotal;
+    uint256 internal lastLimitedAdvanceOutTotal;
+    uint256 internal lastLimitedTaskOutTotal;
+    uint256 internal lastLimitedCrystalOutTotal;
+    SoilTreasury.CircuitState internal lastLimitedCircuitState;
     SoilTreasury.CircuitState internal lastCircuitState;
     uint256 internal treasuryOutADeficit;
     uint256 internal treasuryOutAUBI;
@@ -562,15 +569,32 @@ contract FairSoilInvariants is StdInvariant, Test {
         lastCircuitState = state;
     }
 
-    // When Limited, UBI-related TreasuryOutA should not increase.
+    // When Limited, only Deficit/Advance outflows are allowed.
     function invariant_noUBIOutWhileLimited() public {
         _syncEscrowEvents();
         SoilTreasury.CircuitState state = treasury.circuitState();
         uint256 ubiOut = treasuryOutAUBI + treasuryOutAClaim;
-        if (state == SoilTreasury.CircuitState.Limited && lastCircuitState == SoilTreasury.CircuitState.Limited) {
+        if (state == SoilTreasury.CircuitState.Limited && lastLimitedCircuitState == SoilTreasury.CircuitState.Limited) {
             assertEq(ubiOut, lastUBIOutTotal);
+            assertEq(treasuryOutBTask, lastLimitedTaskOutTotal);
+            assertEq(treasuryOutBCrystal, lastLimitedCrystalOutTotal);
+
+            uint256 outADelta = treasury.treasuryOutATotal() - lastLimitedOutATotal;
+            uint256 deficitDelta = treasuryOutADeficit - lastLimitedDeficitOutTotal;
+            assertEq(outADelta, deficitDelta);
+
+            uint256 outBDelta = treasury.treasuryOutBTotal() - lastLimitedOutBTotal;
+            uint256 advanceDelta = treasuryOutBAdvance - lastLimitedAdvanceOutTotal;
+            assertEq(outBDelta, advanceDelta);
         }
         lastUBIOutTotal = ubiOut;
+        lastLimitedOutATotal = treasury.treasuryOutATotal();
+        lastLimitedOutBTotal = treasury.treasuryOutBTotal();
+        lastLimitedDeficitOutTotal = treasuryOutADeficit;
+        lastLimitedAdvanceOutTotal = treasuryOutBAdvance;
+        lastLimitedTaskOutTotal = treasuryOutBTask;
+        lastLimitedCrystalOutTotal = treasuryOutBCrystal;
+        lastLimitedCircuitState = state;
     }
 
     function invariant_treasuryTotalsMonotonic() public {
