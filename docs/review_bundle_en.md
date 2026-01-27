@@ -68,6 +68,8 @@ Full detail currently lives in `docs/spec_ja.md`.
 ## Core Mechanisms
 ### Dual Tokens
 - **Token A (Flow):** Decaying currency for daily exchange. UBI accrues daily and can be claimed in batches.
+  - UI note (implementation-aligned): show recent unclaimed days and guide users through
+    `accrueUBI` then `claimUnclaimed` for batch claims.
 - **Token B (Asset):** Non‑decaying asset rewarded for verified contributions and integrity.
   - **Locking (implementation-aligned):** Covenant escrow calls Treasury `lockB`; locked B cannot transfer
     and is excluded from circulating supply until `unlockB`.
@@ -89,6 +91,8 @@ Gas optimization (implementation-aligned): long-running accrual/claim can be chu
 - Payment modes: Immediate / Escrow / Delayed.
 - Issue -> Dispute -> Resolve (two‑step finalize).
 - Evidence is off‑chain; on‑chain uses evidence hash only.
+  - UX note (implementation-aligned): UI should show the dispute steps
+    (Reported → Disputed → Proposed → Resolved) and surface evidence URLs as links.
 
 ## Accounting Rules (Minimal, Hard Constraints)
 ### 0-2. Ledger Classification
