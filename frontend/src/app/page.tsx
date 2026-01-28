@@ -12,7 +12,7 @@ import {
 } from "wagmi";
 import { injected } from "wagmi/connectors";
 import styles from "./page.module.css";
-import { covenantAbi, tokenAAbi, tokenBAbi, treasuryAbi } from "../lib/abi";
+import { appiOracleAbi, covenantAbi, tokenAAbi, tokenBAbi, treasuryAbi } from "../lib/abi";
 import {
   covenantAddress,
   missingEnv,
@@ -163,6 +163,10 @@ export default function Home() {
   const [resolveClaims, setResolveClaims] = useState<Record<number, string>>({});
   const [resolveIntegrity, setResolveIntegrity] = useState<Record<number, string>>({});
   const [resolveSlashing, setResolveSlashing] = useState<Record<number, string>>({});
+  const [appiOracleInput, setAppiOracleInput] = useState("");
+  const [appiCategoryInput, setAppiCategoryInput] = useState("");
+  const [appiPriceInput, setAppiPriceInput] = useState("");
+  const [appiDayInput, setAppiDayInput] = useState("");
   const [unclaimedDays, setUnclaimedDays] = useState<{ day: number; amount: bigint }[]>([]);
   const [unclaimedFromDay, setUnclaimedFromDay] = useState("");
   const [unclaimedToDay, setUnclaimedToDay] = useState("");
@@ -278,6 +282,42 @@ export default function Home() {
     },
   });
 
+  const { data: treasuryOwner } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "owner",
+    query: {
+      enabled: Boolean(treasuryAddress),
+    },
+  });
+
+  const { data: appiOracleAddr } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "appiOracle",
+    query: {
+      enabled: Boolean(treasuryAddress),
+    },
+  });
+
+  const { data: lastAPPI } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "lastAPPI",
+    query: {
+      enabled: Boolean(treasuryAddress),
+    },
+  });
+
+  const { data: dailyUBIAmount } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "dailyUBIAmount",
+    query: {
+      enabled: Boolean(treasuryAddress),
+    },
+  });
+
   const { data: treasuryInTotal } = useReadContract({
     address: treasuryAddr,
     abi: treasuryAbi,
@@ -381,6 +421,21 @@ export default function Home() {
     if (!account.address || !tokenAOwner) return false;
     return (tokenAOwner as string).toLowerCase() === account.address.toLowerCase();
   }, [account.address, tokenAOwner]);
+
+  const isTreasuryOwner = useMemo(() => {
+    if (!account.address || !treasuryOwner) return false;
+    return (treasuryOwner as string).toLowerCase() === account.address.toLowerCase();
+  }, [account.address, treasuryOwner]);
+
+  const formattedLastAPPI = useMemo(() => {
+    if (lastAPPI === undefined) return "--";
+    return Number(formatUnits(lastAPPI as bigint, 18)).toFixed(2);
+  }, [lastAPPI]);
+
+  const formattedDailyUBI = useMemo(() => {
+    if (dailyUBIAmount === undefined) return "--";
+    return Number(formatUnits(dailyUBIAmount as bigint, 18)).toFixed(2);
+  }, [dailyUBIAmount]);
 
   const totalUnclaimed = useMemo(() => {
     return unclaimedDays.reduce((sum, entry) => sum + entry.amount, 0n);
@@ -942,6 +997,150 @@ export default function Home() {
     }
   };
 
+  const handleSetAppiOracle = async () => {
+    if (!treasuryAddress) return;
+    const target = appiOracleInput.trim();
+    if (!target) {
+      setTxError("Enter APPI oracle address.");
+      setTxSuccess(null);
+      return;
+    }
+    try {
+      await runTransaction("setAPPIOracle", () =>
+        writeContractAsync({
+          address: treasuryAddress,
+          abi: treasuryAbi,
+          functionName: "setAPPIOracle",
+          args: [target],
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("APPI oracle updated.");
+    } catch (error) {
+      setTxError(formatTxError(error));
+      setTxSuccess(null);
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const handleSetAppiCategories = async () => {
+    if (!appiOracleAddr || appiOracleAddr === zeroAddress) {
+      setTxError("APPI oracle not set.");
+      setTxSuccess(null);
+      return;
+    }
+    const raw = appiCategoryInput.trim();
+    if (!raw) {
+      setTxError("Enter category ids (comma separated).");
+      setTxSuccess(null);
+      return;
+    }
+    const values = raw
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .map((value) => Number.parseInt(value, 10))
+      .filter((value) => Number.isFinite(value) && value >= 0);
+    if (values.length === 0) {
+      setTxError("Invalid category list.");
+      setTxSuccess(null);
+      return;
+    }
+    try {
+      await runTransaction("setAPPIcategories", () =>
+        writeContractAsync({
+          address: appiOracleAddr as `0x${string}`,
+          abi: appiOracleAbi,
+          functionName: "setCategories",
+          args: [values.map((value) => BigInt(value))],
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("APPI categories updated.");
+    } catch (error) {
+      setTxError(formatTxError(error));
+      setTxSuccess(null);
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const handleSubmitAppiPrice = async () => {
+    if (!appiOracleAddr || appiOracleAddr === zeroAddress) {
+      setTxError("APPI oracle not set.");
+      setTxSuccess(null);
+      return;
+    }
+    const category = Number.parseInt(appiCategoryInput || "", 10);
+    const price = safeParseUnits(appiPriceInput || "0", 18);
+    if (!Number.isFinite(category) || category < 0) {
+      setTxError("Invalid category id.");
+      setTxSuccess(null);
+      return;
+    }
+    if (price <= 0n) {
+      setTxError("Price must be positive.");
+      setTxSuccess(null);
+      return;
+    }
+    try {
+      await runTransaction("submitAPPI", () =>
+        writeContractAsync({
+          address: appiOracleAddr as `0x${string}`,
+          abi: appiOracleAbi,
+          functionName: "submitPrice",
+          args: [BigInt(category), price],
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("APPI price submitted.");
+    } catch (error) {
+      setTxError(formatTxError(error));
+      setTxSuccess(null);
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const handleApplyAppi = async () => {
+    if (!treasuryAddress) return;
+    const dayInput =
+      appiDayInput.trim() ||
+      (currentDayIndex !== null ? currentDayIndex.toString() : "");
+    const day = Number.parseInt(dayInput, 10);
+    if (!Number.isFinite(day) || day < 0) {
+      setTxError("Invalid day index.");
+      setTxSuccess(null);
+      return;
+    }
+    try {
+      await runTransaction("applyAPPI", () =>
+        writeContractAsync({
+          address: treasuryAddress,
+          abi: treasuryAbi,
+          functionName: "applyAPPI",
+          args: [BigInt(day)],
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("APPI applied.");
+    } catch (error) {
+      setTxError(formatTxError(error));
+      setTxSuccess(null);
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
   const handleSetPrimary = async () => {
     if (!tokenAAddress || !account.address) return;
     try {
@@ -1489,6 +1688,86 @@ export default function Home() {
               <span>Out A: {formattedTreasuryOutA}</span>
               <span>Out B: {formattedTreasuryOutB}</span>
             </div>
+          </article>
+          <article className={styles.card}>
+            <h3>APPI control</h3>
+            <p>Minimal oracle loop for Phase1 validation.</p>
+            <div className={styles.metricBreakdown}>
+              <span>Oracle: {safeAddress(appiOracleAddr as string | undefined)}</span>
+              <span>Last APPI: {formattedLastAPPI}</span>
+              <span>Daily UBI: {formattedDailyUBI}</span>
+            </div>
+            <div className={styles.taskForm}>
+              <label className={styles.taskField}>
+                Oracle address
+                <input
+                  className={styles.taskInput}
+                  value={appiOracleInput}
+                  onChange={(event) => setAppiOracleInput(event.target.value)}
+                  placeholder="0x..."
+                />
+              </label>
+              <label className={styles.taskField}>
+                Category ids
+                <input
+                  className={styles.taskInput}
+                  value={appiCategoryInput}
+                  onChange={(event) => setAppiCategoryInput(event.target.value)}
+                  placeholder="e.g. 1,2,3"
+                />
+              </label>
+              <label className={styles.taskField}>
+                Price (18 decimals)
+                <input
+                  className={styles.taskInput}
+                  value={appiPriceInput}
+                  onChange={(event) => setAppiPriceInput(event.target.value)}
+                  placeholder="e.g. 100"
+                />
+              </label>
+              <label className={styles.taskField}>
+                Day index
+                <input
+                  className={styles.taskInput}
+                  value={appiDayInput}
+                  onChange={(event) => setAppiDayInput(event.target.value)}
+                  placeholder={currentDayIndex !== null ? currentDayIndex.toString() : "e.g. 12345"}
+                />
+              </label>
+            </div>
+            <div className={styles.cardActions}>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleSetAppiOracle}
+                disabled={!account.address || !isTreasuryOwner || isBusy}
+              >
+                {actionLabel("setAPPIOracle", "Set oracle")}
+              </button>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleSetAppiCategories}
+                disabled={!account.address || !isTreasuryOwner || isBusy}
+              >
+                {actionLabel("setAPPIcategories", "Set categories")}
+              </button>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleSubmitAppiPrice}
+                disabled={!account.address || isBusy}
+              >
+                {actionLabel("submitAPPI", "Submit price")}
+              </button>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleApplyAppi}
+                disabled={!account.address || !isTreasuryOwner || isBusy}
+              >
+                {actionLabel("applyAPPI", "Apply APPI")}
+              </button>
+            </div>
+            <p className={styles.taskHint}>
+              Owner sets oracle/categories, verified reporters submit prices, owner applies APPI.
+            </p>
           </article>
           <article className={styles.card}>
             <h3>Saved bonuses</h3>

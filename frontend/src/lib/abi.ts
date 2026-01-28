@@ -78,6 +78,48 @@ export const tokenBAbi = [
 
 export const treasuryAbi = [
   {
+    type: "function",
+    name: "owner",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "appiOracle",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "setAPPIOracle",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "newOracle", type: "address" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "applyAPPI",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "day", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "lastAPPI",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "dailyUBIAmount",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
     type: "event",
     name: "TreasuryIn",
     inputs: [
@@ -484,5 +526,42 @@ export const covenantAbi = [
     stateMutability: "view",
     inputs: [],
     outputs: [{ name: "", type: "address" }],
+  },
+] as const;
+
+export const appiOracleAbi = [
+  {
+    type: "function",
+    name: "setCategories",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "categories", type: "uint256[]" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "setThresholds",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "newMinUnique", type: "uint256" },
+      { name: "newMinIntegrity", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "submitPrice",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "category", type: "uint256" },
+      { name: "price", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "dailyIndex",
+    stateMutability: "view",
+    inputs: [{ name: "day", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
   },
 ] as const;
