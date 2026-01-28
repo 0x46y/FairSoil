@@ -114,6 +114,15 @@ Gas optimization (implementation-aligned): long-running accrual/claim can be chu
   - UX note (implementation-aligned): UI should show the dispute steps
     (Reported → Disputed → Proposed → Resolved) and surface evidence URLs as links.
 
+### Dispute Abuse Mitigation (Implementation Direction)
+Prevent post‑delivery “chargeback‑style” abuse without adding heavy user friction.
+- **Auto‑hold, no instant refund:** when a dispute is opened, auto‑hold **20%–40%** of payout.
+- **Short response window:** if no short explanation is provided within **48 hours**, auto‑reject.
+- **Auto‑release:** if seller is unresponsive for **48 hours**, auto‑refund part of hold (e.g., **20%**) and release the rest.
+- **Evidence is optional but rewarded:** higher refund caps with evidence; lower caps without.
+- **Low‑value cap:** small tickets have a **max refund ratio ~30%** to remove full‑refund abuse.
+- **History‑aware tuning:** frequent disputers face higher hold / lower caps; repeat‑offender sellers invert the bias.
+
 ### UI/UX Wording Abstraction (Implementation Direction)
 To reduce psychological friction, the frontend should use friendly labels while
 keeping formal terms for auditability.
