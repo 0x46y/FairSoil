@@ -28,3 +28,8 @@ It exists to avoid mixing implemented behavior with future concepts in README_ja
 ### 5) Compliance Modules (Optional)
 - Pluggable compliance adapters for regional requirements.
 - Opt-in at community level, not global hard dependency.
+
+### 6) Resource Tax (Harberger) Minimal MVP
+- **Goal:** minimal on-chain version of anti-hoarding tax for scarce resources.
+- **Minimal spec:** ResourceRegistry registers resource IDs, self-valuation, and tax rate. Owners pay recurring Token B tax via pull-based settlement.
+- **Buyout stub:** `buyResource` allows on-chain ownership change at/above valuation (physical enforcement deferred).
