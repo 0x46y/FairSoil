@@ -17,6 +17,7 @@ export const worldIdActionId = process.env.NEXT_PUBLIC_WORLD_ID_ACTION_ID;
 export const worldIdMock = process.env.NEXT_PUBLIC_WORLD_ID_MOCK === "true";
 export const zknfcVerifierUrl = process.env.NEXT_PUBLIC_ZKNFC_VERIFIER_URL;
 export const zknfcMock = process.env.NEXT_PUBLIC_ZKNFC_MOCK === "true";
+export const externalAdjudicationUrl = process.env.NEXT_PUBLIC_EXTERNAL_ADJ_URL;
 
 export const missingEnv =
   !tokenAAddress || !tokenBAddress || !treasuryAddress || !covenantAddress;

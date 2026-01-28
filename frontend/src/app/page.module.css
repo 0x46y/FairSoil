@@ -495,6 +495,23 @@
   flex-wrap: wrap;
 }
 
+.covenantHeaderActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.covenantSearch {
+  min-width: 180px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--sand-200);
+  background: #fff;
+  font-size: 12px;
+  color: var(--ink-800);
+}
+
 .covenantHeader h2 {
   font-family: var(--font-fraunces), serif;
   font-size: 24px;
@@ -537,6 +554,13 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.covenantTags {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--ink-500);
 }
 
 .disputeTrack {

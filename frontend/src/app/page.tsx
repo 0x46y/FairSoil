@@ -19,6 +19,7 @@ import {
   tokenAAddress,
   tokenBAddress,
   treasuryAddress,
+  externalAdjudicationUrl,
   worldIdActionId,
   worldIdAppId,
   worldIdMock,
@@ -98,6 +99,17 @@ const formatReason = (value: unknown, fallback: string) => {
   return trimmed;
 };
 
+const buildExternalAdjudicationLink = (base: string | undefined, covenantId: number) => {
+  if (!base) return null;
+  try {
+    const url = new URL(base);
+    url.searchParams.set("covenantId", String(covenantId));
+    return url.toString();
+  } catch {
+    return null;
+  }
+};
+
 const formatEvidenceLink = (value: unknown) => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -174,6 +186,10 @@ export default function Home() {
   const [taskTokenBAmount, setTaskTokenBAmount] = useState("500");
   const [taskIntegrityPoints, setTaskIntegrityPoints] = useState("100");
   const [covenantWorker, setCovenantWorker] = useState("");
+  const [covenantTemplate, setCovenantTemplate] = useState("general");
+  const [covenantTags, setCovenantTags] = useState("general");
+  const [covenantTagFilter, setCovenantTagFilter] = useState("");
+  const [covenantTagMap, setCovenantTagMap] = useState<Record<string, string>>({});
   const [covenantRewardAmount, setCovenantRewardAmount] = useState("250");
   const [covenantIntegrityPoints, setCovenantIntegrityPoints] = useState("50");
   const [covenantPayInTokenA, setCovenantPayInTokenA] = useState(false);
@@ -550,11 +566,15 @@ export default function Home() {
         return false;
       }
       if (!query) return true;
+      const tagMatches = Object.values(covenantTagMap).some((value) =>
+        value.toLowerCase().includes(query)
+      );
+      if (tagMatches) return true;
       const bodyText = typeof item.body === "string" ? item.body : "";
       const haystack = `${item.title} ${bodyText}`.toLowerCase();
       return haystack.includes(query);
     });
-  }, [trailItems, trailQuery, trailFilter]);
+  }, [trailItems, trailQuery, trailFilter, covenantTagMap]);
 
   const handleExportAudit = () => {
     const rows = filteredTrailItems.map((item) => {
@@ -978,6 +998,26 @@ export default function Home() {
         })
       );
       setCovenants(items);
+      if (typeof window !== "undefined") {
+        for (const item of items) {
+          const key = `covenant-tags:pending-${item.id}`;
+          if (localStorage.getItem(key)) {
+            localStorage.setItem(`covenant-tags:${item.id}`, localStorage.getItem(key) || "");
+            localStorage.removeItem(key);
+          }
+        }
+        const nextMap: Record<string, string> = {};
+        for (let i = 0; i < localStorage.length; i += 1) {
+          const storageKey = localStorage.key(i);
+          if (!storageKey || !storageKey.startsWith("covenant-tags:")) continue;
+          const id = storageKey.replace("covenant-tags:", "");
+          const value = localStorage.getItem(storageKey);
+          if (value) {
+            nextMap[id] = value;
+          }
+        }
+        setCovenantTagMap(nextMap);
+      }
     } finally {
       setIsLoadingCovenants(false);
     }
@@ -1076,6 +1116,33 @@ export default function Home() {
   }, [account.address, covenantWorker]);
 
   useEffect(() => {
+    switch (covenantTemplate) {
+      case "micro":
+        setCovenantRewardAmount("50");
+        setCovenantIntegrityPoints("10");
+        setCovenantPayInTokenA(false);
+        break;
+      case "delivery":
+        setCovenantRewardAmount("200");
+        setCovenantIntegrityPoints("40");
+        setCovenantPayInTokenA(false);
+        break;
+      case "audit":
+        setCovenantRewardAmount("300");
+        setCovenantIntegrityPoints("80");
+        setCovenantPayInTokenA(false);
+        break;
+      case "urgent":
+        setCovenantRewardAmount("400");
+        setCovenantIntegrityPoints("120");
+        setCovenantPayInTokenA(true);
+        break;
+      default:
+        break;
+    }
+  }, [covenantTemplate]);
+
+  useEffect(() => {
     void refreshCovenants();
   }, [refreshCovenants]);
 
@@ -1119,6 +1186,21 @@ export default function Home() {
       unwatchTreasury();
     };
   }, [publicClient, covenantAddress, treasuryAddress, handleLiveLogs]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const nextMap: Record<string, string> = {};
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith("covenant-tags:")) continue;
+      const id = key.replace("covenant-tags:", "");
+      const value = localStorage.getItem(key);
+      if (value) {
+        nextMap[id] = value;
+      }
+    }
+    setCovenantTagMap(nextMap);
+  }, []);
 
   useEffect(() => {
     const loadAppiStats = async () => {
@@ -1541,6 +1623,18 @@ export default function Home() {
     if (!paymentTokenAddress) return;
     const reward = covenantReward;
     const points = Number.parseInt(covenantIntegrityPoints || "0", 10);
+    if (typeof window !== "undefined" && covenantTags.trim()) {
+      try {
+        const tagKey = `covenant-tags:pending-${Date.now()}`;
+        localStorage.setItem(tagKey, covenantTags.trim());
+        setCovenantTagMap((prev) => ({
+          ...prev,
+          [tagKey.replace("covenant-tags:", "")]: covenantTags.trim(),
+        }));
+      } catch {
+        // ignore localStorage failures
+      }
+    }
     try {
       setCovenantStep(1);
       await runTransaction("createCovenant", () =>
@@ -2238,6 +2332,35 @@ export default function Home() {
             </p>
             <div className={styles.taskForm}>
               <label className={styles.taskField}>
+                Template
+                <select
+                  className={styles.taskInput}
+                  value={covenantTemplate}
+                  onChange={(event) => setCovenantTemplate(event.target.value)}
+                >
+                  <option value="general">General</option>
+                  <option value="micro">Micro task</option>
+                  <option value="delivery">Delivery</option>
+                  <option value="audit">Audit</option>
+                  <option value="urgent">Urgent response</option>
+                </select>
+                <span className={styles.fieldHint}>
+                  Presets fill reward/integrity defaults for common tasks.
+                </span>
+              </label>
+              <label className={styles.taskField}>
+                Tags
+                <input
+                  className={styles.taskInput}
+                  value={covenantTags}
+                  onChange={(event) => setCovenantTags(event.target.value)}
+                  placeholder="e.g. repair, urgent, onsite"
+                />
+                <span className={styles.fieldHint}>
+                  Off-chain tags for filtering and analytics (stored locally for now).
+                </span>
+              </label>
+              <label className={styles.taskField}>
                 Worker address
                 <input
                   className={styles.taskInput}
@@ -2397,19 +2520,27 @@ export default function Home() {
         </section>
 
         <section className={styles.covenantSection}>
-          <div className={styles.covenantHeader}>
-            <div>
-              <h2>Active agreements</h2>
-              <p>Track escrowed work agreements created on this chain.</p>
+            <div className={styles.covenantHeader}>
+              <div>
+                <h2>Active agreements</h2>
+                <p>Track escrowed work agreements created on this chain.</p>
+              </div>
+              <div className={styles.covenantHeaderActions}>
+                <input
+                  className={styles.covenantSearch}
+                  value={covenantTagFilter}
+                  onChange={(event) => setCovenantTagFilter(event.target.value)}
+                  placeholder="Filter by tag..."
+                />
+                <button
+                  className={styles.secondaryButton}
+                  onClick={refreshCovenants}
+                  disabled={missingEnv || isLoadingCovenants}
+                >
+                  Refresh
+                </button>
+              </div>
             </div>
-            <button
-              className={styles.secondaryButton}
-              onClick={refreshCovenants}
-              disabled={missingEnv || isLoadingCovenants}
-            >
-              Refresh
-            </button>
-          </div>
           <div className={styles.covenantTable}>
             <div className={styles.covenantRowHeader}>
               <span>ID</span>
@@ -2425,7 +2556,13 @@ export default function Home() {
                 {isLoadingCovenants ? "Loading agreements..." : "No agreements yet."}
               </div>
             ) : (
-              covenants.map((item) => (
+              covenants
+                .filter((item) => {
+                  if (!covenantTagFilter.trim()) return true;
+                  const tagValue = covenantTagMap[String(item.id)] || "";
+                  return tagValue.toLowerCase().includes(covenantTagFilter.trim().toLowerCase());
+                })
+                .map((item) => (
                 <div className={styles.covenantRow} key={`covenant-${item.id}`}>
                   <span>#{item.id}</span>
                   <span>{item.worker.slice(0, 10)}...</span>
@@ -2435,7 +2572,14 @@ export default function Home() {
                   </span>
                   <span>{item.integrityPoints.toString()}</span>
                   <span>{Number(item.issueClaimBps) / 100}%</span>
-                  <span>{covenantStatusLabels[item.status] ?? "Unknown"}</span>
+                  <span>
+                    {covenantStatusLabels[item.status] ?? "Unknown"}
+                    {covenantTagMap[String(item.id)] ? (
+                      <span className={styles.covenantTags}>
+                        {covenantTagMap[String(item.id)]}
+                      </span>
+                    ) : null}
+                  </span>
                   <div className={styles.covenantActions}>
                     {item.status >= 5 ? (
                       <div className={styles.disputeTrack}>
@@ -2459,6 +2603,23 @@ export default function Home() {
                             Resolver proposes, then finalizes. High-value disputes can route to
                             external adjudication.
                           </span>
+                          {externalAdjudicationUrl ? (
+                            <span className={styles.disputeSubhint}>
+                              <a
+                                className={styles.timelineLink}
+                                href={
+                                  buildExternalAdjudicationLink(
+                                    externalAdjudicationUrl,
+                                    item.id
+                                  ) ?? undefined
+                                }
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Open external adjudication
+                              </a>
+                            </span>
+                          ) : null}
                           {!isDisputeResolver ? (
                             <span className={styles.disputeSubhint}>
                               If this is high value, resolution may be delayed until external
