@@ -598,3 +598,67 @@ export const appiOracleAbi = [
     outputs: [{ name: "", type: "uint256" }],
   },
 ] as const;
+
+export const resourceRegistryAbi = [
+  {
+    type: "function",
+    name: "registerResource",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "resourceId", type: "bytes32" },
+      { name: "valuation", type: "uint256" },
+      { name: "taxRateBps", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "updateValuation",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "resourceId", type: "bytes32" },
+      { name: "valuation", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "pendingTax",
+    stateMutability: "view",
+    inputs: [{ name: "resourceId", type: "bytes32" }],
+    outputs: [
+      { name: "due", type: "uint256" },
+      { name: "elapsedSeconds", type: "uint256" },
+    ],
+  },
+  {
+    type: "function",
+    name: "payTax",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "resourceId", type: "bytes32" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "buyResource",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "resourceId", type: "bytes32" },
+      { name: "price", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "resources",
+    stateMutability: "view",
+    inputs: [{ name: "resourceId", type: "bytes32" }],
+    outputs: [
+      { name: "owner", type: "address" },
+      { name: "valuation", type: "uint256" },
+      { name: "taxRateBps", type: "uint256" },
+      { name: "lastTaxTimestamp", type: "uint256" },
+      { name: "exists", type: "bool" },
+    ],
+  },
+] as const;

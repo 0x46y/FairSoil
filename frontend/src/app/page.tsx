@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { formatUnits, parseUnits, zeroAddress } from "viem";
+import { formatUnits, parseUnits, zeroAddress, keccak256, stringToBytes } from "viem";
 import {
   useAccount,
   useConnect,
@@ -12,10 +12,18 @@ import {
 } from "wagmi";
 import { injected } from "wagmi/connectors";
 import styles from "./page.module.css";
-import { appiOracleAbi, covenantAbi, tokenAAbi, tokenBAbi, treasuryAbi } from "../lib/abi";
+import {
+  appiOracleAbi,
+  covenantAbi,
+  resourceRegistryAbi,
+  tokenAAbi,
+  tokenBAbi,
+  treasuryAbi,
+} from "../lib/abi";
 import {
   covenantAddress,
   missingEnv,
+  resourceRegistryAddress,
   tokenAAddress,
   tokenBAddress,
   treasuryAddress,
@@ -230,6 +238,19 @@ export default function Home() {
     { category: number; reports: number; unique: number }[]
   >([]);
   const [appiDiversity, setAppiDiversity] = useState<string>("--");
+  const [resourceIdInput, setResourceIdInput] = useState("");
+  const [resourceValuationInput, setResourceValuationInput] = useState("1000");
+  const [resourceTaxRateInput, setResourceTaxRateInput] = useState("500");
+  const [resourceBuyPriceInput, setResourceBuyPriceInput] = useState("1000");
+  const [resourceInfo, setResourceInfo] = useState<{
+    owner: string;
+    valuation: bigint;
+    taxRateBps: bigint;
+    lastTaxTimestamp: bigint;
+    exists: boolean;
+    due: bigint;
+    elapsed: bigint;
+  } | null>(null);
   const [unclaimedDays, setUnclaimedDays] = useState<{ day: number; amount: bigint }[]>([]);
   const [unclaimedFromDay, setUnclaimedFromDay] = useState("");
   const [unclaimedToDay, setUnclaimedToDay] = useState("");
@@ -247,6 +268,7 @@ export default function Home() {
   const tokenBAddr = tokenBAddress ?? zeroAddress;
   const treasuryAddr = treasuryAddress ?? zeroAddress;
   const covenantAddr = covenantAddress ?? zeroAddress;
+  const registryAddr = resourceRegistryAddress ?? zeroAddress;
 
   const { data: tokenABalance, refetch: refetchTokenA } = useReadContract({
     address: tokenAAddr,
@@ -2194,6 +2216,97 @@ export default function Home() {
             </p>
           </article>
           <article className={styles.card}>
+            <h3>Resource registry (Harberger MVP)</h3>
+            <p>Register resources, set valuation, and pay recurring tax in Token B.</p>
+            <div className={styles.taskForm}>
+              <label className={styles.taskField}>
+                Resource ID (string)
+                <input
+                  className={styles.taskInput}
+                  value={resourceIdInput}
+                  onChange={(event) => setResourceIdInput(event.target.value)}
+                  placeholder="e.g. land:alpha"
+                />
+              </label>
+              <div className={styles.taskRow}>
+                <label className={styles.taskField}>
+                  Valuation (Token B)
+                  <input
+                    className={styles.taskInput}
+                    value={resourceValuationInput}
+                    onChange={(event) => setResourceValuationInput(event.target.value)}
+                  />
+                </label>
+                <label className={styles.taskField}>
+                  Tax rate (bps)
+                  <input
+                    className={styles.taskInput}
+                    value={resourceTaxRateInput}
+                    onChange={(event) => setResourceTaxRateInput(event.target.value)}
+                    placeholder="500"
+                  />
+                </label>
+              </div>
+              <label className={styles.taskField}>
+                Buy price (Token B)
+                <input
+                  className={styles.taskInput}
+                  value={resourceBuyPriceInput}
+                  onChange={(event) => setResourceBuyPriceInput(event.target.value)}
+                />
+              </label>
+            </div>
+            <div className={styles.cardActions}>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleRegisterResource}
+                disabled={!account.address || !resourceRegistryAddress || isBusy}
+              >
+                {actionLabel("registerResource", "Register")}
+              </button>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleUpdateValuation}
+                disabled={!account.address || !resourceRegistryAddress || isBusy}
+              >
+                {actionLabel("updateValuation", "Update valuation")}
+              </button>
+              <button
+                className={styles.secondaryButton}
+                onClick={handlePayResourceTax}
+                disabled={!account.address || !resourceRegistryAddress || isBusy}
+              >
+                {actionLabel("payTax", "Pay tax")}
+              </button>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleBuyResource}
+                disabled={!account.address || !resourceRegistryAddress || isBusy}
+              >
+                {actionLabel("buyResource", "Buy")}
+              </button>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleLoadResource}
+                disabled={!resourceRegistryAddress || !resourceIdBytes || isBusy}
+              >
+                {actionLabel("loadResource", "Load")}
+              </button>
+            </div>
+            {resourceInfo ? (
+              <div className={styles.metricBreakdown}>
+                <span>Owner: {safeAddress(resourceInfo.owner)}</span>
+                <span>Valuation: {Number(formatUnits(resourceInfo.valuation, 18)).toFixed(2)}</span>
+                <span>Tax rate: {resourceInfo.taxRateBps.toString()} bps</span>
+                <span>Pending tax: {Number(formatUnits(resourceInfo.due, 18)).toFixed(4)}</span>
+                <span>Elapsed: {resourceInfo.elapsed.toString()}s</span>
+              </div>
+            ) : null}
+            <p className={styles.taskHint}>
+              Resource IDs are hashed locally to bytes32 before on-chain calls.
+            </p>
+          </article>
+          <article className={styles.card}>
             <h3>Saved bonuses</h3>
             <p>
               Accrue daily bonuses, then claim in batches. Amounts older than 30 days
@@ -2881,3 +2994,132 @@ export default function Home() {
     </div>
   );
 }
+  const resourceIdBytes = useMemo(() => {
+    const trimmed = resourceIdInput.trim();
+    if (!trimmed) return null;
+    return keccak256(stringToBytes(trimmed));
+  }, [resourceIdInput]);
+  const handleLoadResource = async () => {
+    if (!publicClient || !resourceIdBytes || !resourceRegistryAddress) return;
+    const data = (await publicClient.readContract({
+      address: resourceRegistryAddress,
+      abi: resourceRegistryAbi,
+      functionName: "resources",
+      args: [resourceIdBytes],
+    })) as [string, bigint, bigint, bigint, boolean];
+    const pending = (await publicClient.readContract({
+      address: resourceRegistryAddress,
+      abi: resourceRegistryAbi,
+      functionName: "pendingTax",
+      args: [resourceIdBytes],
+    })) as [bigint, bigint];
+    setResourceInfo({
+      owner: data[0],
+      valuation: data[1],
+      taxRateBps: data[2],
+      lastTaxTimestamp: data[3],
+      exists: data[4],
+      due: pending[0],
+      elapsed: pending[1],
+    });
+  };
+
+  const handleRegisterResource = async () => {
+    if (!resourceRegistryAddress || !resourceIdBytes) return;
+    const valuation = safeParseUnits(resourceValuationInput || "0", 18);
+    const rate = Number.parseInt(resourceTaxRateInput || "0", 10);
+    if (!Number.isFinite(rate) || rate < 0) {
+      setTxError("Invalid tax rate.");
+      return;
+    }
+    try {
+      await runTransaction("registerResource", () =>
+        writeContractAsync({
+          address: registryAddr,
+          abi: resourceRegistryAbi,
+          functionName: "registerResource",
+          args: [resourceIdBytes, valuation, BigInt(rate)],
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("Resource registered.");
+      await handleLoadResource();
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const handleUpdateValuation = async () => {
+    if (!resourceRegistryAddress || !resourceIdBytes) return;
+    const valuation = safeParseUnits(resourceValuationInput || "0", 18);
+    try {
+      await runTransaction("updateValuation", () =>
+        writeContractAsync({
+          address: registryAddr,
+          abi: resourceRegistryAbi,
+          functionName: "updateValuation",
+          args: [resourceIdBytes, valuation],
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("Valuation updated.");
+      await handleLoadResource();
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const handlePayResourceTax = async () => {
+    if (!resourceRegistryAddress || !resourceIdBytes) return;
+    try {
+      await runTransaction("payTax", () =>
+        writeContractAsync({
+          address: registryAddr,
+          abi: resourceRegistryAbi,
+          functionName: "payTax",
+          args: [resourceIdBytes],
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("Tax paid.");
+      await handleLoadResource();
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const handleBuyResource = async () => {
+    if (!resourceRegistryAddress || !resourceIdBytes) return;
+    const price = safeParseUnits(resourceBuyPriceInput || "0", 18);
+    try {
+      await runTransaction("buyResource", () =>
+        writeContractAsync({
+          address: registryAddr,
+          abi: resourceRegistryAbi,
+          functionName: "buyResource",
+          args: [resourceIdBytes, price],
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("Resource purchased.");
+      await handleLoadResource();
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
