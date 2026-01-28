@@ -1219,6 +1219,15 @@ export default function Home() {
         setCovenantIntegrityPoints("120");
         setCovenantPayInTokenA(true);
         break;
+      case "education":
+        setCovenantRewardAmount("500");
+        setCovenantIntegrityPoints("150");
+        setCovenantPayInTokenA(false);
+        setCovenantTags("education, upskill");
+        if (!covenantTemplateUri) {
+          setCovenantTemplateUri("ipfs://education-template");
+        }
+        break;
       default:
         break;
     }
@@ -2620,6 +2629,7 @@ export default function Home() {
                   <option value="delivery">Delivery</option>
                   <option value="audit">Audit</option>
                   <option value="urgent">Urgent response</option>
+                  <option value="education">Education support</option>
                 </select>
                 <span className={styles.fieldHint}>
                   Presets fill reward/integrity defaults for common tasks.
