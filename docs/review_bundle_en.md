@@ -109,6 +109,11 @@ Gas optimization (implementation-aligned): long-running accrual/claim can be chu
   - **Nullifier separation:** distinct nullifiers for UBI / voting / analytics
   - **Device binding:** theft resistance with re‑bind on device change
   - **Re‑auth conditions:** only on device change, primary address re‑bind, or high‑risk actions (e.g., expanding advance limits)
+  - **ZK‑NFC verifier API (minimal):**  
+    - **POST** `ZKNFC_VERIFIER_URL`  
+    - **Input (JSON):** `{ "address": "0x..." }`  
+    - **Response (JSON):** `{ "verified": true }` or `{ "verified": false, "message": "..." }`  
+    - **Note:** on success, call `setPrimaryAddress(address,true)` on-chain
 
 ### Covenant (Escrowed Work)
 - Payment modes: Immediate / Escrow / Delayed.

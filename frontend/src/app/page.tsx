@@ -1250,8 +1250,40 @@ export default function Home() {
       await handleSetPrimary();
       return;
     }
-    setTxError("World ID verification UI not wired yet. Use mock or owner verify.");
+    setTxError(null);
     setTxSuccess(null);
+    setTxStatus("signing");
+    setTxAction("worldIdVerify");
+    try {
+      const response = await fetch("/api/worldid/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address: account.address,
+          appId: worldIdAppId,
+          actionId: worldIdActionId,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Network error from verifier (${response.status})`);
+      }
+      const result = (await response.json()) as { verified?: boolean; message?: string };
+      if (!result.verified) {
+        throw new Error(result.message || "Verification failed.");
+      }
+      await handleSetPrimary();
+      showSuccess("World ID verification accepted.");
+    } catch (error) {
+      const message = normalizeErrorMessage(error);
+      if (message.toLowerCase().includes("network error")) {
+        setTxError(`Verifier unreachable. ${message}`);
+      } else {
+        setTxError(`Verification failed. ${message}`);
+      }
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
   };
 
   const handleZkNfcVerify = async () => {
@@ -1265,8 +1297,36 @@ export default function Home() {
       await handleSetPrimary();
       return;
     }
-    setTxError("ZK-NFC verification UI not wired yet. Use mock or owner verify.");
+    setTxError(null);
     setTxSuccess(null);
+    setTxStatus("signing");
+    setTxAction("zknfcVerify");
+    try {
+      const response = await fetch(zknfcVerifierUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: account.address }),
+      });
+      if (!response.ok) {
+        throw new Error(`Network error from verifier (${response.status})`);
+      }
+      const result = (await response.json()) as { verified?: boolean; message?: string };
+      if (!result.verified) {
+        throw new Error(result.message || "Verification failed. Please re-check your NFC proof.");
+      }
+      await handleSetPrimary();
+      showSuccess("ZK-NFC verification accepted.");
+    } catch (error) {
+      const message = normalizeErrorMessage(error);
+      if (message.toLowerCase().includes("network error")) {
+        setTxError(`Verifier unreachable. ${message}`);
+      } else {
+        setTxError(`Verification failed. ${message}`);
+      }
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
   };
 
   const handleAccrueUnclaimed = async () => {
