@@ -311,6 +311,26 @@ export default function Home() {
     },
   });
 
+  const appiDayForRead = useMemo(() => {
+    const raw = appiDayInput.trim();
+    if (raw.length === 0) {
+      return currentDayIndex ?? null;
+    }
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed < 0) return null;
+    return parsed;
+  }, [appiDayInput, currentDayIndex]);
+
+  const { data: appiDailyIndex } = useReadContract({
+    address: appiOracleAddr as `0x${string}` | undefined,
+    abi: appiOracleAbi,
+    functionName: "dailyIndex",
+    args: appiDayForRead !== null ? [BigInt(appiDayForRead)] : undefined,
+    query: {
+      enabled: Boolean(appiOracleAddr && appiOracleAddr !== zeroAddress && appiDayForRead !== null),
+    },
+  });
+
   const { data: lastAPPI } = useReadContract({
     address: treasuryAddr,
     abi: treasuryAbi,
@@ -369,6 +389,24 @@ export default function Home() {
     address: treasuryAddr,
     abi: treasuryAbi,
     functionName: "lastReservesB",
+    query: {
+      enabled: Boolean(treasuryAddress),
+    },
+  });
+
+  const { data: liabilitiesA } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "liabilitiesA",
+    query: {
+      enabled: Boolean(treasuryAddress),
+    },
+  });
+
+  const { data: liabilitiesB } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "liabilitiesB",
     query: {
       enabled: Boolean(treasuryAddress),
     },
@@ -433,6 +471,16 @@ export default function Home() {
     return Number(formatUnits(lastReservesB as bigint, 18)).toFixed(2);
   }, [lastReservesB]);
 
+  const formattedLiabilitiesA = useMemo(() => {
+    if (liabilitiesA === undefined) return "--";
+    return Number(formatUnits(liabilitiesA as bigint, 18)).toFixed(2);
+  }, [liabilitiesA]);
+
+  const formattedLiabilitiesB = useMemo(() => {
+    if (liabilitiesB === undefined) return "--";
+    return Number(formatUnits(liabilitiesB as bigint, 18)).toFixed(2);
+  }, [liabilitiesB]);
+
   const isTokenAOwner = useMemo(() => {
     if (!account.address || !tokenAOwner) return false;
     return (tokenAOwner as string).toLowerCase() === account.address.toLowerCase();
@@ -452,6 +500,11 @@ export default function Home() {
     if (dailyUBIAmount === undefined) return "--";
     return Number(formatUnits(dailyUBIAmount as bigint, 18)).toFixed(2);
   }, [dailyUBIAmount]);
+
+  const formattedAppiDailyIndex = useMemo(() => {
+    if (appiDailyIndex === undefined) return "--";
+    return Number(formatUnits(appiDailyIndex as bigint, 18)).toFixed(2);
+  }, [appiDailyIndex]);
 
   const totalUnclaimed = useMemo(() => {
     return unclaimedDays.reduce((sum, entry) => sum + entry.amount, 0n);
@@ -1700,6 +1753,10 @@ export default function Home() {
               <span>Reserves B: {formattedReservesB}</span>
             </div>
             <div className={styles.metricBreakdown}>
+              <span>Liabilities A: {formattedLiabilitiesA}</span>
+              <span>Liabilities B: {formattedLiabilitiesB}</span>
+            </div>
+            <div className={styles.metricBreakdown}>
               <span>In total: {formattedTreasuryIn}</span>
               <span>Out A: {formattedTreasuryOutA}</span>
               <span>Out B: {formattedTreasuryOutB}</span>
@@ -1712,6 +1769,14 @@ export default function Home() {
               <span>Oracle: {safeAddress(appiOracleAddr as string | undefined)}</span>
               <span>Last APPI: {formattedLastAPPI}</span>
               <span>Daily UBI: {formattedDailyUBI}</span>
+            </div>
+            <div className={styles.metricBreakdown}>
+              <span>
+                Daily index ({appiDayForRead ?? "--"}): {formattedAppiDailyIndex}
+              </span>
+              <span>
+                Current day: {currentDayIndex !== null ? currentDayIndex : "--"}
+              </span>
             </div>
             <div className={styles.taskForm}>
               <label className={styles.taskField}>

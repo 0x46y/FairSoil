@@ -128,6 +128,12 @@ Prevent post‑delivery “chargeback‑style” abuse without adding heavy user
 - **History‑aware tuning:** frequent disputers face higher hold / lower caps; repeat‑offender sellers invert the bias.
 - **External adjudication plugin:** keep `disputeResolver` as a socket for external services (e.g., Kleros). Start with minimal local operation (single address/limited role) and route high‑value disputes to external adjudication.
 - **External adjudication rule (minimal):** route only high‑value disputes to external adjudication; keep low‑value disputes in the internal flow (auto‑hold + refund caps) to control fees.
+- **Operational flow (minimal):**  
+  1) apply auto‑hold and log reason/evidence presence  
+  2) auto‑reject if no added info within **48 hours**  
+  3) auto‑refund part of hold if seller is unresponsive for **48 hours**  
+  4) route only high‑value disputes to external adjudication  
+  5) tighten hold/caps automatically if abuse patterns are detected
 
 ### UI/UX Wording Abstraction (Implementation Direction)
 To reduce psychological friction, the frontend should use friendly labels while
