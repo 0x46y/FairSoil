@@ -957,10 +957,22 @@ README_ja.md の実装済み仕様と混在しないよう、Phase2+の構想は
 - **最小仕様:** テンプレの登録（metadataUri/royaltyBps）と有効化/無効化、ロイヤリティ計算のみを提供する。
 - **注意:** 自動分配は後続フェーズで接続（まずはイベント記録）。
   - **運用メモ:** テンプレ使用は `recordUse` で記録し、後続の分配ロジックに接続する。
+  - **接続設計（ロイヤリティ自動分配の最小案）:**
+    1) Covenantの決済時（`approve`/`resolveDispute`）に、支払い額と `templateId` を参照可能にする。
+    2) `RoyaltyRouter` のような専用コントラクトを後続で追加し、Covenantから `notifyPayout(covenantId, templateId, amountB)` を呼び出す。
+    3) Routerは `CovenantLibrary` の `royaltyBps` からロイヤリティ額を計算し、テンプレ作成者へ `TokenB` を送る。
+    4) 二重支払い防止のため `royaltyPaid[covenantId]` を保持する。
+    5) フォールバック運用として、当面はイベント集計→運用者が `settleRoyalty` を実行する方式でも良い。
 
 ### 8) 教育支援テンプレ（Covenant流用）
 - **目的:** 後払い型の育成支援を「掟テンプレ」として提供する。
 - **最小仕様:** 教育支援用テンプレ（metadataUri）を用意し、Covenant作成時にテンプレIDを指定して `recordUse` を記録する。
 - **運用:** 成果判定や返済条件の適用はオフチェーン運用から開始し、後続でオンチェーン化する。
+  - **運用フロー（最小）:**
+    1) 教育支援テンプレを登録（metadataUriに「対象/期間/達成基準/返済条件」を記載）
+    2) 受講者が Covenant を作成しテンプレIDを指定（`recordUse` で記録）
+    3) 進捗・成果はオフチェーンで検証（提出物/試験/第三者評価）
+    4) 成果達成時に報酬/返済を Covenant の支払として確定
+    5) 返済条件は最初は運用で管理し、後続フェーズで自動化
 
 ---

@@ -40,8 +40,20 @@ It exists to avoid mixing implemented behavior with future concepts in README_ja
 - **Minimal spec:** template registration (metadataUri/royaltyBps), activation toggle, and royalty calculation.
 - **Note:** payout distribution is deferred; record usage via events only.
   - **Ops note:** record template usage via `recordUse` to feed future royalty distribution.
+  - **Integration design (minimal auto-distribution):**
+    1) At Covenant settlement (`approve`/`resolveDispute`), make payout amount and `templateId` available.
+    2) Add a `RoyaltyRouter`-style contract later; Covenant calls `notifyPayout(covenantId, templateId, amountB)`.
+    3) Router reads `royaltyBps` from `CovenantLibrary`, computes royalty, and transfers `TokenB` to template creator.
+    4) Prevent double payments with `royaltyPaid[covenantId]`.
+    5) As a fallback, operators can aggregate events and call `settleRoyalty` manually in early phases.
 
 ### 8) Education Support Template (Covenant-based)
 - **Goal:** offer deferred-payment education support via Covenant templates.
 - **Minimal spec:** provide an education template (metadataUri) and record usage by passing templateId + `recordUse`.
 - **Ops:** outcomes/repayment rules start off-chain and can be brought on-chain later.
+  - **Ops flow (minimal):**
+    1) Register an education template (metadataUri includes scope/term/criteria/repayment rules).
+    2) Learner creates a Covenant and passes templateId (`recordUse`).
+    3) Progress/outcomes are verified off-chain (submissions/tests/third-party review).
+    4) On success, confirm payout/repayment via Covenant settlement.
+    5) Repayment automation is added in later phases.
