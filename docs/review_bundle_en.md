@@ -42,7 +42,7 @@ The full Japanese version of this README is in `README_ja.md`.
 ## Identity (experimental core, adoption-friendly entry)
 - **Tier 1:** Email / social login for read‑only onboarding
 - **Tier 2:** Passkey (device biometrics) for limited access
-- **Tier 3:** World ID or ZK‑NFC (government ID NFC proof) for full benefits
+- **Tier 3:** World ID or ZK‑NFC (government ID NFC proof, e.g., passport IC / My Number) for full benefits
 - **Nullifier separation:** distinct nullifiers for UBI / voting / analytics
 - **Device binding:** theft resistance with re‑bind on device change
 
@@ -103,7 +103,7 @@ Gas optimization (implementation-aligned): long-running accrual/claim can be chu
 - **Tiered identity (implementation direction):**
   - Tier1: Email/social for read‑only onboarding
   - Tier2: Passkey (device biometrics) for limited access
-  - Tier3: World ID or ZK‑NFC (government ID NFC proof) for full benefits
+  - Tier3: World ID or ZK‑NFC (government ID NFC proof, e.g., passport IC / My Number) for full benefits
   - **Nullifier separation:** distinct nullifiers for UBI / voting / analytics
   - **Device binding:** theft resistance with re‑bind on device change
 
