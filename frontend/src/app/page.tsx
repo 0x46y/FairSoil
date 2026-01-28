@@ -19,6 +19,9 @@ import {
   tokenAAddress,
   tokenBAddress,
   treasuryAddress,
+  worldIdActionId,
+  worldIdAppId,
+  worldIdMock,
 } from "../lib/contracts";
 
 const MAX_TRAIL_ITEMS = 12;
@@ -1234,6 +1237,21 @@ export default function Home() {
     }
   };
 
+  const handleWorldIdVerify = async () => {
+    if (!account.address) return;
+    if (!worldIdAppId || !worldIdActionId) {
+      setTxError("World ID config missing.");
+      setTxSuccess(null);
+      return;
+    }
+    if (worldIdMock) {
+      await handleSetPrimary();
+      return;
+    }
+    setTxError("World ID verification UI not wired yet. Use mock or owner verify.");
+    setTxSuccess(null);
+  };
+
   const handleAccrueUnclaimed = async () => {
     if (!treasuryAddress) return;
     try {
@@ -1728,7 +1746,9 @@ export default function Home() {
               {isPrimaryAddress === undefined
                 ? "Check your verification status."
                 : isPrimaryAddress
-                ? "Primary address verified (mock)."
+                ? "Primary address verified."
+                : worldIdAppId && worldIdActionId
+                ? "Verify with World ID to unlock Tier 3 benefits."
                 : "Not verified yet. Owner can verify for MVP testing."}
             </p>
             <div className={styles.cardFooter}>
@@ -1736,6 +1756,15 @@ export default function Home() {
               <span>{isTokenAOwner ? "Owner connected" : "Owner required"}</span>
             </div>
             <div className={styles.cardActions}>
+              {worldIdAppId && worldIdActionId ? (
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handleWorldIdVerify}
+                  disabled={!account.address || isBusy}
+                >
+                  {actionLabel("worldIdVerify", worldIdMock ? "Verify (mock)" : "Verify with World ID")}
+                </button>
+              ) : null}
               <button
                 className={styles.secondaryButton}
                 onClick={handleSetPrimary}
