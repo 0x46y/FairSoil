@@ -24,6 +24,16 @@ interface ISoilTreasury {
     function REASON_COV_SETTLE() external view returns (bytes32);
 }
 
+interface IRoyaltyRouter {
+    function previewRoyalty(uint256 templateId, uint256 amountB)
+        external
+        view
+        returns (address receiver, uint256 royaltyAmount);
+    function notifyPayout(uint256 covenantId, uint256 templateId, uint256 amountB)
+        external
+        returns (uint256 royaltyAmount);
+}
+
 // Covenant: escrowed Token B rewards released on approval after worker submission.
 contract Covenant is Ownable {
     using SafeERC20 for IERC20;
@@ -63,6 +73,7 @@ contract Covenant is Ownable {
         uint256 proposedWorkerPayoutBps;
         uint256 proposedIntegrityPoints;
         uint256 proposedSlashingPenalty;
+        uint256 templateId;
         PaymentToken paymentToken;
         PaymentMode paymentMode;
         Status status;
@@ -76,6 +87,7 @@ contract Covenant is Ownable {
     uint256 public constant ISSUE_BPS_DENOMINATOR = 10_000;
     uint256 public constant ISSUE_INTEGRITY_POINTS = 20;
     address public disputeResolver;
+    IRoyaltyRouter public royaltyRouter;
 
     mapping(uint256 => CovenantData) public covenants;
     mapping(uint256 => uint256) public appealCovenantOf;
@@ -123,6 +135,8 @@ contract Covenant is Ownable {
         uint256 slashingPenalty
     );
     event DisputeResolverSet(address indexed resolver);
+    event RoyaltyRouterSet(address indexed router);
+    event CovenantTemplateLinked(uint256 indexed covenantId, uint256 indexed templateId);
     event MaliceSlashed(
         uint256 indexed covenantId,
         address indexed creator,
@@ -156,6 +170,11 @@ contract Covenant is Ownable {
         emit DisputeResolverSet(resolver);
     }
 
+    function setRoyaltyRouter(address router) external onlyOwner {
+        royaltyRouter = IRoyaltyRouter(router);
+        emit RoyaltyRouterSet(router);
+    }
+
     function createCovenant(
         address worker,
         uint256 tokenBReward,
@@ -180,6 +199,28 @@ contract Covenant is Ownable {
             payInTokenA,
             paymentMode
         );
+    }
+
+    function createCovenantWithTemplate(
+        address worker,
+        uint256 tokenBReward,
+        uint256 integrityPoints,
+        bool payInTokenA,
+        PaymentMode paymentMode,
+        uint256 templateId
+    ) external returns (uint256 covenantId) {
+        covenantId = _createCovenantInternal(
+            msg.sender,
+            worker,
+            tokenBReward,
+            integrityPoints,
+            payInTokenA,
+            paymentMode
+        );
+        if (templateId > 0) {
+            covenants[covenantId].templateId = templateId;
+            emit CovenantTemplateLinked(covenantId, templateId);
+        }
     }
 
     function createAppealCovenant(
@@ -282,6 +323,7 @@ contract Covenant is Ownable {
             proposedWorkerPayoutBps: 0,
             proposedIntegrityPoints: 0,
             proposedSlashingPenalty: 0,
+            templateId: 0,
             paymentToken: payInTokenA ? PaymentToken.TokenA : PaymentToken.TokenB,
             paymentMode: paymentMode,
             status: Status.Open,
@@ -299,6 +341,21 @@ contract Covenant is Ownable {
 
         emit CovenantCreated(covenantId, creator, worker, tokenBReward, integrityPoints);
         emit EscrowLocked(covenantId, covenants[covenantId].paymentToken, tokenBReward);
+    }
+
+    function setCovenantTemplate(uint256 covenantId, uint256 templateId) external {
+        CovenantData storage data = covenants[covenantId];
+        require(data.creator != address(0), "Unknown covenant");
+        require(msg.sender == data.creator, "Creator only");
+        require(!data.settled, "Already settled");
+        require(
+            data.status == Status.Open || data.status == Status.Submitted,
+            "Not active"
+        );
+        require(templateId > 0, "Template required");
+
+        data.templateId = templateId;
+        emit CovenantTemplateLinked(covenantId, templateId);
     }
 
     function rejectWork(uint256 covenantId) external {
@@ -521,6 +578,29 @@ contract Covenant is Ownable {
                 workerShare + (creatorShare - refunded)
             );
         } else {
+            uint256 grossShare = workerShare + creatorShare;
+            if (address(royaltyRouter) != address(0) && data.templateId > 0 && grossShare > 0) {
+                (, uint256 royaltyAmount) = royaltyRouter.previewRoyalty(data.templateId, grossShare);
+                if (royaltyAmount > 0) {
+                    uint256 remaining = royaltyAmount;
+                    if (workerShare >= remaining) {
+                        workerShare -= remaining;
+                        remaining = 0;
+                    } else {
+                        remaining -= workerShare;
+                        workerShare = 0;
+                    }
+                    if (remaining > 0) {
+                        if (creatorShare >= remaining) {
+                            creatorShare -= remaining;
+                        } else {
+                            creatorShare = 0;
+                        }
+                    }
+                    tokenB.safeIncreaseAllowance(address(royaltyRouter), royaltyAmount);
+                    royaltyRouter.notifyPayout(covenantId, data.templateId, grossShare);
+                }
+            }
             uint256 totalShare = workerShare + creatorShare;
             if (totalShare > 0) {
                 treasury.unlockB(address(this), totalShare);

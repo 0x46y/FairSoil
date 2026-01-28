@@ -11,6 +11,7 @@ import {SoilTreasury} from "../src/SoilTreasury.sol";
 import {Covenant} from "../src/Covenant.sol";
 import {ResourceRegistry} from "../src/ResourceRegistry.sol";
 import {CovenantLibrary} from "../src/CovenantLibrary.sol";
+import {RoyaltyRouter} from "../src/RoyaltyRouter.sol";
 
 contract Deploy is Script {
     function run()
@@ -21,7 +22,8 @@ contract Deploy is Script {
             address treasury,
             address covenant,
             address resourceRegistry,
-            address covenantLibrary
+            address covenantLibrary,
+            address royaltyRouter
         )
     {
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
@@ -39,11 +41,13 @@ contract Deploy is Script {
         covenant = address(new Covenant(tokenB, tokenA, treasury));
         resourceRegistry = address(new ResourceRegistry(tokenB, treasury));
         covenantLibrary = address(new CovenantLibrary());
+        royaltyRouter = address(new RoyaltyRouter(tokenB, covenant, covenantLibrary));
 
         FairSoilTokenA(tokenA).setTreasury(treasury);
         FairSoilTokenA(tokenA).setCovenant(covenant);
         FairSoilTokenB(tokenB).setTreasury(treasury);
         SoilTreasury(treasury).setCovenant(covenant);
+        Covenant(covenant).setRoyaltyRouter(royaltyRouter);
 
         vm.stopBroadcast();
     }

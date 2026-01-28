@@ -136,9 +136,9 @@ contract CovenantTest is Test {
             ,
             ,
             ,
+            , , Covenant.Status status,
+            bool settled,
             ,
-            Covenant.Status status,
-            bool settled
         ) = covenant.covenants(covenantId);
         assertEq(uint256(status), uint256(Covenant.Status.ResolutionProposed));
         assertEq(tokenB.balanceOf(creator), creatorBefore);
