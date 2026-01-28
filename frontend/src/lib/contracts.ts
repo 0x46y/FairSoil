@@ -14,6 +14,8 @@ export const covenantAddress = process.env.NEXT_PUBLIC_COVENANT_ADDRESS as
   | undefined;
 export const resourceRegistryAddress = process.env
   .NEXT_PUBLIC_RESOURCE_REGISTRY_ADDRESS as Address | undefined;
+export const covenantLibraryAddress = process.env
+  .NEXT_PUBLIC_COVENANT_LIBRARY_ADDRESS as Address | undefined;
 export const worldIdAppId = process.env.NEXT_PUBLIC_WORLD_ID_APP_ID;
 export const worldIdActionId = process.env.NEXT_PUBLIC_WORLD_ID_ACTION_ID;
 export const worldIdMock = process.env.NEXT_PUBLIC_WORLD_ID_MOCK === "true";

@@ -300,6 +300,10 @@
   color: var(--ink-500);
 }
 
+.templateForm {
+  margin-top: 12px;
+}
+
 .unclaimedSummary {
   display: flex;
   flex-wrap: wrap;
@@ -561,6 +565,50 @@
   margin-top: 4px;
   font-size: 10px;
   color: var(--ink-500);
+}
+
+.templateHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--ink-700);
+}
+
+.templateSearch {
+  min-width: 180px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--sand-200);
+  background: #fff;
+  font-size: 12px;
+  color: var(--ink-800);
+}
+
+.templateList {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.templateRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--sand-200);
+  background: #fff;
+  font-size: 12px;
+  color: var(--ink-800);
+}
+
+.templateMeta {
+  color: var(--ink-500);
+  font-size: 11px;
 }
 
 .disputeTrack {

@@ -10,11 +10,19 @@ import {FairSoilTokenB} from "../src/FairSoilTokenB.sol";
 import {SoilTreasury} from "../src/SoilTreasury.sol";
 import {Covenant} from "../src/Covenant.sol";
 import {ResourceRegistry} from "../src/ResourceRegistry.sol";
+import {CovenantLibrary} from "../src/CovenantLibrary.sol";
 
 contract Deploy is Script {
     function run()
         external
-        returns (address tokenA, address tokenB, address treasury, address covenant, address resourceRegistry)
+        returns (
+            address tokenA,
+            address tokenB,
+            address treasury,
+            address covenant,
+            address resourceRegistry,
+            address covenantLibrary
+        )
     {
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
         uint256 decayRate = vm.envOr("DECAY_RATE_PER_SECOND", uint256(1e16));
@@ -30,6 +38,7 @@ contract Deploy is Script {
         treasury = address(new SoilTreasury(tokenA, tokenB));
         covenant = address(new Covenant(tokenB, tokenA, treasury));
         resourceRegistry = address(new ResourceRegistry(tokenB, treasury));
+        covenantLibrary = address(new CovenantLibrary());
 
         FairSoilTokenA(tokenA).setTreasury(treasury);
         FairSoilTokenA(tokenA).setCovenant(covenant);

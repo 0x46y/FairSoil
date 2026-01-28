@@ -662,3 +662,56 @@ export const resourceRegistryAbi = [
     ],
   },
 ] as const;
+
+export const covenantLibraryAbi = [
+  {
+    type: "function",
+    name: "registerTemplate",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "royaltyBps", type: "uint256" },
+      { name: "metadataUri", type: "string" },
+    ],
+    outputs: [{ name: "id", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "recordUse",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "templateId", type: "uint256" },
+      { name: "covenantId", type: "uint256" },
+      { name: "rewardAmount", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "calculateRoyalty",
+    stateMutability: "view",
+    inputs: [
+      { name: "templateId", type: "uint256" },
+      { name: "rewardAmount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "templates",
+    stateMutability: "view",
+    inputs: [{ name: "templateId", type: "uint256" }],
+    outputs: [
+      { name: "creator", type: "address" },
+      { name: "royaltyBps", type: "uint256" },
+      { name: "metadataUri", type: "string" },
+      { name: "active", type: "bool" },
+    ],
+  },
+  {
+    type: "function",
+    name: "nextTemplateId",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+] as const;

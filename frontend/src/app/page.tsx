@@ -1,7 +1,14 @@
 "use client";
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { formatUnits, parseUnits, zeroAddress, keccak256, stringToBytes } from "viem";
+import {
+  formatUnits,
+  parseUnits,
+  zeroAddress,
+  keccak256,
+  stringToBytes,
+  parseEventLogs,
+} from "viem";
 import {
   useAccount,
   useConnect,
@@ -15,6 +22,7 @@ import styles from "./page.module.css";
 import {
   appiOracleAbi,
   covenantAbi,
+  covenantLibraryAbi,
   resourceRegistryAbi,
   tokenAAbi,
   tokenBAbi,
@@ -23,6 +31,7 @@ import {
 import {
   covenantAddress,
   missingEnv,
+  covenantLibraryAddress,
   resourceRegistryAddress,
   tokenAAddress,
   tokenBAddress,
@@ -198,6 +207,13 @@ export default function Home() {
   const [covenantTags, setCovenantTags] = useState("general");
   const [covenantTagFilter, setCovenantTagFilter] = useState("");
   const [covenantTagMap, setCovenantTagMap] = useState<Record<string, string>>({});
+  const [covenantTemplateId, setCovenantTemplateId] = useState("0");
+  const [covenantTemplateUri, setCovenantTemplateUri] = useState("");
+  const [covenantRoyaltyBps, setCovenantRoyaltyBps] = useState("500");
+  const [templateFilter, setTemplateFilter] = useState("");
+  const [templateList, setTemplateList] = useState<
+    { id: number; creator: string; royaltyBps: bigint; metadataUri: string; active: boolean }[]
+  >([]);
   const [covenantRewardAmount, setCovenantRewardAmount] = useState("250");
   const [covenantIntegrityPoints, setCovenantIntegrityPoints] = useState("50");
   const [covenantPayInTokenA, setCovenantPayInTokenA] = useState(false);
@@ -269,6 +285,7 @@ export default function Home() {
   const treasuryAddr = treasuryAddress ?? zeroAddress;
   const covenantAddr = covenantAddress ?? zeroAddress;
   const registryAddr = resourceRegistryAddress ?? zeroAddress;
+  const libraryAddr = covenantLibraryAddress ?? zeroAddress;
 
   const { data: tokenABalance, refetch: refetchTokenA } = useReadContract({
     address: tokenAAddr,
@@ -1110,7 +1127,8 @@ export default function Home() {
       setTxStatus("signing");
       const hash = await request();
       setTxStatus("confirming");
-      await publicClient.waitForTransactionReceipt({ hash });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      return receipt;
     },
     [publicClient]
   );
@@ -1136,6 +1154,40 @@ export default function Home() {
       setCovenantWorker(account.address);
     }
   }, [account.address, covenantWorker]);
+
+  useEffect(() => {
+    const loadTemplates = async () => {
+      if (!publicClient || !covenantLibraryAddress) {
+        setTemplateList([]);
+        return;
+      }
+      const total = (await publicClient.readContract({
+        address: covenantLibraryAddress,
+        abi: covenantLibraryAbi,
+        functionName: "nextTemplateId",
+      })) as bigint;
+      const limit = Math.min(Number(total), 25);
+      const items = await Promise.all(
+        Array.from({ length: limit }, async (_, index) => {
+          const data = (await publicClient.readContract({
+            address: covenantLibraryAddress,
+            abi: covenantLibraryAbi,
+            functionName: "templates",
+            args: [BigInt(index)],
+          })) as [string, bigint, string, boolean];
+          return {
+            id: index,
+            creator: data[0],
+            royaltyBps: data[1],
+            metadataUri: data[2],
+            active: data[3],
+          };
+        })
+      );
+      setTemplateList(items);
+    };
+    void loadTemplates();
+  }, [publicClient, covenantLibraryAddress]);
 
   useEffect(() => {
     switch (covenantTemplate) {
@@ -1668,7 +1720,7 @@ export default function Home() {
         })
       );
       setCovenantStep(2);
-      await runTransaction("createCovenant", () =>
+      const receipt = await runTransaction("createCovenant", () =>
         writeContractAsync({
           address: covenantAddress,
           abi: covenantAbi,
@@ -1676,6 +1728,27 @@ export default function Home() {
           args: [covenantWorker, reward, points, covenantPayInTokenA],
         })
       );
+      let createdId: bigint | null = null;
+      if (receipt) {
+        const parsed = parseEventLogs({
+          abi: covenantAbi,
+          logs: receipt.logs,
+        });
+        const created = parsed.find((log) => log.eventName === "CovenantCreated");
+        if (created?.args && "covenantId" in created.args) {
+          createdId = created.args.covenantId as bigint;
+        }
+      }
+      if (covenantLibraryAddress && Number(covenantTemplateId) > 0 && createdId !== null) {
+        await runTransaction("recordTemplateUse", () =>
+          writeContractAsync({
+            address: libraryAddr,
+            abi: covenantLibraryAbi,
+            functionName: "recordUse",
+            args: [BigInt(covenantTemplateId), createdId, reward],
+          })
+        );
+      }
       await postTransactionSync();
       setTxError(null);
       showSuccess("Transaction successful!");
@@ -1686,6 +1759,33 @@ export default function Home() {
       setTxStatus("idle");
       setTxAction(null);
       setCovenantStep(0);
+    }
+  };
+
+  const handleRegisterTemplate = async () => {
+    if (!covenantLibraryAddress) return;
+    const bps = Number.parseInt(covenantRoyaltyBps || "0", 10);
+    if (!Number.isFinite(bps) || bps < 0) {
+      setTxError("Invalid royalty BPS.");
+      return;
+    }
+    try {
+      await runTransaction("registerTemplate", () =>
+        writeContractAsync({
+          address: libraryAddr,
+          abi: covenantLibraryAbi,
+          functionName: "registerTemplate",
+          args: [BigInt(bps), covenantTemplateUri],
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("Template registered.");
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
     }
   };
 
@@ -2564,6 +2664,89 @@ export default function Home() {
                     ).toFixed(2)} SOILB after crystallization fee.`
                   : "Estimated receive: --"}
               </p>
+            ) : null}
+            <div className={styles.taskForm}>
+              <label className={styles.taskField}>
+                Template ID
+                <input
+                  className={styles.taskInput}
+                  value={covenantTemplateId}
+                  onChange={(event) => setCovenantTemplateId(event.target.value)}
+                  placeholder="0"
+                />
+                <span className={styles.fieldHint}>
+                  Optional. When set, usage is recorded in CovenantLibrary.
+                </span>
+              </label>
+              <label className={styles.taskField}>
+                Template URI (register)
+                <input
+                  className={styles.taskInput}
+                  value={covenantTemplateUri}
+                  onChange={(event) => setCovenantTemplateUri(event.target.value)}
+                  placeholder="ipfs://..."
+                />
+              </label>
+              <label className={styles.taskField}>
+                Royalty (bps)
+                <input
+                  className={styles.taskInput}
+                  value={covenantRoyaltyBps}
+                  onChange={(event) => setCovenantRoyaltyBps(event.target.value)}
+                  placeholder="500"
+                />
+              </label>
+            </div>
+            <div className={styles.cardActions}>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleRegisterTemplate}
+                disabled={!account.address || !covenantLibraryAddress || isBusy}
+              >
+                {actionLabel("registerTemplate", "Register template")}
+              </button>
+            </div>
+            {templateList.length > 0 ? (
+              <>
+                <div className={styles.templateHeader}>
+                  <span>Templates</span>
+                  <input
+                    className={styles.templateSearch}
+                    value={templateFilter}
+                    onChange={(event) => setTemplateFilter(event.target.value)}
+                    placeholder="Filter by URI or creator"
+                  />
+                </div>
+                <div className={styles.templateList}>
+                  {templateList
+                    .filter((item) => {
+                      if (!templateFilter.trim()) return true;
+                      const q = templateFilter.trim().toLowerCase();
+                      return (
+                        item.metadataUri.toLowerCase().includes(q) ||
+                        item.creator.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((item) => (
+                      <div key={`template-${item.id}`} className={styles.templateRow}>
+                        <div>
+                          <strong>#{item.id}</strong>{" "}
+                          <span>{item.royaltyBps.toString()} bps</span>{" "}
+                          {!item.active ? <span>(inactive)</span> : null}
+                          <div className={styles.templateMeta}>
+                            {item.metadataUri}
+                          </div>
+                        </div>
+                        <button
+                          className={styles.secondaryButton}
+                          onClick={() => setCovenantTemplateId(item.id.toString())}
+                        >
+                          Use
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </>
             ) : null}
           </article>
         </section>
