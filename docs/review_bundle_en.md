@@ -127,6 +127,7 @@ Prevent post‑delivery “chargeback‑style” abuse without adding heavy user
 - **Low‑value cap:** small tickets have a **max refund ratio ~30%** to remove full‑refund abuse.
 - **History‑aware tuning:** frequent disputers face higher hold / lower caps; repeat‑offender sellers invert the bias.
 - **External adjudication plugin:** keep `disputeResolver` as a socket for external services (e.g., Kleros). Start with minimal local operation (single address/limited role) and route high‑value disputes to external adjudication.
+- **External adjudication rule (minimal):** route only high‑value disputes to external adjudication; keep low‑value disputes in the internal flow (auto‑hold + refund caps) to control fees.
 
 ### UI/UX Wording Abstraction (Implementation Direction)
 To reduce psychological friction, the frontend should use friendly labels while

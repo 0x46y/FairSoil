@@ -47,6 +47,17 @@ const formatPercent = (bps: bigint) => {
 
 const disputeSteps = ["Requested", "Disputed", "Proposed", "Resolved"] as const;
 
+const disputeStatusLabel = (status: number) => {
+  if (status === STATUS_RESOLVED) return "Resolved";
+  if (status >= STATUS_PROPOSED) return "Proposal submitted";
+  if (status >= STATUS_DISPUTED) return "Awaiting resolver decision";
+  return "Support requested";
+};
+
+const STATUS_DISPUTED = 6;
+const STATUS_PROPOSED = 7;
+const STATUS_RESOLVED = 8;
+
 const formatReason = (value: unknown, fallback: string) => {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
@@ -115,9 +126,9 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const getDisputeStage = (status: number) => {
   const isReported = status >= 5;
-  const isDisputed = status >= 6;
-  const isProposed = status >= 7;
-  const isResolved = status === 8;
+  const isDisputed = status >= STATUS_DISPUTED;
+  const isProposed = status >= STATUS_PROPOSED;
+  const isResolved = status === STATUS_RESOLVED;
   return [isReported, isDisputed, isProposed, isResolved];
 };
 
@@ -371,6 +382,11 @@ export default function Home() {
       enabled: Boolean(covenantAddress),
     },
   });
+
+  const isDisputeResolver = useMemo(() => {
+    if (!account.address || !disputeResolver) return false;
+    return (disputeResolver as string).toLowerCase() === account.address.toLowerCase();
+  }, [account.address, disputeResolver]);
 
   const formattedTokenA = useMemo(() => {
     if (tokenABalance === undefined) return "--";
@@ -2094,10 +2110,15 @@ export default function Home() {
                           );
                         })}
                         <p className={styles.disputeHint}>
-                          Resolver must propose, then finalize the support decision.
-                          {disputeResolver ? (
+                          {disputeStatusLabel(item.status)}
+                          <span className={styles.disputeSubhint}>
+                            Resolver proposes, then finalizes. High-value disputes can route to
+                            external adjudication.
+                          </span>
+                          {!isDisputeResolver ? (
                             <span className={styles.disputeSubhint}>
-                              External adjudication may finalize high-value disputes.
+                              If this is high value, resolution may be delayed until external
+                              adjudication returns.
                             </span>
                           ) : null}
                         </p>
@@ -2277,8 +2298,7 @@ export default function Home() {
                     ) : null}
                     {(item.status === 6 || item.status === 7) &&
                     account.address &&
-                    disputeResolver &&
-                    (disputeResolver as string).toLowerCase() === account.address.toLowerCase() ? (
+                    isDisputeResolver ? (
                       <div className={styles.resolveActions}>
                         <label className={styles.issueField}>
                           <span className={styles.issueLabel}>Payout %</span>
