@@ -22,6 +22,8 @@ import {
   worldIdActionId,
   worldIdAppId,
   worldIdMock,
+  zknfcMock,
+  zknfcVerifierUrl,
 } from "../lib/contracts";
 
 const MAX_TRAIL_ITEMS = 12;
@@ -1252,6 +1254,21 @@ export default function Home() {
     setTxSuccess(null);
   };
 
+  const handleZkNfcVerify = async () => {
+    if (!account.address) return;
+    if (!zknfcVerifierUrl) {
+      setTxError("ZK-NFC verifier URL missing.");
+      setTxSuccess(null);
+      return;
+    }
+    if (zknfcMock) {
+      await handleSetPrimary();
+      return;
+    }
+    setTxError("ZK-NFC verification UI not wired yet. Use mock or owner verify.");
+    setTxSuccess(null);
+  };
+
   const handleAccrueUnclaimed = async () => {
     if (!treasuryAddress) return;
     try {
@@ -1763,6 +1780,15 @@ export default function Home() {
                   disabled={!account.address || isBusy}
                 >
                   {actionLabel("worldIdVerify", worldIdMock ? "Verify (mock)" : "Verify with World ID")}
+                </button>
+              ) : null}
+              {zknfcVerifierUrl ? (
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handleZkNfcVerify}
+                  disabled={!account.address || isBusy}
+                >
+                  {actionLabel("zknfcVerify", zknfcMock ? "Verify (mock)" : "Verify with ZK-NFC")}
                 </button>
               ) : null}
               <button
