@@ -89,6 +89,25 @@ Reason constants are on-chain: `SoilTreasury.REASON_*`.
 - Evidence is stored off‑chain; on‑chain keeps **evidenceHash** only.
 - evidenceUri is off‑chain reference to avoid link‑rot/privacy risks.
 
+## Known Limits & Mitigations (Explicit)
+These are **not fully solvable**; the goal is to reduce harm, not eliminate it.
+- **Oracle problem (real‑world truth):** Full detection is impossible.  
+  **Mitigation:** confidence scoring, third‑party corroboration, public audit logs, risk‑based audit priority, and additional evidence for high‑impact cases. The aim is **higher fraud cost**, not perfect justice.
+- **Merchant sell pressure:** Incentive to cash out remains.  
+  **Mitigation:** phased adoption in closed loops, caps/fees/dynamic tuning on crystallization, and **hold incentives** (B rewards / long‑term royalties).
+- **Privacy vs transparency:** More transparency increases surveillance risk.  
+  **Mitigation:** ZKP, data minimization/pruning, nullifier separation, evidenceHash‑only on chain, and off‑chain evidence references to reduce long‑term tracking.
+- **Dispute cost/latency:** Human adjudication does not scale.  
+  **Mitigation:** auto‑resolve for low‑risk cases, escalation only when needed, two‑step finalize, single re‑open window, and standardized acceptance templates to **reduce total adjudications**.
+
+## Sell‑Pressure Mitigation (Concrete Ideas)
+Assume merchants want to cash out immediately; design to avoid making that the dominant action.
+- **Immediate utility:** fee discounts, listing/visibility boosts, or limited credit lines for holders.
+- **Delayed rewards:** rewards that increase with holding time (maintenance rewards / durability royalties).
+- **Crystallization cost design:** keep A->B conversion non‑profitable vs natural decay, with caps/fees/dynamic tuning.
+- **Cool‑downs:** soft limits to avoid concentrated sell waves (exception modes for market stress).
+- **Closed‑loop wins:** prioritize use‑cases where fiat settlement is not required at first.
+
 ## Audit Events (R7 Minimal)
 - `TreasuryIn`, `TreasuryOutA`, `TreasuryOutB`
 - `LiabilityChanged`
