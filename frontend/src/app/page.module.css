@@ -606,6 +606,13 @@
   color: var(--ink-800);
 }
 
+.templateActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .templateMeta {
   color: var(--ink-500);
   font-size: 11px;

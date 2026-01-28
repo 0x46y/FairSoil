@@ -709,6 +709,16 @@ export const covenantLibraryAbi = [
   },
   {
     type: "function",
+    name: "setActive",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "templateId", type: "uint256" },
+      { name: "active", type: "bool" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
     name: "nextTemplateId",
     stateMutability: "view",
     inputs: [],

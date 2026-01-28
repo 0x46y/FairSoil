@@ -38,3 +38,4 @@ It exists to avoid mixing implemented behavior with future concepts in README_ja
 - **Goal:** share and reuse high-quality covenant templates while rewarding originators.
 - **Minimal spec:** template registration (metadataUri/royaltyBps), activation toggle, and royalty calculation.
 - **Note:** payout distribution is deferred; record usage via events only.
+  - **Ops note:** record template usage via `recordUse` to feed future royalty distribution.

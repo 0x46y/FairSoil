@@ -214,6 +214,9 @@ export default function Home() {
   const [templateList, setTemplateList] = useState<
     { id: number; creator: string; royaltyBps: bigint; metadataUri: string; active: boolean }[]
   >([]);
+  const [templateUseCovenantId, setTemplateUseCovenantId] = useState("");
+  const [templateUseAmount, setTemplateUseAmount] = useState("0");
+  const [templateActiveMap, setTemplateActiveMap] = useState<Record<number, boolean>>({});
   const [covenantRewardAmount, setCovenantRewardAmount] = useState("250");
   const [covenantIntegrityPoints, setCovenantIntegrityPoints] = useState("50");
   const [covenantPayInTokenA, setCovenantPayInTokenA] = useState(false);
@@ -1185,6 +1188,11 @@ export default function Home() {
         })
       );
       setTemplateList(items);
+      const actives: Record<number, boolean> = {};
+      items.forEach((item) => {
+        actives[item.id] = item.active;
+      });
+      setTemplateActiveMap(actives);
     };
     void loadTemplates();
   }, [publicClient, covenantLibraryAddress]);
@@ -1781,6 +1789,62 @@ export default function Home() {
       await postTransactionSync();
       setTxError(null);
       showSuccess("Template registered.");
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const handleToggleTemplate = async (templateId: number, active: boolean) => {
+    if (!covenantLibraryAddress) return;
+    try {
+      await runTransaction("toggleTemplate", () =>
+        writeContractAsync({
+          address: libraryAddr,
+          abi: covenantLibraryAbi,
+          functionName: "setActive",
+          args: [BigInt(templateId), active],
+        })
+      );
+      await postTransactionSync();
+      setTemplateActiveMap((prev) => ({ ...prev, [templateId]: active }));
+      setTxError(null);
+      showSuccess("Template status updated.");
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const handleRecordTemplateUse = async () => {
+    if (!covenantLibraryAddress) return;
+    const templateId = Number.parseInt(covenantTemplateId || "0", 10);
+    const covenantId = Number.parseInt(templateUseCovenantId || "0", 10);
+    if (!Number.isFinite(templateId) || templateId <= 0) {
+      setTxError("Template ID must be > 0.");
+      return;
+    }
+    if (!Number.isFinite(covenantId) || covenantId < 0) {
+      setTxError("Invalid covenant ID.");
+      return;
+    }
+    const amount = safeParseUnits(templateUseAmount || "0", 18);
+    try {
+      await runTransaction("recordTemplateUse", () =>
+        writeContractAsync({
+          address: libraryAddr,
+          abi: covenantLibraryAbi,
+          functionName: "recordUse",
+          args: [BigInt(templateId), BigInt(covenantId), amount],
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("Template usage recorded.");
     } catch (error) {
       setTxError(formatTxError(error));
     } finally {
@@ -2706,6 +2770,35 @@ export default function Home() {
                 {actionLabel("registerTemplate", "Register template")}
               </button>
             </div>
+            <div className={styles.taskForm}>
+              <label className={styles.taskField}>
+                Record use: Covenant ID
+                <input
+                  className={styles.taskInput}
+                  value={templateUseCovenantId}
+                  onChange={(event) => setTemplateUseCovenantId(event.target.value)}
+                  placeholder="0"
+                />
+              </label>
+              <label className={styles.taskField}>
+                Record use: Reward amount
+                <input
+                  className={styles.taskInput}
+                  value={templateUseAmount}
+                  onChange={(event) => setTemplateUseAmount(event.target.value)}
+                  placeholder="0"
+                />
+              </label>
+            </div>
+            <div className={styles.cardActions}>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleRecordTemplateUse}
+                disabled={!account.address || !covenantLibraryAddress || isBusy}
+              >
+                {actionLabel("recordTemplateUse", "Record usage")}
+              </button>
+            </div>
             {templateList.length > 0 ? (
               <>
                 <div className={styles.templateHeader}>
@@ -2732,17 +2825,25 @@ export default function Home() {
                         <div>
                           <strong>#{item.id}</strong>{" "}
                           <span>{item.royaltyBps.toString()} bps</span>{" "}
-                          {!item.active ? <span>(inactive)</span> : null}
+                          {!templateActiveMap[item.id] ? <span>(inactive)</span> : null}
                           <div className={styles.templateMeta}>
                             {item.metadataUri}
                           </div>
                         </div>
-                        <button
-                          className={styles.secondaryButton}
-                          onClick={() => setCovenantTemplateId(item.id.toString())}
-                        >
-                          Use
-                        </button>
+                        <div className={styles.templateActions}>
+                          <button
+                            className={styles.secondaryButton}
+                            onClick={() => setCovenantTemplateId(item.id.toString())}
+                          >
+                            Use
+                          </button>
+                          <button
+                            className={styles.ghostButton}
+                            onClick={() => handleToggleTemplate(item.id, !templateActiveMap[item.id])}
+                          >
+                            {templateActiveMap[item.id] ? "Disable" : "Enable"}
+                          </button>
+                        </div>
                       </div>
                     ))}
                 </div>
