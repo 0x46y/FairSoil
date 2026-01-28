@@ -12,6 +12,7 @@ README_ja.md の実装済み仕様と混在しないよう、Phase2+の構想は
 ### 1) APPI Confidence 強化
 - APPI の寄与に confidence を付与（例: 最小報告人数、多様性、鮮度）。
 - 相関の高い報告を減衰し、価格操作を抑える。
+  - **最小実装:** confidenceBps（0〜100%）と maxReportsPerCategory を追加し、中央値に重み付けを適用。
 
 ### 2) 公共財ファンディング・モジュール
 - Quadratic Funding（QF）で幅広い参加を促進。

@@ -563,6 +563,30 @@ export const appiOracleAbi = [
   },
   {
     type: "function",
+    name: "setConfidence",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "newConfidenceBps", type: "uint256" },
+      { name: "newMaxReports", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "confidenceBps",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "maxReportsPerCategory",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
     name: "submitPrice",
     stateMutability: "nonpayable",
     inputs: [

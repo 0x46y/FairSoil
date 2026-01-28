@@ -257,6 +257,8 @@ export default function Home() {
     { category: number; reports: number; unique: number }[]
   >([]);
   const [appiDiversity, setAppiDiversity] = useState<string>("--");
+  const [appiConfidenceBps, setAppiConfidenceBps] = useState("10000");
+  const [appiMaxReports, setAppiMaxReports] = useState("50");
   const [resourceIdInput, setResourceIdInput] = useState("");
   const [resourceValuationInput, setResourceValuationInput] = useState("1000");
   const [resourceTaxRateInput, setResourceTaxRateInput] = useState("500");
@@ -402,6 +404,24 @@ export default function Home() {
     functionName: "appiOracle",
     query: {
       enabled: Boolean(treasuryAddress),
+    },
+  });
+
+  const { data: appiConfidenceBpsOnchain } = useReadContract({
+    address: appiOracleAddr as `0x${string}` | undefined,
+    abi: appiOracleAbi,
+    functionName: "confidenceBps",
+    query: {
+      enabled: Boolean(appiOracleAddr && appiOracleAddr !== zeroAddress),
+    },
+  });
+
+  const { data: appiMaxReportsOnchain } = useReadContract({
+    address: appiOracleAddr as `0x${string}` | undefined,
+    abi: appiOracleAbi,
+    functionName: "maxReportsPerCategory",
+    query: {
+      enabled: Boolean(appiOracleAddr && appiOracleAddr !== zeroAddress),
     },
   });
 
@@ -599,6 +619,16 @@ export default function Home() {
     if (appiDailyIndex === undefined) return "--";
     return Number(formatUnits(appiDailyIndex as bigint, 18)).toFixed(2);
   }, [appiDailyIndex]);
+
+  const formattedAppiConfidence = useMemo(() => {
+    if (appiConfidenceBpsOnchain === undefined) return "--";
+    return `${(Number(appiConfidenceBpsOnchain) / 100).toFixed(0)}%`;
+  }, [appiConfidenceBpsOnchain]);
+
+  const formattedAppiMaxReports = useMemo(() => {
+    if (appiMaxReportsOnchain === undefined) return "--";
+    return appiMaxReportsOnchain.toString();
+  }, [appiMaxReportsOnchain]);
 
   const filteredTrailItems = useMemo(() => {
     const query = trailQuery.trim().toLowerCase();
@@ -1509,6 +1539,42 @@ export default function Home() {
     }
   };
 
+  const handleSetAppiConfidence = async () => {
+    if (!appiOracleAddr || appiOracleAddr === zeroAddress) {
+      setTxError("APPI oracle not set.");
+      setTxSuccess(null);
+      return;
+    }
+    const bps = Number.parseInt(appiConfidenceBps || "0", 10);
+    const maxReports = Number.parseInt(appiMaxReports || "0", 10);
+    if (!Number.isFinite(bps) || bps < 0 || bps > 10_000) {
+      setTxError("Confidence must be between 0 and 10000.");
+      return;
+    }
+    if (!Number.isFinite(maxReports) || maxReports <= 0) {
+      setTxError("Max reports must be > 0.");
+      return;
+    }
+    try {
+      await runTransaction("setAPPIConfidence", () =>
+        writeContractAsync({
+          address: appiOracleAddr as `0x${string}`,
+          abi: appiOracleAbi,
+          functionName: "setConfidence",
+          args: [BigInt(bps), BigInt(maxReports)],
+        })
+      );
+      await postTransactionSync();
+      setTxError(null);
+      showSuccess("APPI confidence updated.");
+    } catch (error) {
+      setTxError(formatTxError(error));
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
   const handleSetPrimary = async () => {
     if (!tokenAAddress || !account.address) return;
     try {
@@ -2305,7 +2371,8 @@ export default function Home() {
             </div>
             <div className={styles.metricBreakdown}>
               <span>Reporter diversity: {appiDiversity}</span>
-              <span>Time dispersion: n/a (no timestamps)</span>
+              <span>Confidence: {formattedAppiConfidence}</span>
+              <span>Max reports: {formattedAppiMaxReports}</span>
             </div>
             <div className={styles.taskForm}>
               <label className={styles.taskField}>
@@ -2342,6 +2409,24 @@ export default function Home() {
                   value={appiDayInput}
                   onChange={(event) => setAppiDayInput(event.target.value)}
                   placeholder={currentDayIndex !== null ? currentDayIndex.toString() : "e.g. 12345"}
+                />
+              </label>
+              <label className={styles.taskField}>
+                Confidence (bps)
+                <input
+                  className={styles.taskInput}
+                  value={appiConfidenceBps}
+                  onChange={(event) => setAppiConfidenceBps(event.target.value)}
+                  placeholder="10000"
+                />
+              </label>
+              <label className={styles.taskField}>
+                Max reports/category
+                <input
+                  className={styles.taskInput}
+                  value={appiMaxReports}
+                  onChange={(event) => setAppiMaxReports(event.target.value)}
+                  placeholder="50"
                 />
               </label>
             </div>
@@ -2382,6 +2467,13 @@ export default function Home() {
                 disabled={!account.address || !isTreasuryOwner || isBusy}
               >
                 {actionLabel("applyAPPI", "Apply APPI")}
+              </button>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleSetAppiConfidence}
+                disabled={!account.address || !isTreasuryOwner || isBusy}
+              >
+                {actionLabel("setAPPIConfidence", "Set confidence")}
               </button>
             </div>
             <p className={styles.taskHint}>

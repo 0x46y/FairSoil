@@ -73,6 +73,10 @@ contract APPIOracleTest is Test {
         uint256 day = block.timestamp / 1 days;
         assertEq(oracle.medianPrice(day, 1), 150);
         assertEq(oracle.dailyIndex(day), 150);
+
+        oracle.setConfidence(5_000, 50);
+        assertEq(oracle.medianPrice(day, 1), 75);
+        assertEq(oracle.dailyIndex(day), 75);
     }
 
     function testRejectDuplicateReport() public {

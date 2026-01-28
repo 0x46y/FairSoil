@@ -290,6 +290,7 @@ It exists to avoid mixing implemented behavior with future concepts in README_ja
 ### 1) APPI Confidence Weighting
 - Add confidence to APPI contributions (e.g., minimum unique reporters, diversity, recency).
 - Downweight clustered or correlated reports to reduce price manipulation.
+  - **Minimal implementation:** add confidenceBps (0-100%) and maxReportsPerCategory, apply weight to median.
 
 ### 2) Public Goods Funding Modules
 - Quadratic Funding (QF) for broad participation.

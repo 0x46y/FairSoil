@@ -24,6 +24,8 @@ contract APPIOracle is Ownable {
 
     uint256 public minUniqueReporters = 5;
     uint256 public minIntegrityScore = 0;
+    uint256 public maxReportsPerCategory = 50;
+    uint256 public confidenceBps = 10_000;
 
     uint256[] public categories;
 
@@ -34,6 +36,7 @@ contract APPIOracle is Ownable {
 
     event CategorySet(uint256[] categories);
     event ThresholdsSet(uint256 minUniqueReporters, uint256 minIntegrityScore);
+    event ConfidenceSet(uint256 confidenceBps, uint256 maxReportsPerCategory);
     event PriceReported(uint256 indexed day, uint256 indexed category, address indexed reporter, uint256 price);
 
     constructor(address primaryRegistryAddress, address integritySourceAddress) Ownable(msg.sender) {
@@ -50,6 +53,14 @@ contract APPIOracle is Ownable {
         minUniqueReporters = newMinUnique;
         minIntegrityScore = newMinIntegrity;
         emit ThresholdsSet(newMinUnique, newMinIntegrity);
+    }
+
+    function setConfidence(uint256 newConfidenceBps, uint256 newMaxReports) external onlyOwner {
+        require(newConfidenceBps <= 10_000, "Invalid confidence");
+        require(newMaxReports > 0, "Invalid max reports");
+        confidenceBps = newConfidenceBps;
+        maxReportsPerCategory = newMaxReports;
+        emit ConfidenceSet(newConfidenceBps, newMaxReports);
     }
 
     function submitPrice(uint256 category, uint256 price) external {
@@ -79,17 +90,20 @@ contract APPIOracle is Ownable {
         if (len == 0) {
             return 0;
         }
+        if (len > maxReportsPerCategory) {
+            len = maxReportsPerCategory;
+        }
         uint256[] memory prices = new uint256[](len);
         for (uint256 i = 0; i < len; i++) {
             prices[i] = reps[i].price;
         }
         _sort(prices);
         if (len % 2 == 1) {
-            return prices[len / 2];
+            return (prices[len / 2] * confidenceBps) / 10_000;
         }
         uint256 upper = prices[len / 2];
         uint256 lower = prices[(len / 2) - 1];
-        return (upper + lower) / 2;
+        return ((upper + lower) / 2) * confidenceBps / 10_000;
     }
 
     function dailyIndex(uint256 day) external view returns (uint256) {
