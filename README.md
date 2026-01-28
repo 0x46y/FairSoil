@@ -36,6 +36,7 @@ The full Japanese version of this README is in `README_ja.md`.
 - **Tier 3:** World ID or ZK‑NFC (government ID NFC proof, e.g., passport IC / My Number) for full benefits
 - **Nullifier separation:** distinct nullifiers for UBI / voting / analytics
 - **Device binding:** theft resistance with re‑bind on device change
+- **Re‑auth conditions:** only on device change, primary address re‑bind, or high‑risk actions (e.g., expanding advance limits)
 
 ## Operational Notes (Draft)
 - Evidence is stored off-chain; on-chain only keeps **evidenceHash**.

@@ -45,6 +45,7 @@ The full Japanese version of this README is in `README_ja.md`.
 - **Tier 3:** World ID or ZK‑NFC (government ID NFC proof, e.g., passport IC / My Number) for full benefits
 - **Nullifier separation:** distinct nullifiers for UBI / voting / analytics
 - **Device binding:** theft resistance with re‑bind on device change
+- **Re‑auth conditions:** only on device change, primary address re‑bind, or high‑risk actions (e.g., expanding advance limits)
 
 ## Operational Notes (Draft)
 - Evidence is stored off-chain; on-chain only keeps **evidenceHash**.
@@ -106,6 +107,7 @@ Gas optimization (implementation-aligned): long-running accrual/claim can be chu
   - Tier3: World ID or ZK‑NFC (government ID NFC proof, e.g., passport IC / My Number) for full benefits
   - **Nullifier separation:** distinct nullifiers for UBI / voting / analytics
   - **Device binding:** theft resistance with re‑bind on device change
+  - **Re‑auth conditions:** only on device change, primary address re‑bind, or high‑risk actions (e.g., expanding advance limits)
 
 ### Covenant (Escrowed Work)
 - Payment modes: Immediate / Escrow / Delayed.
@@ -116,6 +118,7 @@ Gas optimization (implementation-aligned): long-running accrual/claim can be chu
 
 ### Dispute Abuse Mitigation (Implementation Direction)
 Prevent post‑delivery “chargeback‑style” abuse without adding heavy user friction.
+- **Scope:** applies to Immediate/Escrow. Delayed settlement uses pre‑payment gates instead of holds.
 - **Auto‑hold, no instant refund:** when a dispute is opened, auto‑hold **20%–40%** of payout.
 - **Short response window:** if no short explanation is provided within **48 hours**, auto‑reject.
 - **Auto‑release:** if seller is unresponsive for **48 hours**, auto‑refund part of hold (e.g., **20%**) and release the rest.
@@ -183,6 +186,7 @@ These are **not fully solvable**; the goal is to reduce harm, not eliminate it.
 
 ## Sell‑Pressure Mitigation (Concrete Ideas)
 Assume merchants want to cash out immediately; design to avoid making that the dominant action.
+- **Phase1 scope:** policy/ops guidance only; on‑chain hard rules are limited to crystallization caps/fees/dynamic tuning.
 - **Immediate utility:** fee discounts, listing/visibility boosts, or limited credit lines for holders.
 - **Delayed rewards:** rewards that increase with holding time (maintenance rewards / durability royalties).
 - **Crystallization cost design:** keep A->B conversion non‑profitable vs natural decay, with caps/fees/dynamic tuning.
