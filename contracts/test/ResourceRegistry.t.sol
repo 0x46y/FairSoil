@@ -18,12 +18,7 @@ contract ResourceRegistryTest is Test {
         vm.prank(owner);
         tokenB = new FairSoilTokenB(treasury);
 
-        vm.prank(treasury);
-        tokenB.setTreasury(treasury);
-
         registry = new ResourceRegistry(address(tokenB), treasury);
-        vm.prank(owner);
-        registry.transferOwnership(owner);
 
         // Fund owner and buyer with B for tax/payment.
         vm.prank(treasury);
