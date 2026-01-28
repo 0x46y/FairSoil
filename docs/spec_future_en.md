@@ -33,3 +33,8 @@ It exists to avoid mixing implemented behavior with future concepts in README_ja
 - **Goal:** minimal on-chain version of anti-hoarding tax for scarce resources.
 - **Minimal spec:** ResourceRegistry registers resource IDs, self-valuation, and tax rate. Owners pay recurring Token B tax via pull-based settlement.
 - **Buyout stub:** `buyResource` allows on-chain ownership change at/above valuation (physical enforcement deferred).
+
+### 7) CovenantLibrary (Templates + Royalty)
+- **Goal:** share and reuse high-quality covenant templates while rewarding originators.
+- **Minimal spec:** template registration (metadataUri/royaltyBps), activation toggle, and royalty calculation.
+- **Note:** payout distribution is deferred; record usage via events only.

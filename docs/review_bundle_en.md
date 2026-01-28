@@ -19,6 +19,15 @@ The full Japanese version of this README is in `README_ja.md`.
 - Review bundle (full consolidated master): `docs/review_bundle_en.md`
   - Regenerate: `python scripts/build_review_bundle_en.py`
 
+## Environment Variables
+```
+NEXT_PUBLIC_TOKENA_ADDRESS=0x...
+NEXT_PUBLIC_TOKENB_ADDRESS=0x...
+NEXT_PUBLIC_TREASURY_ADDRESS=0x...
+NEXT_PUBLIC_COVENANT_ADDRESS=0x...
+NEXT_PUBLIC_RESOURCE_REGISTRY_ADDRESS=0x...
+```
+
 ## Spec Links
 - Detailed spec (TOC): `docs/spec_en.md`
 - Accounting rules (Section 0): `docs/spec_en.md`
@@ -301,5 +310,10 @@ It exists to avoid mixing implemented behavior with future concepts in README_ja
 - **Goal:** minimal on-chain version of anti-hoarding tax for scarce resources.
 - **Minimal spec:** ResourceRegistry registers resource IDs, self-valuation, and tax rate. Owners pay recurring Token B tax via pull-based settlement.
 - **Buyout stub:** `buyResource` allows on-chain ownership change at/above valuation (physical enforcement deferred).
+
+### 7) CovenantLibrary (Templates + Royalty)
+- **Goal:** share and reuse high-quality covenant templates while rewarding originators.
+- **Minimal spec:** template registration (metadataUri/royaltyBps), activation toggle, and royalty calculation.
+- **Note:** payout distribution is deferred; record usage via events only.
 
 ---
