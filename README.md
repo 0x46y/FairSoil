@@ -43,6 +43,7 @@ The full Japanese version of this README is in `README_ja.md`.
 - report/dispute records include **evidenceHash** and a short statement; evidenceUri stays off-chain.
 - AI summaries are off-chain, used for issue framing only (not decisions).
 - Resolve uses two-step finalization and one-time appeal to reduce mistakes.
+- **External adjudication plugin:** keep `disputeResolver` as a socket for external services (e.g., Kleros). Start with minimal local operation (single address/limited role) and route high-value disputes to external adjudication.
 - **Adoption strategy (lightweight entry):** allow “view/try” before verification,
   then unlock benefits by identity tier. Start with practical pain points
   (e.g., attendance proof, local volunteering, anti‑scalping tickets).
