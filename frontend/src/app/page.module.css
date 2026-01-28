@@ -433,6 +433,48 @@
   color: var(--ink-800);
 }
 
+.auditSummary {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.auditCard {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--sand-200);
+  background: #fff;
+  display: grid;
+  gap: 6px;
+}
+
+.auditLabel {
+  font-size: 11px;
+  color: var(--ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.auditValue {
+  font-size: 14px;
+  color: var(--ink-900);
+}
+
+.auditAlerts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.auditAlert {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 111, 47, 0.35);
+  background: rgba(244, 217, 157, 0.4);
+  color: var(--ink-900);
+  font-size: 11px;
+}
+
 .timeline h2 {
   font-size: 24px;
   font-family: var(--font-fraunces), serif;

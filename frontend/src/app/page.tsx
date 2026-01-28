@@ -37,6 +37,11 @@ import {
   tokenBAddress,
   treasuryAddress,
   externalAdjudicationUrl,
+  auditDisputeThreshold,
+  auditTreasuryThreshold,
+  auditReserveThresholdA,
+  auditReserveThresholdB,
+  auditWindowHours,
   worldIdActionId,
   worldIdAppId,
   worldIdMock,
@@ -647,6 +652,60 @@ export default function Home() {
       return haystack.includes(query);
     });
   }, [trailItems, trailQuery, trailFilter, covenantTagMap]);
+
+  const auditKpis = useMemo(() => {
+    const windowSeconds = auditWindowHours * 3600;
+    const cutoff = Math.floor(Date.now() / 1000) - windowSeconds;
+    const recentTrail = trailItems.filter((item) => item.timestamp >= cutoff);
+    const summary = {
+      covenantCount: covenants.length,
+      disputeCount: 0,
+      treasuryEvents: 0,
+      totalPayoutA: treasuryOutATotal ?? 0n,
+      totalPayoutB: treasuryOutBTotal ?? 0n,
+      lastReserveA: formattedReservesA,
+      lastReserveB: formattedReservesB,
+    };
+    recentTrail.forEach((item) => {
+      const cat = auditCategoryForTitle(item.title);
+      if (cat === "dispute") summary.disputeCount += 1;
+      if (cat === "treasury") summary.treasuryEvents += 1;
+    });
+    return summary;
+  }, [
+    trailItems,
+    formattedReservesA,
+    formattedReservesB,
+    auditWindowHours,
+    covenants.length,
+    treasuryOutATotal,
+    treasuryOutBTotal,
+  ]);
+
+  const auditAlerts = useMemo(() => {
+    const alerts: string[] = [];
+    if (auditKpis.disputeCount > auditDisputeThreshold) {
+      alerts.push("High dispute volume detected.");
+    }
+    if (auditKpis.treasuryEvents > auditTreasuryThreshold) {
+      alerts.push("Treasury activity spike.");
+    }
+    if (formattedReservesA !== "--" && Number(formattedReservesA) < auditReserveThresholdA) {
+      alerts.push("Low A reserves.");
+    }
+    if (formattedReservesB !== "--" && Number(formattedReservesB) < auditReserveThresholdB) {
+      alerts.push("Low B reserves.");
+    }
+    return alerts;
+  }, [
+    auditKpis,
+    formattedReservesA,
+    formattedReservesB,
+    auditDisputeThreshold,
+    auditTreasuryThreshold,
+    auditReserveThresholdA,
+    auditReserveThresholdB,
+  ]);
 
   const handleExportAudit = () => {
     const rows = filteredTrailItems.map((item) => {
@@ -2989,6 +3048,39 @@ export default function Home() {
               </button>
             </div>
           </div>
+          <div className={styles.auditSummary}>
+            <div className={styles.auditCard}>
+              <span className={styles.auditLabel}>Agreements</span>
+              <span className={styles.auditValue}>{auditKpis.covenantCount}</span>
+            </div>
+            <div className={styles.auditCard}>
+              <span className={styles.auditLabel}>Disputes</span>
+              <span className={styles.auditValue}>{auditKpis.disputeCount}</span>
+            </div>
+            <div className={styles.auditCard}>
+              <span className={styles.auditLabel}>Treasury events</span>
+              <span className={styles.auditValue}>{auditKpis.treasuryEvents}</span>
+            </div>
+            <div className={styles.auditCard}>
+              <span className={styles.auditLabel}>Window (hours)</span>
+              <span className={styles.auditValue}>{auditWindowHours}</span>
+            </div>
+            <div className={styles.auditCard}>
+              <span className={styles.auditLabel}>Reserves A/B</span>
+              <span className={styles.auditValue}>
+                {auditKpis.lastReserveA} / {auditKpis.lastReserveB}
+              </span>
+            </div>
+          </div>
+          {auditAlerts.length > 0 ? (
+            <div className={styles.auditAlerts}>
+              {auditAlerts.map((alert) => (
+                <span key={alert} className={styles.auditAlert}>
+                  {alert}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <div className={styles.timelineList}>
             {filteredTrailItems.length === 0 ? (
               <div className={styles.timelineItem}>
