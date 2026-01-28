@@ -79,6 +79,85 @@ export const tokenBAbi = [
 export const treasuryAbi = [
   {
     type: "event",
+    name: "TreasuryIn",
+    inputs: [
+      { indexed: true, name: "from", type: "address" },
+      { indexed: false, name: "amount", type: "uint256" },
+      { indexed: false, name: "reason", type: "bytes32" },
+    ],
+  },
+  {
+    type: "function",
+    name: "treasuryInTotal",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "event",
+    name: "TreasuryOutA",
+    inputs: [
+      { indexed: true, name: "to", type: "address" },
+      { indexed: false, name: "amount", type: "uint256" },
+      { indexed: false, name: "reason", type: "bytes32" },
+    ],
+  },
+  {
+    type: "function",
+    name: "treasuryOutATotal",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "event",
+    name: "TreasuryOutB",
+    inputs: [
+      { indexed: true, name: "to", type: "address" },
+      { indexed: false, name: "amount", type: "uint256" },
+      { indexed: false, name: "reason", type: "bytes32" },
+    ],
+  },
+  {
+    type: "function",
+    name: "treasuryOutBTotal",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "event",
+    name: "ReserveSnapshot",
+    inputs: [
+      { indexed: false, name: "reservesA", type: "uint256" },
+      { indexed: false, name: "reservesB", type: "uint256" },
+    ],
+  },
+  {
+    type: "function",
+    name: "lastReservesA",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "lastReservesB",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "event",
+    name: "LiabilityChanged",
+    inputs: [
+      { indexed: false, name: "deltaA", type: "int256" },
+      { indexed: false, name: "deltaB", type: "int256" },
+      { indexed: false, name: "reason", type: "bytes32" },
+    ],
+  },
+  {
+    type: "event",
     name: "UBIClaimed",
     inputs: [
       { indexed: true, name: "user", type: "address" },

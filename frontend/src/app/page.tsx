@@ -47,6 +47,16 @@ const formatPercent = (bps: bigint) => {
 
 const disputeSteps = ["Requested", "Disputed", "Proposed", "Resolved"] as const;
 
+const formatReason = (value: unknown, fallback: string) => {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  if (trimmed.startsWith("0x") && trimmed.length > 10) {
+    return `${trimmed.slice(0, 10)}...`;
+  }
+  return trimmed;
+};
+
 const formatEvidenceLink = (value: unknown) => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -268,6 +278,51 @@ export default function Home() {
     },
   });
 
+  const { data: treasuryInTotal } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "treasuryInTotal",
+    query: {
+      enabled: Boolean(treasuryAddress),
+    },
+  });
+
+  const { data: treasuryOutATotal } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "treasuryOutATotal",
+    query: {
+      enabled: Boolean(treasuryAddress),
+    },
+  });
+
+  const { data: treasuryOutBTotal } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "treasuryOutBTotal",
+    query: {
+      enabled: Boolean(treasuryAddress),
+    },
+  });
+
+  const { data: lastReservesA } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "lastReservesA",
+    query: {
+      enabled: Boolean(treasuryAddress),
+    },
+  });
+
+  const { data: lastReservesB } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "lastReservesB",
+    query: {
+      enabled: Boolean(treasuryAddress),
+    },
+  });
+
   const { data: disputeResolver } = useReadContract({
     address: covenantAddr,
     abi: covenantAbi,
@@ -296,6 +351,31 @@ export default function Home() {
     if (tokenBUnlocked === undefined) return "--";
     return Number(formatUnits(tokenBUnlocked, 18)).toFixed(2);
   }, [tokenBUnlocked]);
+
+  const formattedTreasuryIn = useMemo(() => {
+    if (treasuryInTotal === undefined) return "--";
+    return Number(formatUnits(treasuryInTotal as bigint, 18)).toFixed(2);
+  }, [treasuryInTotal]);
+
+  const formattedTreasuryOutA = useMemo(() => {
+    if (treasuryOutATotal === undefined) return "--";
+    return Number(formatUnits(treasuryOutATotal as bigint, 18)).toFixed(2);
+  }, [treasuryOutATotal]);
+
+  const formattedTreasuryOutB = useMemo(() => {
+    if (treasuryOutBTotal === undefined) return "--";
+    return Number(formatUnits(treasuryOutBTotal as bigint, 18)).toFixed(2);
+  }, [treasuryOutBTotal]);
+
+  const formattedReservesA = useMemo(() => {
+    if (lastReservesA === undefined) return "--";
+    return Number(formatUnits(lastReservesA as bigint, 18)).toFixed(2);
+  }, [lastReservesA]);
+
+  const formattedReservesB = useMemo(() => {
+    if (lastReservesB === undefined) return "--";
+    return Number(formatUnits(lastReservesB as bigint, 18)).toFixed(2);
+  }, [lastReservesB]);
 
   const isTokenAOwner = useMemo(() => {
     if (!account.address || !tokenAOwner) return false;
@@ -526,6 +606,63 @@ export default function Home() {
           timestamp,
           title: "Agreement contract linked to treasury",
           body: `Contract ${safeAddress(args.covenant as string | undefined)}`,
+        };
+      }
+      case "TreasuryIn": {
+        const amount = (args.amount ?? 0n) as bigint;
+        const reason = formatReason(args.reason, "IN");
+        return {
+          id,
+          timestamp,
+          title: "Treasury inflow",
+          body: `From ${safeAddress(args.from as string | undefined)} · +${formatTokenA(
+            amount
+          )} · ${reason}`,
+        };
+      }
+      case "TreasuryOutA": {
+        const amount = (args.amount ?? 0n) as bigint;
+        const reason = formatReason(args.reason, "OUT_A");
+        return {
+          id,
+          timestamp,
+          title: "Treasury outflow (A)",
+          body: `To ${safeAddress(args.to as string | undefined)} · -${formatTokenA(
+            amount
+          )} · ${reason}`,
+        };
+      }
+      case "TreasuryOutB": {
+        const amount = (args.amount ?? 0n) as bigint;
+        const reason = formatReason(args.reason, "OUT_B");
+        return {
+          id,
+          timestamp,
+          title: "Treasury outflow (B)",
+          body: `To ${safeAddress(args.to as string | undefined)} · -${formatTokenB(
+            amount
+          )} · ${reason}`,
+        };
+      }
+      case "ReserveSnapshot": {
+        const reservesA = (args.reservesA ?? 0n) as bigint;
+        const reservesB = (args.reservesB ?? 0n) as bigint;
+        return {
+          id,
+          timestamp,
+          title: "Treasury reserve snapshot",
+          body: `A ${formatTokenA(reservesA)} · B ${formatTokenB(reservesB)}`,
+        };
+      }
+      case "LiabilityChanged": {
+        const deltaA = (args.deltaA ?? 0n) as bigint;
+        const deltaB = (args.deltaB ?? 0n) as bigint;
+        const reason = formatReason(args.reason, "LIAB");
+        return {
+          id,
+          timestamp,
+          title: "Liability updated",
+          body: `ΔA ${deltaA.toString()} · ΔB ${deltaB.toString()} · ${reason}`,
         };
       }
       default:
@@ -1341,6 +1478,19 @@ export default function Home() {
             </div>
           </article>
           <article className={styles.card}>
+            <h3>Treasury snapshot</h3>
+            <p>Current reserves and cumulative flows (latest snapshot).</p>
+            <div className={styles.metricBreakdown}>
+              <span>Reserves A: {formattedReservesA}</span>
+              <span>Reserves B: {formattedReservesB}</span>
+            </div>
+            <div className={styles.metricBreakdown}>
+              <span>In total: {formattedTreasuryIn}</span>
+              <span>Out A: {formattedTreasuryOutA}</span>
+              <span>Out B: {formattedTreasuryOutB}</span>
+            </div>
+          </article>
+          <article className={styles.card}>
             <h3>Saved bonuses</h3>
             <p>
               Accrue daily bonuses, then claim in batches. Amounts older than 30 days
@@ -1575,8 +1725,8 @@ export default function Home() {
 
         <section className={styles.timeline}>
           <div>
-            <h2>Recent integrity trail</h2>
-            <p>Snapshots of proofs and rewards, summarized for privacy.</p>
+            <h2>Audit trail</h2>
+            <p>Covenant + Treasury events (rewards, reserves, and dispute updates).</p>
           </div>
           <div className={styles.timelineList}>
             {trailItems.length === 0 ? (
@@ -1585,7 +1735,7 @@ export default function Home() {
                 <div>
                   <p className={styles.timelineTitle}>No activity yet</p>
                   <p className={styles.timelineBody}>
-                  Agreement and treasury events will appear here.
+                    Agreement and treasury events will appear here.
                   </p>
                 </div>
               </div>
