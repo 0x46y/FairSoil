@@ -1595,6 +1595,11 @@ export default function Home() {
                         })}
                         <p className={styles.disputeHint}>
                           Resolver must propose, then finalize the support decision.
+                          {disputeResolver ? (
+                            <span className={styles.disputeSubhint}>
+                              External adjudication may finalize high-value disputes.
+                            </span>
+                          ) : null}
                         </p>
                       </div>
                     ) : null}

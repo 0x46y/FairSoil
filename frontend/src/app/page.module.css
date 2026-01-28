@@ -534,6 +534,14 @@
   letter-spacing: 0;
 }
 
+.disputeSubhint {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--ink-500);
+  opacity: 0.8;
+}
+
 .issueActions {
   display: grid;
   gap: 8px;
