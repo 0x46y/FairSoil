@@ -52,11 +52,36 @@ const formatPercent = (bps: bigint) => {
 
 const disputeSteps = ["Requested", "Disputed", "Proposed", "Resolved"] as const;
 
+const auditFilters = [
+  { value: "all", label: "All events" },
+  { value: "treasury", label: "Treasury" },
+  { value: "covenant", label: "Agreements" },
+  { value: "dispute", label: "Disputes" },
+  { value: "ubi", label: "UBI" },
+] as const;
+
 const disputeStatusLabel = (status: number) => {
   if (status === STATUS_RESOLVED) return "Resolved";
   if (status >= STATUS_PROPOSED) return "Proposal submitted";
   if (status >= STATUS_DISPUTED) return "Awaiting resolver decision";
   return "Support requested";
+};
+
+const auditCategoryForTitle = (title: string) => {
+  const lower = title.toLowerCase();
+  if (lower.includes("treasury") || lower.includes("reserve") || lower.includes("liability")) {
+    return "treasury";
+  }
+  if (lower.includes("agreement") || lower.includes("covenant") || lower.includes("work")) {
+    return "covenant";
+  }
+  if (lower.includes("support") || lower.includes("dispute") || lower.includes("proposal")) {
+    return "dispute";
+  }
+  if (lower.includes("bonus") || lower.includes("ubi")) {
+    return "ubi";
+  }
+  return "other";
 };
 
 const STATUS_DISPUTED = 6;
@@ -183,6 +208,8 @@ export default function Home() {
   const [appiCategoryInput, setAppiCategoryInput] = useState("");
   const [appiPriceInput, setAppiPriceInput] = useState("");
   const [appiDayInput, setAppiDayInput] = useState("");
+  const [trailQuery, setTrailQuery] = useState("");
+  const [trailFilter, setTrailFilter] = useState<(typeof auditFilters)[number]["value"]>("all");
   const [unclaimedDays, setUnclaimedDays] = useState<{ day: number; amount: bigint }[]>([]);
   const [unclaimedFromDay, setUnclaimedFromDay] = useState("");
   const [unclaimedToDay, setUnclaimedToDay] = useState("");
@@ -510,6 +537,46 @@ export default function Home() {
     if (appiDailyIndex === undefined) return "--";
     return Number(formatUnits(appiDailyIndex as bigint, 18)).toFixed(2);
   }, [appiDailyIndex]);
+
+  const filteredTrailItems = useMemo(() => {
+    const query = trailQuery.trim().toLowerCase();
+    return trailItems.filter((item) => {
+      const category = auditCategoryForTitle(item.title);
+      if (trailFilter !== "all" && category !== trailFilter) {
+        return false;
+      }
+      if (!query) return true;
+      const bodyText = typeof item.body === "string" ? item.body : "";
+      const haystack = `${item.title} ${bodyText}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [trailItems, trailQuery, trailFilter]);
+
+  const handleExportAudit = () => {
+    const rows = filteredTrailItems.map((item) => {
+      const bodyText = typeof item.body === "string" ? item.body : "";
+      const date = new Date(item.timestamp * 1000).toISOString();
+      return [date, item.title, bodyText];
+    });
+    const header = ["timestamp", "title", "body"];
+    const csv = [header, ...rows]
+      .map((row) =>
+        row
+          .map((cell) => {
+            const safe = String(cell ?? "").replace(/"/g, '""');
+            return `"${safe}"`;
+          })
+          .join(",")
+      )
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `audit-trail-${Date.now()}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const totalUnclaimed = useMemo(() => {
     return unclaimedDays.reduce((sum, entry) => sum + entry.amount, 0n);
@@ -2199,12 +2266,42 @@ export default function Home() {
         </section>
 
         <section className={styles.timeline}>
-          <div>
-            <h2>Audit trail</h2>
-            <p>Covenant + Treasury events (rewards, reserves, and dispute updates).</p>
+          <div className={styles.timelineHeader}>
+            <div>
+              <h2>Audit trail</h2>
+              <p>Covenant + Treasury events (rewards, reserves, and dispute updates).</p>
+            </div>
+            <div className={styles.timelineControls}>
+              <input
+                className={styles.timelineSearch}
+                value={trailQuery}
+                onChange={(event) => setTrailQuery(event.target.value)}
+                placeholder="Search events..."
+              />
+              <select
+                className={styles.timelineSelect}
+                value={trailFilter}
+                onChange={(event) =>
+                  setTrailFilter(event.target.value as typeof trailFilter)
+                }
+              >
+                {auditFilters.map((filter) => (
+                  <option key={filter.value} value={filter.value}>
+                    {filter.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleExportAudit}
+                disabled={filteredTrailItems.length === 0}
+              >
+                Export CSV
+              </button>
+            </div>
           </div>
           <div className={styles.timelineList}>
-            {trailItems.length === 0 ? (
+            {filteredTrailItems.length === 0 ? (
               <div className={styles.timelineItem}>
                 <span className={styles.timelineTime}>--</span>
                 <div>
@@ -2215,7 +2312,7 @@ export default function Home() {
                 </div>
               </div>
             ) : (
-              trailItems.map((item) => (
+              filteredTrailItems.map((item) => (
                 <div className={styles.timelineItem} key={item.id}>
                   <span className={styles.timelineTime}>
                     {formatRelativeTime(item.timestamp, trailNow)}
