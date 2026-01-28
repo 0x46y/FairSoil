@@ -2228,6 +2228,9 @@ export default function Home() {
                             }
                             placeholder="Explain why you dispute the claim"
                           />
+                          <span className={styles.issueHelp}>
+                            Disputes auto-hold part of the payout. Missing details may auto-reject after 48h.
+                          </span>
                         </label>
                         <label className={styles.issueField}>
                           <span className={styles.issueLabel}>Evidence URL</span>
@@ -2247,6 +2250,9 @@ export default function Home() {
                               {formatEvidenceLink(disputeEvidenceUris[item.id])}
                             </div>
                           ) : null}
+                          <span className={styles.issueHelp}>
+                            Evidence is optional but increases refund caps. Small tickets have a lower cap.
+                          </span>
                         </label>
                         {item.status === 5 ? (
                           <button
