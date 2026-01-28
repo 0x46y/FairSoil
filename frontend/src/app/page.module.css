@@ -340,6 +340,12 @@
   font-size: 12px;
 }
 
+.cardActions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
 .warning {
   padding: 18px 22px;
   border-radius: 20px;

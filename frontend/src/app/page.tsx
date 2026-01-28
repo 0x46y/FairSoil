@@ -181,6 +181,25 @@ export default function Home() {
     },
   });
 
+  const { data: tokenAOwner } = useReadContract({
+    address: tokenAAddr,
+    abi: tokenAAbi,
+    functionName: "owner",
+    query: {
+      enabled: Boolean(tokenAAddress),
+    },
+  });
+
+  const { data: isPrimaryAddress, refetch: refetchPrimary } = useReadContract({
+    address: tokenAAddr,
+    abi: tokenAAbi,
+    functionName: "isPrimaryAddress",
+    args: [address],
+    query: {
+      enabled: Boolean(tokenAAddress && account.address),
+    },
+  });
+
   const { data: tokenBBalance, refetch: refetchTokenB } = useReadContract({
     address: tokenBAddr,
     abi: tokenBAbi,
@@ -277,6 +296,11 @@ export default function Home() {
     if (tokenBUnlocked === undefined) return "--";
     return Number(formatUnits(tokenBUnlocked, 18)).toFixed(2);
   }, [tokenBUnlocked]);
+
+  const isTokenAOwner = useMemo(() => {
+    if (!account.address || !tokenAOwner) return false;
+    return (tokenAOwner as string).toLowerCase() === account.address.toLowerCase();
+  }, [account.address, tokenAOwner]);
 
   const totalUnclaimed = useMemo(() => {
     return unclaimedDays.reduce((sum, entry) => sum + entry.amount, 0n);
@@ -781,6 +805,30 @@ export default function Home() {
     }
   };
 
+  const handleSetPrimary = async () => {
+    if (!tokenAAddress || !account.address) return;
+    try {
+      await runTransaction("setPrimary", () =>
+        writeContractAsync({
+          address: tokenAAddr,
+          abi: tokenAAbi,
+          functionName: "setPrimaryAddress",
+          args: [account.address, true],
+        })
+      );
+      await postTransactionSync();
+      await refetchPrimary?.();
+      setTxError(null);
+      showSuccess("Primary verification updated.");
+    } catch (error) {
+      setTxError(formatTxError(error));
+      setTxSuccess(null);
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
   const handleAccrueUnclaimed = async () => {
     if (!treasuryAddress) return;
     try {
@@ -1267,6 +1315,29 @@ export default function Home() {
             <div className={styles.cardFooter}>
               <span>Min Token B: 1</span>
               <span>Min Integrity: 100</span>
+            </div>
+          </article>
+          <article className={styles.card}>
+            <h3>Primary verification</h3>
+            <p>
+              {isPrimaryAddress === undefined
+                ? "Check your verification status."
+                : isPrimaryAddress
+                ? "Primary address verified (mock)."
+                : "Not verified yet. Owner can verify for MVP testing."}
+            </p>
+            <div className={styles.cardFooter}>
+              <span>Tier 3 required for UBI claim</span>
+              <span>{isTokenAOwner ? "Owner connected" : "Owner required"}</span>
+            </div>
+            <div className={styles.cardActions}>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleSetPrimary}
+                disabled={!account.address || !isTokenAOwner || isBusy}
+              >
+                {actionLabel("setPrimary", "Verify (mock)")}
+              </button>
             </div>
           </article>
           <article className={styles.card}>
