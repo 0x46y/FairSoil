@@ -573,6 +573,25 @@ export const appiOracleAbi = [
   },
   {
     type: "function",
+    name: "getReports",
+    stateMutability: "view",
+    inputs: [
+      { name: "day", type: "uint256" },
+      { name: "category", type: "uint256" },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "tuple[]",
+        components: [
+          { name: "reporter", type: "address" },
+          { name: "price", type: "uint256" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "function",
     name: "dailyIndex",
     stateMutability: "view",
     inputs: [{ name: "day", type: "uint256" }],

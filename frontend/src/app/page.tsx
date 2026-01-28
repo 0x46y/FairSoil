@@ -210,6 +210,10 @@ export default function Home() {
   const [appiDayInput, setAppiDayInput] = useState("");
   const [trailQuery, setTrailQuery] = useState("");
   const [trailFilter, setTrailFilter] = useState<(typeof auditFilters)[number]["value"]>("all");
+  const [appiStats, setAppiStats] = useState<
+    { category: number; reports: number; unique: number }[]
+  >([]);
+  const [appiDiversity, setAppiDiversity] = useState<string>("--");
   const [unclaimedDays, setUnclaimedDays] = useState<{ day: number; amount: bigint }[]>([]);
   const [unclaimedFromDay, setUnclaimedFromDay] = useState("");
   const [unclaimedToDay, setUnclaimedToDay] = useState("");
@@ -1116,6 +1120,56 @@ export default function Home() {
     };
   }, [publicClient, covenantAddress, treasuryAddress, handleLiveLogs]);
 
+  useEffect(() => {
+    const loadAppiStats = async () => {
+      if (!publicClient || !appiOracleAddr || appiOracleAddr === zeroAddress) {
+        setAppiStats([]);
+        setAppiDiversity("--");
+        return;
+      }
+      if (appiDayForRead === null) {
+        setAppiStats([]);
+        setAppiDiversity("--");
+        return;
+      }
+      const raw = appiCategoryInput.trim();
+      if (!raw) {
+        setAppiStats([]);
+        setAppiDiversity("--");
+        return;
+      }
+      const categories = raw
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .map((value) => Number.parseInt(value, 10))
+        .filter((value) => Number.isFinite(value) && value >= 0);
+      if (categories.length === 0) {
+        setAppiStats([]);
+        setAppiDiversity("--");
+        return;
+      }
+      const results = await Promise.all(
+        categories.map(async (category) => {
+          const reports = (await publicClient.readContract({
+            address: appiOracleAddr as `0x${string}`,
+            abi: appiOracleAbi,
+            functionName: "getReports",
+            args: [BigInt(appiDayForRead), BigInt(category)],
+          })) as { reporter: string; price: bigint }[];
+          const unique = new Set(reports.map((report) => report.reporter.toLowerCase())).size;
+          return { category, reports: reports.length, unique };
+        })
+      );
+      const active = results.filter((entry) => entry.reports > 0).length;
+      const diversity =
+        results.length === 0 ? "--" : `${Math.round((active / results.length) * 100)}%`;
+      setAppiStats(results);
+      setAppiDiversity(diversity);
+    };
+    void loadAppiStats();
+  }, [publicClient, appiOracleAddr, appiDayForRead, appiCategoryInput]);
+
   const handleClaim = async () => {
     if (!treasuryAddress) return;
     try {
@@ -1960,6 +2014,10 @@ export default function Home() {
                 Current day: {currentDayIndex !== null ? currentDayIndex : "--"}
               </span>
             </div>
+            <div className={styles.metricBreakdown}>
+              <span>Reporter diversity: {appiDiversity}</span>
+              <span>Time dispersion: n/a (no timestamps)</span>
+            </div>
             <div className={styles.taskForm}>
               <label className={styles.taskField}>
                 Oracle address
@@ -1998,6 +2056,15 @@ export default function Home() {
                 />
               </label>
             </div>
+            {appiStats.length > 0 ? (
+              <div className={styles.metricBreakdown}>
+                {appiStats.map((entry) => (
+                  <span key={`appi-${entry.category}`}>
+                    Cat {entry.category}: {entry.reports} reports ({entry.unique} unique)
+                  </span>
+                ))}
+              </div>
+            ) : null}
             <div className={styles.cardActions}>
               <button
                 className={styles.secondaryButton}
