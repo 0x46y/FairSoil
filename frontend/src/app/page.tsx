@@ -376,24 +376,6 @@ export default function Home() {
     },
   });
 
-  const { data: crystallizationRateBps } = useReadContract({
-    address: treasuryAddr,
-    abi: treasuryAbi,
-    functionName: "crystallizationRateBps",
-    query: {
-      enabled: Boolean(treasuryAddress),
-    },
-  });
-
-  const { data: crystallizationFeeBps } = useReadContract({
-    address: treasuryAddr,
-    abi: treasuryAbi,
-    functionName: "crystallizationFeeBps",
-    query: {
-      enabled: Boolean(treasuryAddress),
-    },
-  });
-
   const { data: treasuryOwner } = useReadContract({
     address: treasuryAddr,
     abi: treasuryAbi,
@@ -758,17 +740,55 @@ export default function Home() {
     [covenantRewardAmount]
   );
 
+  const templateIdValue = useMemo(() => {
+    const parsed = Number.parseInt(covenantTemplateId || "0", 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return BigInt(parsed);
+  }, [covenantTemplateId]);
+
+  const { data: crystallizedPreview } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "previewCrystallization",
+    args: [covenantReward],
+    query: {
+      enabled: Boolean(treasuryAddress && covenantPayInTokenA && covenantReward > 0n),
+    },
+  });
+
+  const { data: templateRoyaltyPreview } = useReadContract({
+    address: libraryAddr,
+    abi: covenantLibraryAbi,
+    functionName: "calculateRoyalty",
+    args:
+      templateIdValue && crystallizedPreview !== undefined
+        ? [templateIdValue, crystallizedPreview as bigint]
+        : undefined,
+    query: {
+      enabled: Boolean(
+        covenantPayInTokenA &&
+          covenantLibraryAddress &&
+          templateIdValue &&
+          crystallizedPreview !== undefined
+      ),
+    },
+  });
+
   const estimatedCrystallizedReward = useMemo(() => {
     if (!covenantPayInTokenA) return null;
-    if (crystallizationRateBps === undefined || crystallizationFeeBps === undefined) {
-      return null;
-    }
-    const rate = BigInt(crystallizationRateBps);
-    const fee = BigInt(crystallizationFeeBps);
-    const minted = (covenantReward * rate) / 10_000n;
-    const afterFee = (minted * (10_000n - fee)) / 10_000n;
-    return afterFee;
-  }, [covenantPayInTokenA, crystallizationRateBps, crystallizationFeeBps, covenantReward]);
+    if (crystallizedPreview === undefined) return null;
+    return crystallizedPreview as bigint;
+  }, [covenantPayInTokenA, crystallizedPreview]);
+
+  const royaltyBreakdown = useMemo(() => {
+    if (!covenantPayInTokenA) return null;
+    if (!templateIdValue || estimatedCrystallizedReward === null) return null;
+    if (templateRoyaltyPreview === undefined) return null;
+    const base = estimatedCrystallizedReward;
+    const author = (templateRoyaltyPreview as bigint) > base ? base : (templateRoyaltyPreview as bigint);
+    const worker = base - author;
+    return { base, worker, author };
+  }, [covenantPayInTokenA, templateIdValue, estimatedCrystallizedReward, templateRoyaltyPreview]);
 
   const hasInsufficientBalance = useMemo(() => {
     const balance = covenantPayInTokenA ? tokenABalance : tokenBUnlocked;
@@ -2882,13 +2902,33 @@ export default function Home() {
                 : "Approves Token B, then escrows it in the covenant contract."}
             </p>
             {covenantPayInTokenA ? (
-              <p className={styles.taskHint}>
-                {estimatedCrystallizedReward !== null
-                  ? `Estimated receive: ${Number(
-                      formatUnits(estimatedCrystallizedReward, 18)
-                    ).toFixed(2)} SOILB after crystallization fee.`
-                  : "Estimated receive: --"}
-              </p>
+              royaltyBreakdown ? (
+                <div className={styles.metricBreakdown}>
+                  <span>
+                    Base Value:{" "}
+                    {Number(formatUnits(royaltyBreakdown.base, 18)).toFixed(2)} SOILB
+                  </span>
+                  <span>
+                    Worker will receive:{" "}
+                    {Number(formatUnits(royaltyBreakdown.worker, 18)).toFixed(2)} SOILB
+                  </span>
+                  <span>
+                    Author will receive:{" "}
+                    {Number(formatUnits(royaltyBreakdown.author, 18)).toFixed(2)} SOILB
+                  </span>
+                  <span className={styles.fieldHint}>
+                    Crystallized B (B換算後の価値) を基準にロイヤリティを算出します。
+                  </span>
+                </div>
+              ) : (
+                <p className={styles.taskHint}>
+                  {estimatedCrystallizedReward !== null
+                    ? `Estimated receive: ${Number(
+                        formatUnits(estimatedCrystallizedReward, 18)
+                      ).toFixed(2)} SOILB after crystallization fee.`
+                    : "Estimated receive: --"}
+                </p>
+              )
             ) : null}
             <div className={styles.taskForm}>
               <label className={styles.taskField}>

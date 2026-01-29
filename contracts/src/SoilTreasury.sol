@@ -73,6 +73,13 @@ contract SoilTreasury is Ownable {
     event CrystallizationRateSet(uint256 rateBps);
     event CrystallizationFeeSet(uint256 feeBps);
     event CrystallizationMinted(address indexed worker, uint256 tokenBAmount, uint256 burnedA);
+    event CrystallizationRoyaltyMinted(
+        address indexed worker,
+        address indexed author,
+        uint256 workerAmount,
+        uint256 authorAmount,
+        uint256 burnedA
+    );
     event DeficitCapASet(uint256 capA);
     event AdvanceCapBSet(uint256 capB);
     event DeficitAIssued(address indexed to, uint256 amount);
@@ -586,15 +593,61 @@ contract SoilTreasury is Ownable {
         if (burnedA == 0) {
             return 0;
         }
-        uint256 minted = (burnedA * crystallizationRateBps) / 10_000;
-        if (crystallizationFeeBps > 0) {
-            minted = (minted * (10_000 - crystallizationFeeBps)) / 10_000;
-        }
+        uint256 minted = previewCrystallization(burnedA);
         if (minted > 0) {
             require(canPayOutB(minted), "Insufficient reserves");
             tokenB.mint(worker, minted);
             _recordOutB(worker, minted, REASON_CRYSTAL);
         }
+        emit CrystallizationMinted(worker, minted, burnedA);
+        return minted;
+    }
+
+    function previewCrystallization(uint256 burnedA) public view returns (uint256) {
+        if (burnedA == 0) {
+            return 0;
+        }
+        uint256 minted = (burnedA * crystallizationRateBps) / 10_000;
+        if (crystallizationFeeBps > 0) {
+            minted = (minted * (10_000 - crystallizationFeeBps)) / 10_000;
+        }
+        return minted;
+    }
+
+    function mintBByCrystallizationSplit(
+        address worker,
+        address author,
+        uint256 burnedA,
+        uint256 royaltyAmount
+    ) external returns (uint256) {
+        require(msg.sender == covenant, "Covenant only");
+        require(circuitState == CircuitState.Normal, "Circuit limited");
+        if (burnedA == 0) {
+            return 0;
+        }
+        uint256 minted = previewCrystallization(burnedA);
+        if (minted == 0) {
+            emit CrystallizationMinted(worker, 0, burnedA);
+            return 0;
+        }
+        require(canPayOutB(minted), "Insufficient reserves");
+
+        uint256 authorAmount = 0;
+        if (author != address(0) && royaltyAmount > 0) {
+            authorAmount = royaltyAmount > minted ? minted : royaltyAmount;
+        }
+        uint256 workerAmount = minted - authorAmount;
+
+        if (workerAmount > 0) {
+            tokenB.mint(worker, workerAmount);
+            _recordOutB(worker, workerAmount, REASON_CRYSTAL);
+        }
+        if (authorAmount > 0) {
+            tokenB.mint(author, authorAmount);
+            _recordOutB(author, authorAmount, REASON_CRYSTAL);
+            emit CrystallizationRoyaltyMinted(worker, author, workerAmount, authorAmount, burnedA);
+        }
+
         emit CrystallizationMinted(worker, minted, burnedA);
         return minted;
     }

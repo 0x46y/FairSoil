@@ -23,9 +23,9 @@
 ## ID / Sybil耐性
 | 項目 | 状態 | 根拠（主な実装） | 注記 |
 | --- | --- | --- | --- |
-| World ID 連携 | Not implemented | なし | 実コードは未統合 |
+| World ID 連携 | Partial | `frontend/src/app/page.tsx`, `frontend/src/app/api/worldid/verify/route.ts` | UI/モック/検証APIの骨格はあるが、実SDK/検証連携は未接続 |
 | Tier1/2/3 | Not implemented | なし | 仕様のみ |
-| Primary address | Partial | `contracts/src/FairSoilTokenA.sol` | Ownerが手動設定する形 |
+| Primary address | Partial | `contracts/src/FairSoilTokenA.sol`, `frontend/src/app/page.tsx` | Ownerが手動設定する形（UIはあるが実ID連携は未接続） |
 | ZK‑NFC（公的ID） | Not implemented | なし | 仕様のみ |
 
 ## 会計・Treasury
@@ -51,10 +51,20 @@
 | DAO裁定 | Not implemented | なし | 仕様のみ |
 | Dispute悪用対策 | Not implemented | なし | 仕様のみ（運用方針） |
 
+## テンプレート/ロイヤリティ/資源
+| 項目 | 状態 | 根拠（主な実装） | 注記 |
+| --- | --- | --- | --- |
+| ResourceRegistry（Harberger税） | Implemented | `contracts/src/ResourceRegistry.sol`, `frontend/src/app/page.tsx` | 最小MVP（税計算/購入/徴税） |
+| CovenantLibrary（テンプレ登録） | Partial | `contracts/src/CovenantLibrary.sol`, `frontend/src/app/page.tsx` | 登録/更新/利用記録のみ。系譜/類似度/ステーキング等は未実装 |
+| RoyaltyRouter（ロイヤリティ支払） | Partial | `contracts/src/RoyaltyRouter.sol`, `contracts/src/Covenant.sol` | 最小支払のみ。減衰/上限/再帰配分は未実装 |
+| ロイヤリティ減衰 | Not implemented | なし | 仕様のみ（時間経過で減衰しパブリックドメイン化） |
+| ロイヤリティ分配キャップ | Not implemented | なし | 仕様のみ（テンプレ/単一タスクの上限設定） |
+| 系譜/類似度追跡 | Not implemented | なし | 仕様のみ（テンプレ類似度チェック・フォークタグ） |
+
 ## プライバシー/監査/安全
 | 項目 | 状態 | 根拠（主な実装） | 注記 |
 | --- | --- | --- | --- |
-| 監査ログ可視化 | Partial | `contracts/src/SoilTreasury.sol` | イベントはあるがダッシュボード未実装 |
+| 監査ログ可視化 | Implemented | `frontend/src/app/page.tsx`, `contracts/src/SoilTreasury.sol` | Covenant/Treasuryイベントの監査トレイル表示・CSV出力あり |
 | ZKP/データ最小化 | Not implemented | なし | 仕様のみ |
 | サーキットブレーカー | Implemented | `contracts/src/SoilTreasury.sol` | Normal/Limited/Halted |
 | マルチシグ/タイムロック | Not implemented | なし | 仕様のみ |

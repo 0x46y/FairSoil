@@ -14,6 +14,13 @@ interface IFairSoilTokenA is IERC20 {
 interface ISoilTreasury {
     function addIntegrityFromCovenant(address worker, uint256 integrityPoints) external;
     function mintBByCrystallization(address worker, uint256 burnedA) external returns (uint256);
+    function previewCrystallization(uint256 burnedA) external view returns (uint256);
+    function mintBByCrystallizationSplit(
+        address worker,
+        address author,
+        uint256 burnedA,
+        uint256 royaltyAmount
+    ) external returns (uint256);
     function penalizePayScoreWithReason(address account, uint256 points, string calldata reason) external;
     function addPayScore(address account, uint256 points) external;
     function penalizeProcessScore(address account, uint256 points, string calldata reason) external;
@@ -561,7 +568,21 @@ contract Covenant is Ownable {
             uint256 refunded = 0;
             if (workerShare > 0) {
                 tokenA.burnFromCovenant(address(this), workerShare);
-                treasury.mintBByCrystallization(data.worker, workerShare);
+                address author = address(0);
+                uint256 royaltyAmount = 0;
+                if (address(royaltyRouter) != address(0) && data.templateId > 0) {
+                    uint256 mintedPreview = treasury.previewCrystallization(workerShare);
+                    if (mintedPreview > 0) {
+                        (author, royaltyAmount) =
+                            royaltyRouter.previewRoyalty(data.templateId, mintedPreview);
+                    }
+                }
+                treasury.mintBByCrystallizationSplit(
+                    data.worker,
+                    author,
+                    workerShare,
+                    royaltyAmount
+                );
             }
             if (creatorShare > 0) {
                 uint256 refund = tokenA.applyEscrowDecay(creatorShare, data.escrowStart);
@@ -579,6 +600,9 @@ contract Covenant is Ownable {
             );
         } else {
             uint256 grossShare = workerShare + creatorShare;
+            if (grossShare > 0) {
+                treasury.unlockB(address(this), grossShare);
+            }
             if (address(royaltyRouter) != address(0) && data.templateId > 0 && grossShare > 0) {
                 (, uint256 royaltyAmount) = royaltyRouter.previewRoyalty(data.templateId, grossShare);
                 if (royaltyAmount > 0) {
@@ -600,10 +624,6 @@ contract Covenant is Ownable {
                     tokenB.safeIncreaseAllowance(address(royaltyRouter), royaltyAmount);
                     royaltyRouter.notifyPayout(covenantId, data.templateId, grossShare);
                 }
-            }
-            uint256 totalShare = workerShare + creatorShare;
-            if (totalShare > 0) {
-                treasury.unlockB(address(this), totalShare);
             }
             if (workerShare > 0) {
                 tokenB.safeTransfer(data.worker, workerShare);
@@ -629,5 +649,9 @@ contract Covenant is Ownable {
     ) internal {
         treasury.adjustLiabilities(deltaA, deltaB, reason);
         emit LiabilityTagged(covenantId, deltaA, deltaB, reason);
+    }
+
+    function getCovenant(uint256 covenantId) external view returns (CovenantData memory) {
+        return covenants[covenantId];
     }
 }

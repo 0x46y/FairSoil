@@ -582,8 +582,7 @@ contract FairSoilInvariants is StdInvariant, Test {
             ,
             ,
             ,
-            ,
-            Covenant.Status status,
+            , , Covenant.Status status,
             bool settled
         ) = covenant.covenants(0);
         if (creator != address(0) && status == Covenant.Status.IssueResolved) {
@@ -602,7 +601,7 @@ contract FairSoilInvariants is StdInvariant, Test {
         uint256 count = covenant.nextId();
         uint256 limit = count > 10 ? 10 : count;
         for (uint256 i = 0; i < limit; i++) {
-            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            (, , , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
             if (statusSeenById[i]) {
                 Covenant.Status prior = lastStatusById[i];
                 if (
@@ -639,8 +638,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.Status status,
+                , , Covenant.Status status,
                 bool settled
             ) = covenant.covenants(i);
             assertEq(uint256(status), uint256(Covenant.Status.IssueResolved));
@@ -657,8 +655,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.Status appealStatus,
+                , , Covenant.Status appealStatus,
                 bool appealSettled
             ) = covenant.covenants(appealId);
 
@@ -814,8 +811,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.Status status,
+                , , Covenant.Status status,
                 bool settled
             ) = covenant.covenants(i);
             if (!settled) {
@@ -862,8 +858,8 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!liabilityCreateEventById[i]) {
                 continue;
             }
-            (, , uint256 tokenBReward, , , , , , , , , , , ) = covenant.covenants(i);
-            assertEq(int256(tokenBReward), covenantLiabilityDeltaBCreate[i]);
+            Covenant.CovenantData memory data = covenant.getCovenant(i);
+            assertEq(int256(data.tokenBReward), covenantLiabilityDeltaBCreate[i]);
         }
     }
 
@@ -874,8 +870,8 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!liabilitySettleEventById[i]) {
                 continue;
             }
-            (, , uint256 tokenBReward, , , , , , , , , , , ) = covenant.covenants(i);
-            assertEq(-int256(tokenBReward), covenantLiabilityDeltaBSettle[i]);
+            Covenant.CovenantData memory data = covenant.getCovenant(i);
+            assertEq(-int256(data.tokenBReward), covenantLiabilityDeltaBSettle[i]);
         }
     }
 
@@ -899,7 +895,7 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!liabilitySettleEventById[i]) {
                 continue;
             }
-            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            (, , , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
             assertTrue(
                 status == Covenant.Status.Rejected ||
                 status == Covenant.Status.Cancelled ||
@@ -935,8 +931,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.Status status,
+                , , Covenant.Status status,
                 bool settled
             ) = covenant.covenants(i);
             if (!settled) {
@@ -961,7 +956,7 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!liabilityCreateEventById[i]) {
                 continue;
             }
-            (, , , , , , , , , , , , Covenant.Status status, bool settled) = covenant.covenants(i);
+            (, , , , , , , , , , , , , Covenant.Status status, bool settled) = covenant.covenants(i);
             if (settled) {
                 assertTrue(liabilitySettleEventById[i]);
             }
@@ -991,8 +986,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.Status status,
+                , , Covenant.Status status,
                 bool settled
             ) = covenant.covenants(i);
             if (settled) {
@@ -1023,8 +1017,8 @@ contract FairSoilInvariants is StdInvariant, Test {
                 continue;
             }
             if (covenantLiabilityDeltaB[i] == 0) {
-                (, , , , , , , , , , , , , bool settled) = covenant.covenants(i);
-                assertTrue(settled);
+                Covenant.CovenantData memory data = covenant.getCovenant(i);
+                assertTrue(data.settled);
             }
         }
     }
@@ -1102,8 +1096,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.PaymentMode paymentMode,
+                , , Covenant.PaymentMode paymentMode,
                 Covenant.Status status,
                 bool settled
             ) = covenant.covenants(i);
@@ -1152,8 +1145,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.PaymentMode paymentMode,
+                , , Covenant.PaymentMode paymentMode,
                 Covenant.Status status,
                 bool settled
             ) = covenant.covenants(i);
@@ -1186,8 +1178,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.PaymentMode paymentMode,
+                , , Covenant.PaymentMode paymentMode,
                 Covenant.Status status,
                 bool settled
             ) = covenant.covenants(i);
@@ -1231,23 +1222,8 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!escrowReleasedById[i]) {
                 continue;
             }
-            (
-                ,
-                ,
-                uint256 tokenBReward,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-
-            ) = covenant.covenants(i);
-            assertLe(escrowReleasedAmountById[i], tokenBReward);
+            Covenant.CovenantData memory data = covenant.getCovenant(i);
+            assertLe(escrowReleasedAmountById[i], data.tokenBReward);
         }
     }
 
@@ -1277,8 +1253,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.PaymentMode paymentMode,
+                , , Covenant.PaymentMode paymentMode,
                 Covenant.Status status,
 
             ) = covenant.covenants(i);
@@ -1334,8 +1309,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.PaymentMode paymentMode,
+                , , Covenant.PaymentMode paymentMode,
                 Covenant.Status status,
 
             ) = covenant.covenants(i);
@@ -1415,24 +1389,9 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!escrowLockedById[i]) {
                 continue;
             }
-            (
-                ,
-                ,
-                uint256 tokenBReward,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-
-            ) = covenant.covenants(i);
-            assertLe(escrowLockedAmountById[i], tokenBReward);
-            assertEq(escrowLockedAmountById[i], tokenBReward);
+            Covenant.CovenantData memory data = covenant.getCovenant(i);
+            assertLe(escrowLockedAmountById[i], data.tokenBReward);
+            assertEq(escrowLockedAmountById[i], data.tokenBReward);
         }
     }
 
@@ -1453,8 +1412,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.PaymentMode paymentMode,
+                , , Covenant.PaymentMode paymentMode,
                 Covenant.Status status,
                 bool settled
             ) = covenant.covenants(i);
@@ -1497,8 +1455,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.PaymentMode paymentMode,
+                , , Covenant.PaymentMode paymentMode,
                 Covenant.Status status,
                 bool settled
             ) = covenant.covenants(i);
@@ -1527,23 +1484,8 @@ contract FairSoilInvariants is StdInvariant, Test {
         uint256 count = covenant.nextId();
         uint256 limit = count > 10 ? 10 : count;
         for (uint256 i = 0; i < limit; i++) {
-            (
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                bool settled
-            ) = covenant.covenants(i);
-            if (settled) {
+            Covenant.CovenantData memory data = covenant.getCovenant(i);
+            if (data.settled) {
                 assertTrue(escrowReleasedById[i]);
             }
         }
@@ -1570,8 +1512,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.Status status,
+                , , Covenant.Status status,
                 bool settled
             ) = covenant.covenants(i);
             if (
@@ -1602,8 +1543,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.PaymentMode paymentMode,
+                , , Covenant.PaymentMode paymentMode,
                 Covenant.Status status,
                 bool settled
             ) = covenant.covenants(i);
@@ -1641,29 +1581,14 @@ contract FairSoilInvariants is StdInvariant, Test {
         uint256 count = covenant.nextId();
         uint256 limit = count > 10 ? 10 : count;
         for (uint256 i = 0; i < limit; i++) {
-            (
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-                Covenant.Status status,
-                bool settled
-            ) = covenant.covenants(i);
+            Covenant.CovenantData memory data = covenant.getCovenant(i);
             if (
-                status == Covenant.Status.Open ||
-                status == Covenant.Status.IssueReported ||
-                status == Covenant.Status.Disputed ||
-                status == Covenant.Status.ResolutionProposed
+                data.status == Covenant.Status.Open ||
+                data.status == Covenant.Status.IssueReported ||
+                data.status == Covenant.Status.Disputed ||
+                data.status == Covenant.Status.ResolutionProposed
             ) {
-                assertFalse(settled);
+                assertFalse(data.settled);
                 assertFalse(escrowReleasedById[i]);
             }
         }
@@ -1686,8 +1611,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.PaymentMode paymentMode,
+                , , Covenant.PaymentMode paymentMode,
                 Covenant.Status status,
                 bool settled
             ) = covenant.covenants(i);
@@ -1766,8 +1690,8 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!disputeResolvedEventById[i]) {
                 continue;
             }
-            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
-            assertEq(uint256(status), uint256(Covenant.Status.IssueResolved));
+            Covenant.CovenantData memory data = covenant.getCovenant(i);
+            assertEq(uint256(data.status), uint256(Covenant.Status.IssueResolved));
         }
     }
 
@@ -1791,7 +1715,7 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!issueAcceptedEventById[i]) {
                 continue;
             }
-            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            (, , , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
             assertEq(uint256(status), uint256(Covenant.Status.IssueResolved));
         }
     }
@@ -1827,8 +1751,11 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!approvedEventById[i]) {
                 continue;
             }
-            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
-            assertTrue(status == Covenant.Status.Approved || status == Covenant.Status.IssueResolved);
+            Covenant.CovenantData memory data = covenant.getCovenant(i);
+            assertTrue(
+                data.status == Covenant.Status.Approved ||
+                    data.status == Covenant.Status.IssueResolved
+            );
         }
     }
 
@@ -1850,7 +1777,7 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!rejectedEventById[i]) {
                 continue;
             }
-            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            (, , , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
             assertEq(uint256(status), uint256(Covenant.Status.Rejected));
         }
     }
@@ -1862,7 +1789,7 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!cancelledEventById[i]) {
                 continue;
             }
-            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            (, , , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
             assertEq(uint256(status), uint256(Covenant.Status.Cancelled));
         }
     }
@@ -1874,7 +1801,7 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!submittedEventById[i]) {
                 continue;
             }
-            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            (, , , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
             assertTrue(status != Covenant.Status.Open);
         }
     }
@@ -1926,8 +1853,7 @@ contract FairSoilInvariants is StdInvariant, Test {
                 ,
                 ,
                 ,
-                ,
-                Covenant.PaymentToken paymentToken,
+                , , Covenant.PaymentToken paymentToken,
                 Covenant.PaymentMode paymentMode,
                 Covenant.Status status,
 
@@ -1948,7 +1874,7 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!issueReportedEventById[i]) {
                 continue;
             }
-            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            (, , , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
             assertTrue(
                 status == Covenant.Status.IssueReported ||
                 status == Covenant.Status.Disputed ||
@@ -1965,7 +1891,7 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!issueDisputedEventById[i]) {
                 continue;
             }
-            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            (, , , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
             assertTrue(
                 status == Covenant.Status.Disputed ||
                 status == Covenant.Status.ResolutionProposed ||
@@ -1992,7 +1918,7 @@ contract FairSoilInvariants is StdInvariant, Test {
             if (!resolutionProposedEventById[i]) {
                 continue;
             }
-            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            (, , , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
             assertTrue(
                 status == Covenant.Status.ResolutionProposed ||
                 status == Covenant.Status.IssueResolved
@@ -2016,7 +1942,7 @@ contract FairSoilInvariants is StdInvariant, Test {
         uint256 count = covenant.nextId();
         uint256 limit = count > 10 ? 10 : count;
         for (uint256 i = 0; i < limit; i++) {
-            (, , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
+            (, , , , , , , , , , , , , Covenant.Status status, ) = covenant.covenants(i);
             if (status != Covenant.Status.IssueResolved) {
                 continue;
             }
@@ -2106,23 +2032,8 @@ contract FairSoilInvariants is StdInvariant, Test {
         if (covenantId >= covenant.nextId()) {
             return 0;
         }
-        (
-            ,
-            ,
-            uint256 tokenBReward,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-
-        ) = covenant.covenants(covenantId);
-        return tokenBReward;
+        Covenant.CovenantData memory data = covenant.getCovenant(covenantId);
+        return data.tokenBReward;
     }
 
     function _isAllowedTreasuryReason(bytes32 reason) internal pure returns (bool) {

@@ -124,22 +124,8 @@ contract CovenantTest is Test {
 
         covenant.resolveDispute(covenantId, 5000, 10, 0);
 
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            , , Covenant.Status status,
-            bool settled,
-            ,
-        ) = covenant.covenants(covenantId);
+        (, , , , , , , , , , , , , Covenant.Status status, bool settled) =
+            covenant.covenants(covenantId);
         assertEq(uint256(status), uint256(Covenant.Status.ResolutionProposed));
         assertEq(tokenB.balanceOf(creator), creatorBefore);
         assertEq(tokenB.balanceOf(worker), workerBefore);

@@ -307,6 +307,25 @@ export const treasuryAbi = [
     inputs: [],
     outputs: [{ name: "", type: "uint256" }],
   },
+  {
+    type: "function",
+    name: "previewCrystallization",
+    stateMutability: "view",
+    inputs: [{ name: "burnedA", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "mintBByCrystallizationSplit",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "worker", type: "address" },
+      { name: "author", type: "address" },
+      { name: "burnedA", type: "uint256" },
+      { name: "royaltyAmount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
 ] as const;
 
 export const covenantAbi = [
