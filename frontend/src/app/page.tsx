@@ -60,6 +60,12 @@ type TrailItem = {
 
 const shortAddress = (value: string) => `${value.slice(0, 6)}...${value.slice(-4)}`;
 const safeAddress = (value?: string) => (value ? shortAddress(value) : "Unknown");
+const formatDate = (timestamp: bigint) =>
+  new Date(Number(timestamp) * 1000).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 
 const formatTokenB = (amount: bigint) =>
   `${Number(formatUnits(amount, 18)).toFixed(2)} SOILB`;
@@ -217,7 +223,15 @@ export default function Home() {
   const [covenantRoyaltyBps, setCovenantRoyaltyBps] = useState("500");
   const [templateFilter, setTemplateFilter] = useState("");
   const [templateList, setTemplateList] = useState<
-    { id: number; creator: string; royaltyBps: bigint; metadataUri: string; active: boolean }[]
+    {
+      id: number;
+      creator: string;
+      royaltyBps: bigint;
+      metadataUri: string;
+      active: boolean;
+      createdAt: bigint;
+      effectiveRoyaltyBps: bigint;
+    }[]
   >([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [templateUseCovenantId, setTemplateUseCovenantId] = useState("");
@@ -240,7 +254,9 @@ export default function Home() {
       proposedWorkerPayoutBps: bigint;
       proposedIntegrityPoints: bigint;
       proposedSlashingPenalty: bigint;
+      templateId: bigint;
       paymentToken: number;
+      paymentMode: number;
       status: number;
     }[]
   >([]);
@@ -747,6 +763,14 @@ export default function Home() {
     return BigInt(parsed);
   }, [covenantTemplateId]);
 
+  const templateById = useMemo(() => {
+    const map = new Map<number, (typeof templateList)[number]>();
+    templateList.forEach((item) => {
+      map.set(item.id, item);
+    });
+    return map;
+  }, [templateList]);
+
   const { data: selectedTemplateData } = useReadContract({
     address: libraryAddr,
     abi: covenantLibraryAbi,
@@ -757,15 +781,26 @@ export default function Home() {
     },
   });
 
+  const { data: selectedEffectiveRoyaltyBps } = useReadContract({
+    address: libraryAddr,
+    abi: covenantLibraryAbi,
+    functionName: "effectiveRoyaltyBps",
+    args: templateIdValue ? [templateIdValue] : undefined,
+    query: {
+      enabled: Boolean(covenantLibraryAddress && templateIdValue),
+    },
+  });
+
   const selectedTemplate = useMemo(() => {
     if (!templateIdValue || !selectedTemplateData) return null;
-    const data = selectedTemplateData as [string, bigint, string, boolean];
+    const data = selectedTemplateData as [string, bigint, string, boolean, bigint];
     return {
       id: Number(templateIdValue),
       creator: data[0],
       royaltyBps: data[1],
       metadataUri: data[2],
       active: data[3],
+      createdAt: data[4],
     };
   }, [templateIdValue, selectedTemplateData]);
 
@@ -1167,8 +1202,10 @@ export default function Home() {
             proposedWorkerPayoutBps: data[7] as bigint,
             proposedIntegrityPoints: data[8] as bigint,
             proposedSlashingPenalty: data[9] as bigint,
-            paymentToken: Number(data[10]),
-            status: Number(data[11]),
+            templateId: data[10] as bigint,
+            paymentToken: Number(data[11]),
+            paymentMode: Number(data[12]),
+            status: Number(data[13]),
           };
         })
       );
@@ -1303,21 +1340,35 @@ export default function Home() {
         abi: covenantLibraryAbi,
         functionName: "nextTemplateId",
       })) as bigint;
-      const limit = Math.min(Number(total), 25);
+      const maxId = Math.min(Number(total) - 1, 25);
+      if (maxId < 1) {
+        setTemplateList([]);
+        setTemplateActiveMap({});
+        return;
+      }
       const items = await Promise.all(
-        Array.from({ length: limit }, async (_, index) => {
+        Array.from({ length: maxId }, async (_, index) => {
+          const templateId = BigInt(index + 1);
           const data = (await publicClient.readContract({
             address: covenantLibraryAddress,
             abi: covenantLibraryAbi,
             functionName: "templates",
-            args: [BigInt(index)],
-          })) as [string, bigint, string, boolean];
+            args: [templateId],
+          })) as [string, bigint, string, boolean, bigint];
+          const effective = (await publicClient.readContract({
+            address: covenantLibraryAddress,
+            abi: covenantLibraryAbi,
+            functionName: "effectiveRoyaltyBps",
+            args: [templateId],
+          })) as bigint;
           return {
-            id: index,
+            id: index + 1,
             creator: data[0],
             royaltyBps: data[1],
             metadataUri: data[2],
             active: data[3],
+            createdAt: data[4],
+            effectiveRoyaltyBps: effective,
           };
         })
       );
@@ -2945,6 +2996,12 @@ export default function Home() {
                     Base Value:{" "}
                     {Number(formatUnits(royaltyBreakdown.base, 18)).toFixed(2)} SOILB
                   </span>
+                  {selectedTemplate && selectedEffectiveRoyaltyBps !== undefined ? (
+                    <span>
+                      Royalty: {formatPercent(selectedTemplate.royaltyBps)}% (Original) →{" "}
+                      {formatPercent(selectedEffectiveRoyaltyBps as bigint)}% (Current)
+                    </span>
+                  ) : null}
                   <span>
                     Worker will receive:{" "}
                     {Number(formatUnits(royaltyBreakdown.worker, 18)).toFixed(2)} SOILB
@@ -2956,6 +3013,12 @@ export default function Home() {
                   {selectedTemplate ? (
                     <span className={styles.fieldHint}>
                       Author: {safeAddress(selectedTemplate.creator)}
+                    </span>
+                  ) : null}
+                  {selectedTemplate ? (
+                    <span className={styles.fieldHint}>
+                      Created at: {formatDate(selectedTemplate.createdAt)} · Public domain on:{" "}
+                      {formatDate(selectedTemplate.createdAt + 730n * 24n * 60n * 60n)}
                     </span>
                   ) : null}
                   <span className={styles.fieldHint}>
@@ -2980,6 +3043,12 @@ export default function Home() {
                   Base Value:{" "}
                   {Number(formatUnits(royaltyBreakdown.base, 18)).toFixed(2)} SOILB
                 </span>
+                {selectedTemplate && selectedEffectiveRoyaltyBps !== undefined ? (
+                  <span>
+                    Royalty: {formatPercent(selectedTemplate.royaltyBps)}% (Original) →{" "}
+                    {formatPercent(selectedEffectiveRoyaltyBps as bigint)}% (Current)
+                  </span>
+                ) : null}
                 <span>
                   Worker will receive:{" "}
                   {Number(formatUnits(royaltyBreakdown.worker, 18)).toFixed(2)} SOILB
@@ -2991,6 +3060,12 @@ export default function Home() {
                 {selectedTemplate ? (
                   <span className={styles.fieldHint}>
                     Author: {safeAddress(selectedTemplate.creator)}
+                  </span>
+                ) : null}
+                {selectedTemplate ? (
+                  <span className={styles.fieldHint}>
+                    Created at: {formatDate(selectedTemplate.createdAt)} · Public domain on:{" "}
+                    {formatDate(selectedTemplate.createdAt + 730n * 24n * 60n * 60n)}
                   </span>
                 ) : null}
                 <span className={styles.fieldHint}>
@@ -3101,10 +3176,15 @@ export default function Home() {
                       <div key={`template-${item.id}`} className={styles.templateRow}>
                         <div>
                           <strong>#{item.id}</strong>{" "}
-                          <span>{item.royaltyBps.toString()} bps</span>{" "}
+                          <span>{formatPercent(item.royaltyBps)}% (Original)</span>{" "}
+                          <span>{formatPercent(item.effectiveRoyaltyBps)}% (Current)</span>{" "}
                           {!templateActiveMap[item.id] ? <span>(inactive)</span> : null}
                           <div className={styles.templateMeta}>
                             <span>Author: {safeAddress(item.creator)}</span>
+                            <span>
+                              Created at: {formatDate(item.createdAt)} · Public domain on:{" "}
+                              {formatDate(item.createdAt + 730n * 24n * 60n * 60n)}
+                            </span>
                             {item.metadataUri}
                           </div>
                         </div>
@@ -3254,6 +3334,7 @@ export default function Home() {
               <span>ID</span>
               <span>Worker</span>
               <span>Reward</span>
+              <span>Royalty</span>
               <span>Integrity</span>
               <span>Claim</span>
               <span>Status</span>
@@ -3277,6 +3358,15 @@ export default function Home() {
                   <span>
                     {Number(formatUnits(item.tokenBReward, 18)).toFixed(2)}{" "}
                     {item.paymentToken === 1 ? "SOILA" : "SOILB"}
+                  </span>
+                  <span>
+                    {item.templateId > 0n ? (() => {
+                      const template = templateById.get(Number(item.templateId));
+                      if (!template) return "--";
+                      return `${formatPercent(template.royaltyBps)}% → ${formatPercent(
+                        template.effectiveRoyaltyBps
+                      )}%`;
+                    })() : "--"}
                   </span>
                   <span>{item.integrityPoints.toString()}</span>
                   <span>{Number(item.issueClaimBps) / 100}%</span>

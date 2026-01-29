@@ -748,7 +748,15 @@ export const covenantLibraryAbi = [
       { name: "royaltyBps", type: "uint256" },
       { name: "metadataUri", type: "string" },
       { name: "active", type: "bool" },
+      { name: "createdAt", type: "uint256" },
     ],
+  },
+  {
+    type: "function",
+    name: "effectiveRoyaltyBps",
+    stateMutability: "view",
+    inputs: [{ name: "templateId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
   },
   {
     type: "function",

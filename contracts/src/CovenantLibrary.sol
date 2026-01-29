@@ -11,9 +11,11 @@ contract CovenantLibrary is Ownable {
         uint256 royaltyBps;
         string metadataUri;
         bool active;
+        uint256 createdAt;
     }
 
     uint256 public constant BPS = 10_000;
+    uint256 public constant ROYALTY_DECAY_DURATION = 730 days;
     uint256 public nextTemplateId = 1;
     uint256 public maxRoyaltyBps = 1_000;
     uint256 public maxRoyaltyAmount = 50 * 1e18;
@@ -42,7 +44,8 @@ contract CovenantLibrary is Ownable {
             creator: msg.sender,
             royaltyBps: royaltyBps,
             metadataUri: metadataUri,
-            active: true
+            active: true,
+            createdAt: block.timestamp
         });
         emit TemplateRegistered(id, msg.sender, royaltyBps, metadataUri);
     }
@@ -68,7 +71,7 @@ contract CovenantLibrary is Ownable {
     function calculateRoyalty(uint256 templateId, uint256 rewardAmount) external view returns (uint256) {
         Template storage template = templates[templateId];
         require(template.creator != address(0), "Unknown template");
-        uint256 cappedBps = template.royaltyBps;
+        uint256 cappedBps = _effectiveRoyaltyBps(template.royaltyBps, template.createdAt);
         if (cappedBps > maxRoyaltyBps) {
             cappedBps = maxRoyaltyBps;
         }
@@ -80,6 +83,22 @@ contract CovenantLibrary is Ownable {
             return maxRoyaltyAmount;
         }
         return royaltyAmount;
+    }
+
+    function effectiveRoyaltyBps(uint256 templateId) external view returns (uint256) {
+        Template storage template = templates[templateId];
+        require(template.creator != address(0), "Unknown template");
+        return _effectiveRoyaltyBps(template.royaltyBps, template.createdAt);
+    }
+
+    function _effectiveRoyaltyBps(uint256 baseBps, uint256 createdAt) internal view returns (uint256) {
+        if (baseBps == 0) return 0;
+        uint256 elapsed = block.timestamp > createdAt ? block.timestamp - createdAt : 0;
+        if (elapsed >= ROYALTY_DECAY_DURATION) {
+            return 0;
+        }
+        uint256 remaining = ROYALTY_DECAY_DURATION - elapsed;
+        return (baseBps * remaining) / ROYALTY_DECAY_DURATION;
     }
 
     /// @notice Optional usage signal for off-chain accounting.

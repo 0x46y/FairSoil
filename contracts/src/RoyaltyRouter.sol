@@ -9,6 +9,7 @@ interface ICovenantLibrary {
         external
         view
         returns (address creator, uint256 royaltyBps, string memory metadataUri, bool active);
+    function calculateRoyalty(uint256 templateId, uint256 rewardAmount) external view returns (uint256);
     function maxRoyaltyBps() external view returns (uint256);
     function maxRoyaltyAmount() external view returns (uint256);
 }
@@ -50,22 +51,13 @@ contract RoyaltyRouter {
         if (templateId == 0 || amountB == 0) {
             return (address(0), 0);
         }
-        (address creator, uint256 royaltyBps, , bool active) = covenantLibrary.templates(templateId);
-        if (creator == address(0) || !active || royaltyBps == 0) {
+        (address creator, , , bool active) = covenantLibrary.templates(templateId);
+        if (creator == address(0) || !active) {
             return (address(0), 0);
         }
-        uint256 cappedBps = royaltyBps;
-        uint256 maxBps = covenantLibrary.maxRoyaltyBps();
-        if (cappedBps > maxBps) {
-            cappedBps = maxBps;
-        }
-        if (cappedBps == 0) {
+        royaltyAmount = covenantLibrary.calculateRoyalty(templateId, amountB);
+        if (royaltyAmount == 0) {
             return (address(0), 0);
-        }
-        royaltyAmount = (amountB * cappedBps) / BPS;
-        uint256 maxAmount = covenantLibrary.maxRoyaltyAmount();
-        if (maxAmount > 0 && royaltyAmount > maxAmount) {
-            royaltyAmount = maxAmount;
         }
         receiver = creator;
     }
