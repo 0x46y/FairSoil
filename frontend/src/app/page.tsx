@@ -219,6 +219,7 @@ export default function Home() {
   const [templateList, setTemplateList] = useState<
     { id: number; creator: string; royaltyBps: bigint; metadataUri: string; active: boolean }[]
   >([]);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [templateUseCovenantId, setTemplateUseCovenantId] = useState("");
   const [templateUseAmount, setTemplateUseAmount] = useState("0");
   const [templateActiveMap, setTemplateActiveMap] = useState<Record<number, boolean>>({});
@@ -746,6 +747,28 @@ export default function Home() {
     return BigInt(parsed);
   }, [covenantTemplateId]);
 
+  const { data: selectedTemplateData } = useReadContract({
+    address: libraryAddr,
+    abi: covenantLibraryAbi,
+    functionName: "templates",
+    args: templateIdValue ? [templateIdValue] : undefined,
+    query: {
+      enabled: Boolean(covenantLibraryAddress && templateIdValue),
+    },
+  });
+
+  const selectedTemplate = useMemo(() => {
+    if (!templateIdValue || !selectedTemplateData) return null;
+    const data = selectedTemplateData as [string, bigint, string, boolean];
+    return {
+      id: Number(templateIdValue),
+      creator: data[0],
+      royaltyBps: data[1],
+      metadataUri: data[2],
+      active: data[3],
+    };
+  }, [templateIdValue, selectedTemplateData]);
+
   const { data: crystallizedPreview } = useReadContract({
     address: treasuryAddr,
     abi: treasuryAbi,
@@ -756,39 +779,40 @@ export default function Home() {
     },
   });
 
-  const { data: templateRoyaltyPreview } = useReadContract({
-    address: libraryAddr,
-    abi: covenantLibraryAbi,
-    functionName: "calculateRoyalty",
-    args:
-      templateIdValue && crystallizedPreview !== undefined
-        ? [templateIdValue, crystallizedPreview as bigint]
-        : undefined,
-    query: {
-      enabled: Boolean(
-        covenantPayInTokenA &&
-          covenantLibraryAddress &&
-          templateIdValue &&
-          crystallizedPreview !== undefined
-      ),
-    },
-  });
-
   const estimatedCrystallizedReward = useMemo(() => {
     if (!covenantPayInTokenA) return null;
     if (crystallizedPreview === undefined) return null;
     return crystallizedPreview as bigint;
   }, [covenantPayInTokenA, crystallizedPreview]);
 
+  const baseValueForRoyalty = useMemo(() => {
+    if (!templateIdValue) return null;
+    if (covenantPayInTokenA) {
+      return estimatedCrystallizedReward ?? null;
+    }
+    return covenantReward;
+  }, [templateIdValue, covenantPayInTokenA, estimatedCrystallizedReward, covenantReward]);
+
+  const { data: templateRoyaltyPreview } = useReadContract({
+    address: libraryAddr,
+    abi: covenantLibraryAbi,
+    functionName: "calculateRoyalty",
+    args: templateIdValue && baseValueForRoyalty ? [templateIdValue, baseValueForRoyalty] : undefined,
+    query: {
+      enabled: Boolean(
+        covenantLibraryAddress && templateIdValue && baseValueForRoyalty && baseValueForRoyalty > 0n
+      ),
+    },
+  });
+
   const royaltyBreakdown = useMemo(() => {
-    if (!covenantPayInTokenA) return null;
-    if (!templateIdValue || estimatedCrystallizedReward === null) return null;
+    if (!templateIdValue || baseValueForRoyalty === null) return null;
     if (templateRoyaltyPreview === undefined) return null;
-    const base = estimatedCrystallizedReward;
+    const base = baseValueForRoyalty;
     const author = (templateRoyaltyPreview as bigint) > base ? base : (templateRoyaltyPreview as bigint);
     const worker = base - author;
     return { base, worker, author };
-  }, [covenantPayInTokenA, templateIdValue, estimatedCrystallizedReward, templateRoyaltyPreview]);
+  }, [templateIdValue, baseValueForRoyalty, templateRoyaltyPreview]);
 
   const hasInsufficientBalance = useMemo(() => {
     const balance = covenantPayInTokenA ? tokenABalance : tokenBUnlocked;
@@ -1227,6 +1251,7 @@ export default function Home() {
     await refreshAll();
     await wait(500);
     await loadHistoricalTrail();
+    setRefreshKey((value) => value + 1);
   }, [loadHistoricalTrail, refreshAll]);
 
   const runTransaction = useCallback(
@@ -1304,7 +1329,7 @@ export default function Home() {
       setTemplateActiveMap(actives);
     };
     void loadTemplates();
-  }, [publicClient, covenantLibraryAddress]);
+  }, [publicClient, covenantLibraryAddress, refreshKey]);
 
   useEffect(() => {
     switch (covenantTemplate) {
@@ -1386,6 +1411,18 @@ export default function Home() {
       unwatchTreasury();
     };
   }, [publicClient, covenantAddress, treasuryAddress, handleLiveLogs]);
+
+  useEffect(() => {
+    if (!publicClient || !covenantLibraryAddress) return;
+    const unwatchLibrary = publicClient.watchContractEvent({
+      address: covenantLibraryAddress,
+      abi: covenantLibraryAbi,
+      onLogs: () => setRefreshKey((value) => value + 1),
+    });
+    return () => {
+      unwatchLibrary();
+    };
+  }, [publicClient, covenantLibraryAddress]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2916,8 +2953,16 @@ export default function Home() {
                     Author will receive:{" "}
                     {Number(formatUnits(royaltyBreakdown.author, 18)).toFixed(2)} SOILB
                   </span>
+                  {selectedTemplate ? (
+                    <span className={styles.fieldHint}>
+                      Author: {safeAddress(selectedTemplate.creator)}
+                    </span>
+                  ) : null}
                   <span className={styles.fieldHint}>
                     Crystallized B (B換算後の価値) を基準にロイヤリティを算出します。
+                  </span>
+                  <span className={styles.fieldHint}>
+                    Base Value = Token A (after fee) converted into SOILB.
                   </span>
                 </div>
               ) : (
@@ -2929,6 +2974,37 @@ export default function Home() {
                     : "Estimated receive: --"}
                 </p>
               )
+            ) : royaltyBreakdown ? (
+              <div className={styles.metricBreakdown}>
+                <span>
+                  Base Value:{" "}
+                  {Number(formatUnits(royaltyBreakdown.base, 18)).toFixed(2)} SOILB
+                </span>
+                <span>
+                  Worker will receive:{" "}
+                  {Number(formatUnits(royaltyBreakdown.worker, 18)).toFixed(2)} SOILB
+                </span>
+                <span>
+                  Author will receive:{" "}
+                  {Number(formatUnits(royaltyBreakdown.author, 18)).toFixed(2)} SOILB
+                </span>
+                {selectedTemplate ? (
+                  <span className={styles.fieldHint}>
+                    Author: {safeAddress(selectedTemplate.creator)}
+                  </span>
+                ) : null}
+                <span className={styles.fieldHint}>
+                  Royalty is calculated from the Token B reward value.
+                </span>
+                <span className={styles.fieldHint}>
+                  Base Value = Token B reward amount (no crystallization).
+                </span>
+              </div>
+            ) : null}
+            {!templateIdValue ? (
+              <p className={styles.taskHint}>
+                Enter a Template ID to view the royalty estimate.
+              </p>
             ) : null}
             <div className={styles.taskForm}>
               <label className={styles.taskField}>
@@ -3028,6 +3104,7 @@ export default function Home() {
                           <span>{item.royaltyBps.toString()} bps</span>{" "}
                           {!templateActiveMap[item.id] ? <span>(inactive)</span> : null}
                           <div className={styles.templateMeta}>
+                            <span>Author: {safeAddress(item.creator)}</span>
                             {item.metadataUri}
                           </div>
                         </div>
