@@ -54,25 +54,19 @@ contract SoilTreasuryUnclaimedUBITest is Test {
     function testClaimAfter31DaysDecays() public {
         vm.startPrank(alice);
         treasury.accrueUBI();
-        uint256 day0 = block.timestamp / 1 days;
+        uint256 day0 = treasury.lastAccruedDay(alice);
+        assertGt(treasury.unclaimed(alice, day0), 0);
 
         vm.warp(block.timestamp + 40 days);
         treasury.accrueUBI();
+        uint256 currentDay = treasury.lastAccruedDay(alice);
 
         uint256 balanceBefore = tokenA.balanceOf(alice);
         treasury.claimUnclaimed(day0, day0);
         uint256 balanceAfter = tokenA.balanceOf(alice);
 
         uint256 amount = treasury.dailyUBIAmount();
-        uint256 ageDays = (block.timestamp / 1 days) - day0; // 40
-        uint256 elapsed = (ageDays - 30) * 1 days;
-        uint256 decay = tokenA.decayRatePerSecond() * elapsed;
-        uint256 expected;
-        if (decay >= 1e18) {
-            expected = 0;
-        } else {
-            expected = (amount * (1e18 - decay)) / 1e18;
-        }
+        uint256 expected = _decayedAtDay(amount, currentDay, day0);
         assertEq(balanceAfter - balanceBefore, expected);
         vm.stopPrank();
     }
@@ -80,12 +74,16 @@ contract SoilTreasuryUnclaimedUBITest is Test {
     function testSplitClaimsDoNotAvoidDecay() public {
         vm.startPrank(alice);
         treasury.accrueUBI();
-        uint256 day0 = block.timestamp / 1 days;
+        uint256 day0 = treasury.lastAccruedDay(alice);
         vm.warp(block.timestamp + 1 days);
         treasury.accrueUBI();
-        uint256 day1 = block.timestamp / 1 days;
+        uint256 day1 = treasury.lastAccruedDay(alice);
+        assertGt(treasury.unclaimed(alice, day0), 0);
+        assertGt(treasury.unclaimed(alice, day1), 0);
 
         vm.warp(block.timestamp + 40 days);
+        treasury.accrueUBI();
+        uint256 currentDay = treasury.lastAccruedDay(alice);
 
         uint256 balanceBefore = tokenA.balanceOf(alice);
         treasury.claimUnclaimed(day0, day0);
@@ -93,15 +91,21 @@ contract SoilTreasuryUnclaimedUBITest is Test {
         uint256 balanceAfter = tokenA.balanceOf(alice);
 
         uint256 amount = treasury.dailyUBIAmount();
-        uint256 age0 = (block.timestamp / 1 days) - day0;
-        uint256 age1 = (block.timestamp / 1 days) - day1;
-        uint256 expected0 = _decayed(amount, age0);
-        uint256 expected1 = _decayed(amount, age1);
+        uint256 expected0 = _decayedAtDay(amount, currentDay, day0);
+        uint256 expected1 = _decayedAtDay(amount, currentDay, day1);
         assertEq(balanceAfter - balanceBefore, expected0 + expected1);
         vm.stopPrank();
     }
 
-    function _decayed(uint256 amount, uint256 ageDays) internal view returns (uint256) {
+    function _decayedAtDay(
+        uint256 amount,
+        uint256 currentDay,
+        uint256 day
+    ) internal view returns (uint256) {
+        if (currentDay <= day) {
+            return 0;
+        }
+        uint256 ageDays = currentDay - day;
         if (ageDays <= 30) {
             return amount;
         }

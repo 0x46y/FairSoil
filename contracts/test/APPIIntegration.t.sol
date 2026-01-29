@@ -66,7 +66,7 @@ contract APPIIntegrationTest is Test {
         oracle.submitPrice(1, 10_000);
         vm.prank(reporter2);
         oracle.submitPrice(1, 10_000);
-        uint256 day2 = block.timestamp / 1 days;
+        uint256 day2 = day + 1;
 
         treasury.applyAPPI(day2);
         uint256 capped = treasury.dailyUBIAmount();

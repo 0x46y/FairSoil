@@ -64,6 +64,8 @@ contract SoilTreasury is Ownable {
     uint256 public liabilitiesB;
     uint256 public lastReservesA;
     uint256 public lastReservesB;
+    uint256 public totalCrystallizedA;
+    uint256 public totalCrystallizedB;
 
     event UBIClaimed(address indexed user, uint256 amount);
     event TaskCompleted(address indexed worker, uint256 tokenBReward, uint256 integrityPoints);
@@ -594,6 +596,7 @@ contract SoilTreasury is Ownable {
             return 0;
         }
         uint256 minted = previewCrystallization(burnedA);
+        _recordCrystallization(burnedA, minted);
         if (minted > 0) {
             require(canPayOutB(minted), "Insufficient reserves");
             tokenB.mint(worker, minted);
@@ -630,6 +633,7 @@ contract SoilTreasury is Ownable {
             emit CrystallizationMinted(worker, 0, burnedA);
             return 0;
         }
+        _recordCrystallization(burnedA, minted);
         require(canPayOutB(minted), "Insufficient reserves");
 
         uint256 authorAmount = 0;
@@ -650,6 +654,16 @@ contract SoilTreasury is Ownable {
 
         emit CrystallizationMinted(worker, minted, burnedA);
         return minted;
+    }
+
+    function _recordCrystallization(uint256 burnedA, uint256 mintedB) internal {
+        if (burnedA == 0 && mintedB == 0) {
+            return;
+        }
+        totalCrystallizedA += burnedA;
+        totalCrystallizedB += mintedB;
+        uint256 allowance = previewCrystallization(totalCrystallizedA);
+        require(totalCrystallizedB <= allowance, "Crystallization cap");
     }
 
     function isEligibleForGovernance(address account) external view returns (bool) {
