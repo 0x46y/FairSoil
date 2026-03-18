@@ -265,6 +265,7 @@ export default function Home() {
   const [covenantIntegrityPoints, setCovenantIntegrityPoints] = useState("50");
   const [covenantPayInTokenA, setCovenantPayInTokenA] = useState(false);
   const [covenantStep, setCovenantStep] = useState<0 | 1 | 2>(0);
+  const [covenantFormStage, setCovenantFormStage] = useState<1 | 2>(1);
   const [covenants, setCovenants] = useState<
     {
       id: number;
@@ -3017,91 +3018,114 @@ export default function Home() {
               Lock Token B rewards upfront so a worker can submit and get
               approved.
             </p>
-            <div className={styles.taskForm}>
-              <label className={styles.taskField}>
-                Template
-                <select
-                  className={styles.taskInput}
-                  value={covenantTemplate}
-                  onChange={(event) => setCovenantTemplate(event.target.value)}
-                >
-                  <option value="general">General</option>
-                  <option value="micro">Micro task</option>
-                  <option value="delivery">Delivery</option>
-                  <option value="audit">Audit</option>
-                  <option value="urgent">Urgent response</option>
-                  <option value="education">Education support</option>
-                </select>
-                <span className={styles.fieldHint}>
-                  Presets fill reward/integrity defaults for common tasks.
-                </span>
-              </label>
-              <label className={styles.taskField}>
-                Tags
-                <input
-                  className={styles.taskInput}
-                  value={covenantTags}
-                  onChange={(event) => setCovenantTags(event.target.value)}
-                  placeholder="e.g. repair, urgent, onsite"
-                />
-                <span className={styles.fieldHint}>
-                  Off-chain tags for filtering and analytics (stored locally for now).
-                </span>
-              </label>
-              <label className={styles.taskField}>
-                Worker address
-                <input
-                  className={styles.taskInput}
-                  value={covenantWorker}
-                  onChange={(event) => setCovenantWorker(event.target.value)}
-                  placeholder="0x…"
-                  name="covenantWorkerAddress"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                <span className={styles.fieldHint}>
-                  The worker who will submit and receive the reward.
-                </span>
-              </label>
-              <label className={styles.taskField}>
-                Payment asset
-                <select
-                  className={styles.taskInput}
-                  value={covenantPayInTokenA ? "tokenA" : "tokenB"}
-                  onChange={(event) => setCovenantPayInTokenA(event.target.value === "tokenA")}
-                >
-                  <option value="tokenB">Token B (Asset)</option>
-                  <option value="tokenA">Token A (Flow)</option>
-                </select>
-                <span className={styles.fieldHint}>
-                  Token A crystallizes into Token B with a fee.
-                </span>
-              </label>
-              <div className={styles.taskRow}>
-                <label className={styles.taskField}>
-                  {covenantPayInTokenA ? "Token A" : "Token B"}
-                  <input
-                    className={styles.taskInput}
-                    value={covenantRewardAmount}
-                    onChange={(event) => setCovenantRewardAmount(event.target.value)}
-                    placeholder="250"
-                  />
-                  <span className={styles.fieldHint}>Amount to lock in escrow.</span>
-                </label>
-                <label className={styles.taskField}>
-                  Integrity
-                  <input
-                    className={styles.taskInput}
-                    value={covenantIntegrityPoints}
-                    onChange={(event) => setCovenantIntegrityPoints(event.target.value)}
-                    placeholder="50"
-                  />
-                  <span className={styles.fieldHint}>
-                    Integrity points awarded upon approval.
-                  </span>
-                </label>
-              </div>
+            <div className={styles.stepSummary}>
+              <span className={styles.stepChip}>Step 1: basics</span>
+              <span className={styles.stepChip}>Step 2: royalties and templates</span>
             </div>
+            {covenantFormStage === 1 ? (
+              <div className={styles.stepPanel}>
+                <div className={styles.taskForm}>
+                  <label className={styles.taskField}>
+                    Template
+                    <select
+                      className={styles.taskInput}
+                      value={covenantTemplate}
+                      onChange={(event) => setCovenantTemplate(event.target.value)}
+                    >
+                      <option value="general">General</option>
+                      <option value="micro">Micro task</option>
+                      <option value="delivery">Delivery</option>
+                      <option value="audit">Audit</option>
+                      <option value="urgent">Urgent response</option>
+                      <option value="education">Education support</option>
+                    </select>
+                    <span className={styles.fieldHint}>
+                      Presets fill reward/integrity defaults for common tasks.
+                    </span>
+                  </label>
+                  <label className={styles.taskField}>
+                    Worker address
+                    <input
+                      className={styles.taskInput}
+                      value={covenantWorker}
+                      onChange={(event) => setCovenantWorker(event.target.value)}
+                      placeholder="0x…"
+                      name="covenantWorkerAddress"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    <span className={styles.fieldHint}>
+                      The worker who will submit and receive the reward.
+                    </span>
+                  </label>
+                  <label className={styles.taskField}>
+                    Payment asset
+                    <select
+                      className={styles.taskInput}
+                      value={covenantPayInTokenA ? "tokenA" : "tokenB"}
+                      onChange={(event) => setCovenantPayInTokenA(event.target.value === "tokenA")}
+                    >
+                      <option value="tokenB">Token B (Asset)</option>
+                      <option value="tokenA">Token A (Flow)</option>
+                    </select>
+                    <span className={styles.fieldHint}>
+                      Token A crystallizes into Token B with a fee.
+                    </span>
+                  </label>
+                  <div className={styles.taskRow}>
+                    <label className={styles.taskField}>
+                      {covenantPayInTokenA ? "Token A" : "Token B"}
+                      <input
+                        className={styles.taskInput}
+                        value={covenantRewardAmount}
+                        onChange={(event) => setCovenantRewardAmount(event.target.value)}
+                        placeholder="250"
+                      />
+                      <span className={styles.fieldHint}>Amount to lock in escrow.</span>
+                    </label>
+                    <label className={styles.taskField}>
+                      Integrity
+                      <input
+                        className={styles.taskInput}
+                        value={covenantIntegrityPoints}
+                        onChange={(event) => setCovenantIntegrityPoints(event.target.value)}
+                        placeholder="50"
+                      />
+                      <span className={styles.fieldHint}>
+                        Integrity points awarded upon approval.
+                      </span>
+                    </label>
+                  </div>
+                </div>
+                <div className={styles.stepActions}>
+                  <button
+                    className={styles.secondaryButton}
+                    onClick={() => setCovenantFormStage(2)}
+                    disabled={!covenantWorker}
+                  >
+                    Continue to details
+                  </button>
+                  <span className={styles.taskHint}>
+                    Start with the essentials. Template usage and royalty configuration live in the next step.
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.stepPanel}>
+                <div className={styles.taskForm}>
+                  <label className={styles.taskField}>
+                    Tags
+                    <input
+                      className={styles.taskInput}
+                      value={covenantTags}
+                      onChange={(event) => setCovenantTags(event.target.value)}
+                      placeholder="e.g. repair, urgent, onsite"
+                    />
+                    <span className={styles.fieldHint}>
+                      Off-chain tags for filtering and analytics (stored locally for now).
+                    </span>
+                  </label>
+                </div>
             <button
               className={styles.ghostButton}
               onClick={handleCreateCovenant}
@@ -3114,8 +3138,8 @@ export default function Home() {
               }
             >
                 {hasInsufficientBalance
-                ? "Insufficient Balance"
-                : actionLabel("createCovenant", "Create Agreement (approve + lock)")}
+                  ? "Insufficient Balance"
+                  : actionLabel("createCovenant", "Create Agreement (approve + lock)")}
             </button>
             <div className={styles.stepNote}>
               <span className={styles.stepPill}>
@@ -3226,78 +3250,88 @@ export default function Home() {
                 Enter a Template ID to view the royalty estimate.
               </p>
             ) : null}
-            <div className={styles.taskForm}>
-              <label className={styles.taskField}>
-                Template ID
-                <input
-                  className={styles.taskInput}
-                  value={covenantTemplateId}
-                  onChange={(event) => setCovenantTemplateId(event.target.value)}
-                  placeholder="0"
-                />
-                <span className={styles.fieldHint}>
-                  Optional. When set, usage is recorded in CovenantLibrary.
-                </span>
-              </label>
-              <label className={styles.taskField}>
-                Template URI (register)
-                <input
-                  className={styles.taskInput}
-                  value={covenantTemplateUri}
-                  onChange={(event) => setCovenantTemplateUri(event.target.value)}
-                  placeholder="ipfs://…"
-                  name="covenantTemplateUri"
-                  autoComplete="off"
-                />
-              </label>
-              <label className={styles.taskField}>
-                Royalty (bps)
-                <input
-                  className={styles.taskInput}
-                  value={covenantRoyaltyBps}
-                  onChange={(event) => setCovenantRoyaltyBps(event.target.value)}
-                  placeholder="500"
-                />
-              </label>
-            </div>
-            <div className={styles.cardActions}>
-              <button
-                className={styles.secondaryButton}
-                onClick={handleRegisterTemplate}
-                disabled={!account.address || !covenantLibraryAddress || isBusy}
-              >
-                {actionLabel("registerTemplate", "Register template")}
-              </button>
-            </div>
-            <div className={styles.taskForm}>
-              <label className={styles.taskField}>
-                Record use: Covenant ID
-                <input
-                  className={styles.taskInput}
-                  value={templateUseCovenantId}
-                  onChange={(event) => setTemplateUseCovenantId(event.target.value)}
-                  placeholder="0"
-                />
-              </label>
-              <label className={styles.taskField}>
-                Record use: Reward amount
-                <input
-                  className={styles.taskInput}
-                  value={templateUseAmount}
-                  onChange={(event) => setTemplateUseAmount(event.target.value)}
-                  placeholder="0"
-                />
-              </label>
-            </div>
-            <div className={styles.cardActions}>
-              <button
-                className={styles.secondaryButton}
-                onClick={handleRecordTemplateUse}
-                disabled={!account.address || !covenantLibraryAddress || isBusy}
-              >
-                {actionLabel("recordTemplateUse", "Record usage")}
-              </button>
-            </div>
+                <div className={styles.taskForm}>
+                  <label className={styles.taskField}>
+                    Template ID
+                    <input
+                      className={styles.taskInput}
+                      value={covenantTemplateId}
+                      onChange={(event) => setCovenantTemplateId(event.target.value)}
+                      placeholder="0"
+                    />
+                    <span className={styles.fieldHint}>
+                      Optional. When set, usage is recorded in CovenantLibrary.
+                    </span>
+                  </label>
+                  <label className={styles.taskField}>
+                    Template URI (register)
+                    <input
+                      className={styles.taskInput}
+                      value={covenantTemplateUri}
+                      onChange={(event) => setCovenantTemplateUri(event.target.value)}
+                      placeholder="ipfs://…"
+                      name="covenantTemplateUri"
+                      autoComplete="off"
+                    />
+                  </label>
+                  <label className={styles.taskField}>
+                    Royalty (bps)
+                    <input
+                      className={styles.taskInput}
+                      value={covenantRoyaltyBps}
+                      onChange={(event) => setCovenantRoyaltyBps(event.target.value)}
+                      placeholder="500"
+                    />
+                  </label>
+                </div>
+                <div className={styles.cardActions}>
+                  <button
+                    className={styles.secondaryButton}
+                    onClick={handleRegisterTemplate}
+                    disabled={!account.address || !covenantLibraryAddress || isBusy}
+                  >
+                    {actionLabel("registerTemplate", "Register template")}
+                  </button>
+                </div>
+                <div className={styles.taskForm}>
+                  <label className={styles.taskField}>
+                    Record use: Covenant ID
+                    <input
+                      className={styles.taskInput}
+                      value={templateUseCovenantId}
+                      onChange={(event) => setTemplateUseCovenantId(event.target.value)}
+                      placeholder="0"
+                    />
+                  </label>
+                  <label className={styles.taskField}>
+                    Record use: Reward amount
+                    <input
+                      className={styles.taskInput}
+                      value={templateUseAmount}
+                      onChange={(event) => setTemplateUseAmount(event.target.value)}
+                      placeholder="0"
+                    />
+                  </label>
+                </div>
+                <div className={styles.cardActions}>
+                  <button
+                    className={styles.secondaryButton}
+                    onClick={handleRecordTemplateUse}
+                    disabled={!account.address || !covenantLibraryAddress || isBusy}
+                  >
+                    {actionLabel("recordTemplateUse", "Record usage")}
+                  </button>
+                </div>
+                <div className={styles.stepActions}>
+                  <button className={styles.secondaryButton} onClick={() => setCovenantFormStage(1)}>
+                    Back to basics
+                  </button>
+                  <span className={styles.taskHint}>
+                    Step 2 is for template, royalty, and library actions. The core agreement is already ready to create.
+                  </span>
+                </div>
+              </div>
+            )}
             {templateList.length > 0 ? (
               <>
                 <div className={styles.templateHeader}>
@@ -3388,8 +3422,15 @@ export default function Home() {
               </div>
             </article>
             <article className={`${styles.card} ${styles.cardWide}`}>
-              <h3>APPI control</h3>
-              <p>Minimal oracle loop for Phase1 validation.</p>
+              <details className={styles.collapsibleCard}>
+                <summary>
+                  <div className={styles.collapsibleTitle}>
+                    <h3>APPI control</h3>
+                    <p>Minimal oracle loop for Phase1 validation.</p>
+                  </div>
+                  <span className={styles.collapsibleIndicator}>+</span>
+                </summary>
+                <div className={styles.collapsibleBody}>
               <div className={styles.metricBreakdown}>
                 <span>Oracle: {safeAddress(appiOracleAddr as string | undefined)}</span>
                 <span>Last APPI: {formattedLastAPPI}</span>
@@ -3516,10 +3557,19 @@ export default function Home() {
               <p className={styles.taskHint}>
                 Owner sets oracle/categories, verified reporters submit prices, owner applies APPI.
               </p>
+                </div>
+              </details>
             </article>
             <article className={`${styles.card} ${styles.cardMedium}`}>
-              <h3>Resource registry (Harberger MVP)</h3>
-              <p>Register resources, set valuation, and pay recurring tax in Token B.</p>
+              <details className={styles.collapsibleCard}>
+                <summary>
+                  <div className={styles.collapsibleTitle}>
+                    <h3>Resource registry (Harberger MVP)</h3>
+                    <p>Register resources, set valuation, and pay recurring tax in Token B.</p>
+                  </div>
+                  <span className={styles.collapsibleIndicator}>+</span>
+                </summary>
+                <div className={styles.collapsibleBody}>
               <div className={styles.taskForm}>
                 <label className={styles.taskField}>
                   Resource ID (string)
@@ -3607,13 +3657,22 @@ export default function Home() {
               <p className={styles.taskHint}>
                 Resource IDs are hashed locally to bytes32 before on-chain calls.
               </p>
+                </div>
+              </details>
             </article>
             <article className={`${styles.card} ${styles.cardMedium}`}>
-              <h3>Verified contributions</h3>
-              <p>
-                Report verified outcomes. Support requests can still earn partial
-                rewards.
-              </p>
+              <details className={styles.collapsibleCard}>
+                <summary>
+                  <div className={styles.collapsibleTitle}>
+                    <h3>Verified contributions</h3>
+                    <p>
+                      Report verified outcomes. Support requests can still earn partial
+                      rewards.
+                    </p>
+                  </div>
+                  <span className={styles.collapsibleIndicator}>+</span>
+                </summary>
+                <div className={styles.collapsibleBody}>
               <div className={styles.taskForm}>
                 <label className={styles.taskField}>
                   Worker address
@@ -3665,6 +3724,8 @@ export default function Home() {
               <p className={styles.taskHint}>
                 Requires the owner wallet and a verified primary address.
               </p>
+                </div>
+              </details>
             </article>
           </div>
         </section>

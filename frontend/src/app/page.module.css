@@ -363,6 +363,85 @@
   gap: 10px;
 }
 
+.stepPanel {
+  display: grid;
+  gap: 14px;
+}
+
+.stepActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.stepSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stepChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(244, 217, 157, 0.28);
+  color: var(--soil-600);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.collapsibleCard {
+  display: grid;
+  gap: 12px;
+}
+
+.collapsibleCard summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.collapsibleCard summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsibleTitle {
+  display: grid;
+  gap: 4px;
+}
+
+.collapsibleTitle p {
+  font-size: 13px;
+  color: var(--ink-500);
+}
+
+.collapsibleIndicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-300);
+  color: var(--soil-600);
+  font-weight: 700;
+}
+
+.collapsibleCard[open] .collapsibleIndicator {
+  background: rgba(244, 217, 157, 0.28);
+}
+
+.collapsibleBody {
+  display: grid;
+  gap: 14px;
+}
+
 .taskRow {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
