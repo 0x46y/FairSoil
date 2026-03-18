@@ -773,6 +773,20 @@ export default function Home() {
     auditReserveThresholdB,
   ]);
 
+  const covenantOverview = useMemo(() => {
+    let active = 0;
+    let disputed = 0;
+    let awaitingAction = 0;
+    covenants.forEach((item) => {
+      if (item.status < STATUS_RESOLVED) active += 1;
+      if (item.status >= 5 && item.status < STATUS_RESOLVED) disputed += 1;
+      if (item.status === 0 || item.status === 1 || item.status === 5 || item.status === 6) {
+        awaitingAction += 1;
+      }
+    });
+    return { total: covenants.length, active, disputed, awaitingAction };
+  }, [covenants]);
+
   const handleExportAudit = () => {
     const rows = filteredTrailItems.map((item) => {
       const bodyText = typeof item.body === "string" ? item.body : "";
@@ -3733,6 +3747,7 @@ export default function Home() {
         <section className={styles.timeline}>
           <div className={styles.timelineHeader}>
             <div>
+              <span className={styles.sectionEyebrow}>Live signal</span>
               <h2>Audit trail</h2>
               <p>Covenant + Treasury events (rewards, reserves, and dispute updates).</p>
             </div>
@@ -3769,6 +3784,16 @@ export default function Home() {
                 Export CSV
               </button>
             </div>
+          </div>
+          <div className={styles.timelineLead}>
+            <span className={styles.timelineLeadValue}>{filteredTrailItems.length}</span>
+            <span className={styles.timelineLeadText}>
+              recent events in view
+              {trailFilter !== "all" ? ` · filtered by ${trailFilter}` : ""}
+            </span>
+            {auditAlerts.length > 0 ? (
+              <span className={styles.timelineLeadAlert}>{auditAlerts.length} alerts need review</span>
+            ) : null}
           </div>
           <div className={styles.auditSummary}>
             <div className={styles.auditCard}>
@@ -3821,6 +3846,17 @@ export default function Home() {
                     {formatRelativeTime(item.timestamp, trailNow, locale)}
                   </span>
                   <div>
+                    <span className={styles.timelinePill}>
+                      {auditCategoryForTitle(item.title) === "covenant"
+                        ? "Agreement"
+                        : auditCategoryForTitle(item.title) === "treasury"
+                        ? "Treasury"
+                        : auditCategoryForTitle(item.title) === "dispute"
+                        ? "Dispute"
+                        : auditCategoryForTitle(item.title) === "ubi"
+                        ? "UBI"
+                        : "System"}
+                    </span>
                     <p className={styles.timelineTitle}>{item.title}</p>
                     {item.body ? (
                       <p className={styles.timelineBody}>{item.body}</p>
@@ -3835,6 +3871,7 @@ export default function Home() {
         <section className={styles.covenantSection}>
             <div className={styles.covenantHeader}>
               <div>
+                <span className={styles.sectionEyebrow}>Core workflow</span>
                 <h2>Active agreements</h2>
                 <p>Track escrowed work agreements created on this chain.</p>
               </div>
@@ -3857,6 +3894,24 @@ export default function Home() {
                 </button>
               </div>
             </div>
+          <div className={styles.covenantStats}>
+            <div className={styles.covenantStatCard}>
+              <span className={styles.auditLabel}>Total</span>
+              <span className={styles.auditValue}>{covenantOverview.total}</span>
+            </div>
+            <div className={styles.covenantStatCard}>
+              <span className={styles.auditLabel}>Active</span>
+              <span className={styles.auditValue}>{covenantOverview.active}</span>
+            </div>
+            <div className={styles.covenantStatCard}>
+              <span className={styles.auditLabel}>Disputed</span>
+              <span className={styles.auditValue}>{covenantOverview.disputed}</span>
+            </div>
+            <div className={styles.covenantStatCard}>
+              <span className={styles.auditLabel}>Awaiting action</span>
+              <span className={styles.auditValue}>{covenantOverview.awaitingAction}</span>
+            </div>
+          </div>
           <div className={styles.covenantTable}>
             <div className={styles.covenantRowHeader}>
               <span>ID</span>
@@ -3899,7 +3954,9 @@ export default function Home() {
                   <span>{item.integrityPoints.toString()}</span>
                   <span>{Number(item.issueClaimBps) / 100}%</span>
                   <span>
-                    {covenantStatusLabels[item.status] ?? "Unknown"}
+                    <span className={styles.statusBadge}>
+                      {covenantStatusLabels[item.status] ?? "Unknown"}
+                    </span>
                     {covenantTagMap[String(item.id)] ? (
                       <span className={styles.covenantTags}>
                         {covenantTagMap[String(item.id)]}

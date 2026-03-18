@@ -607,6 +607,36 @@
   align-items: center;
 }
 
+.timelineLead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.timelineLeadValue {
+  font-size: clamp(28px, 3vw, 40px);
+  font-weight: 700;
+  color: var(--ink-900);
+  line-height: 1;
+}
+
+.timelineLeadText {
+  color: var(--ink-700);
+  font-size: 14px;
+}
+
+.timelineLeadAlert {
+  display: inline-flex;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(244, 217, 157, 0.38);
+  border: 1px solid rgba(155, 111, 47, 0.24);
+  color: var(--soil-600);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .timelineSearch {
   min-width: 200px;
   padding: 8px 10px;
@@ -686,10 +716,11 @@
   display: grid;
   grid-template-columns: 72px 1fr;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 16px 18px;
   background: #fff;
-  border-radius: 18px;
+  border-radius: 20px;
   border: 1px solid var(--sand-200);
+  box-shadow: 0 10px 22px rgba(70, 55, 30, 0.05);
 }
 
 .timelineTime {
@@ -697,14 +728,30 @@
   color: var(--ink-500);
 }
 
+.timelinePill {
+  display: inline-flex;
+  margin-bottom: 8px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(244, 217, 157, 0.28);
+  color: var(--soil-600);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
 .timelineTitle {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink-900);
 }
 
 .timelineBody {
   color: var(--ink-700);
   font-size: 14px;
   overflow-wrap: anywhere;
+  margin-top: 4px;
 }
 
 .timelineLink {
@@ -766,6 +813,22 @@
   gap: 8px;
 }
 
+.covenantStats {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.covenantStatCard {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--sand-200);
+  box-shadow: 0 10px 24px rgba(70, 55, 30, 0.05);
+  display: grid;
+  gap: 6px;
+}
+
 .covenantRowHeader,
 .covenantRow {
   display: grid;
@@ -796,6 +859,7 @@
   border: 1px solid var(--sand-200);
   font-size: 14px;
   color: var(--ink-800);
+  box-shadow: 0 10px 22px rgba(70, 55, 30, 0.04);
 }
 
 .covenantActions {
@@ -809,6 +873,18 @@
   margin-top: 4px;
   font-size: 10px;
   color: var(--ink-500);
+}
+
+.statusBadge {
+  display: inline-flex;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(205, 226, 240, 0.4);
+  color: var(--ink-900);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
 }
 
 .templateHeader {
