@@ -41,6 +41,7 @@ contract SoilTreasury is Ownable {
 
     mapping(address => uint256) public lastClaimTimestamp;
     mapping(address => uint256) public integrityScore;
+    mapping(address => uint256) public lockedIntegrity;
     mapping(address => uint256) public payScore;
     mapping(address => uint256) public processScore;
     mapping(address => uint256) public civicsScore;
@@ -109,6 +110,9 @@ contract SoilTreasury is Ownable {
     event AdvanceBSettled(address indexed from, uint256 amount);
     event DailyUBIAmountSet(uint256 newAmount);
     event GovernanceThresholdsSet(uint256 minTokenB, uint256 minIntegrity);
+    event IntegrityLocked(address indexed account, uint256 amount);
+    event IntegrityUnlocked(address indexed account, uint256 amount);
+    event IntegritySlashed(address indexed account, uint256 amount);
 
     bytes32 public constant REASON_UBI = "UBI";
     bytes32 public constant REASON_UBI_CLAIM = "UBI_CLAIM";
@@ -132,6 +136,11 @@ contract SoilTreasury is Ownable {
 
     modifier onlyOwnerOrCovenant() {
         require(msg.sender == owner() || msg.sender == covenant, "Owner or covenant only");
+        _;
+    }
+
+    modifier onlyCovenant() {
+        require(msg.sender == covenant, "Covenant only");
         _;
     }
 
@@ -548,6 +557,54 @@ contract SoilTreasury is Ownable {
         }
         emit ScoreUpdated(worker, payScore[worker], processScore[worker], civicsScore[worker]);
         emit TaskCompleted(worker, 0, integrityPoints);
+    }
+
+    function availableIntegrity(address account) public view returns (uint256) {
+        uint256 total = integrityScore[account];
+        uint256 locked = lockedIntegrity[account];
+        if (total <= locked) {
+            return 0;
+        }
+        return total - locked;
+    }
+
+    function lockIntegrity(address account, uint256 amount) external onlyCovenant {
+        require(availableIntegrity(account) >= amount, "Insufficient integrity");
+        if (amount == 0) {
+            return;
+        }
+        lockedIntegrity[account] += amount;
+        emit IntegrityLocked(account, amount);
+    }
+
+    function unlockIntegrity(address account, uint256 amount) external onlyCovenant {
+        uint256 locked = lockedIntegrity[account];
+        if (amount > locked) {
+            amount = locked;
+        }
+        if (amount == 0) {
+            return;
+        }
+        lockedIntegrity[account] = locked - amount;
+        emit IntegrityUnlocked(account, amount);
+    }
+
+    function slashIntegrity(address account, uint256 amount) external onlyCovenant {
+        uint256 locked = lockedIntegrity[account];
+        if (amount > locked) {
+            amount = locked;
+        }
+        if (amount == 0) {
+            return;
+        }
+        lockedIntegrity[account] = locked - amount;
+        uint256 current = integrityScore[account];
+        if (amount >= current) {
+            integrityScore[account] = 0;
+        } else {
+            integrityScore[account] = current - amount;
+        }
+        emit IntegritySlashed(account, amount);
     }
 
     function penalizeProcessScore(

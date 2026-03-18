@@ -173,10 +173,14 @@ contract FairSoilInvariants is StdInvariant, Test {
         vm.recordLogs();
         treasury.claimUBI();
         tokenA.approve(address(covenant), 10e18);
+        treasury.reportTaskCompleted(alice, 1_000e18, 0);
+        vm.prank(alice);
+        tokenB.approve(address(covenant), 1_000e18);
         uint256 covenantId = covenant.createCovenant(alice, 10e18, 0, true);
 
         vm.prank(alice);
         covenant.reportIssue(covenantId, 5_000, "issue", "evidence");
+        vm.prank(alice);
         covenant.disputeIssue(covenantId, "dispute", "evidence");
         covenant.resolveDispute(covenantId, 5_000, 0, 0);
         covenant.finalizeResolution(covenantId);
@@ -189,7 +193,8 @@ contract FairSoilInvariants is StdInvariant, Test {
         );
         workerHandler = new InvariantWorkerHandler(
             address(treasury),
-            address(covenant)
+            address(covenant),
+            address(tokenB)
         );
         resolverHandler = new InvariantResolverHandler(address(covenant));
         timeHandler = new InvariantTimeHandler();
@@ -200,6 +205,7 @@ contract FairSoilInvariants is StdInvariant, Test {
         tokenA.setPrimaryAddress(address(treasuryHandler), true);
         treasury.emergencyMintA(address(creatorHandler), 1_000e18);
         treasury.reportTaskCompleted(address(creatorHandler), 1_000e18, 0);
+        treasury.reportTaskCompleted(address(workerHandler), 1_000e18, 0);
 
         treasury.transferOwnership(address(treasuryHandler));
 

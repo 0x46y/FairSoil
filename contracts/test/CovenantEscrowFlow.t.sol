@@ -19,6 +19,14 @@ contract CovenantEscrowFlowTest is Test {
     address internal creator = address(0xC0FFEE);
     address internal worker = address(0xBEEF);
 
+    function _deposit(uint256 reward, bool payInTokenA) internal view returns (uint256) {
+        uint256 base = reward;
+        if (payInTokenA) {
+            base = treasury.previewCrystallization(reward);
+        }
+        return (base * 500) / 10_000;
+    }
+
     function setUp() public {
         FairSoilTokenA implementation = new FairSoilTokenA();
         bytes memory initData = abi.encodeCall(FairSoilTokenA.initialize, (1e16));
@@ -42,6 +50,7 @@ contract CovenantEscrowFlowTest is Test {
         vm.prank(address(treasury));
         tokenB.mint(address(treasury), 10_000e18);
         treasury.reportTaskCompleted(creator, 1_000e18, 0);
+        treasury.reportTaskCompleted(worker, 1_000e18, 0);
 
         vm.prank(creator);
         tokenA.approve(address(covenant), 1_000e18);
@@ -105,6 +114,9 @@ contract CovenantEscrowFlowTest is Test {
         vm.prank(creator);
         uint256 covenantId = covenant.createCovenant(worker, 100e18, 0, false);
 
+        uint256 deposit = _deposit(100e18, false);
+        vm.prank(worker);
+        tokenB.approve(address(covenant), deposit);
         vm.prank(worker);
         covenant.reportIssue(covenantId, 5_000, "issue", "evidence");
 
@@ -118,8 +130,13 @@ contract CovenantEscrowFlowTest is Test {
         vm.prank(creator);
         uint256 covenantId = covenant.createCovenant(worker, 100e18, 0, false);
 
+        uint256 deposit = _deposit(100e18, false);
+        vm.prank(worker);
+        tokenB.approve(address(covenant), deposit);
         vm.prank(worker);
         covenant.reportIssue(covenantId, 5_000, "issue", "evidence");
+        vm.prank(creator);
+        tokenB.approve(address(covenant), deposit);
         vm.prank(creator);
         covenant.disputeIssue(covenantId, "dispute", "evidence");
 
@@ -134,6 +151,9 @@ contract CovenantEscrowFlowTest is Test {
         vm.prank(creator);
         uint256 covenantId = covenant.createCovenant(worker, 100e18, 0, true);
 
+        uint256 deposit = _deposit(100e18, true);
+        vm.prank(worker);
+        tokenB.approve(address(covenant), deposit);
         vm.prank(worker);
         covenant.reportIssue(covenantId, 5_000, "issue", "evidence");
 
@@ -147,8 +167,13 @@ contract CovenantEscrowFlowTest is Test {
         vm.prank(creator);
         uint256 covenantId = covenant.createCovenant(worker, 100e18, 0, true);
 
+        uint256 deposit = _deposit(100e18, true);
+        vm.prank(worker);
+        tokenB.approve(address(covenant), deposit);
         vm.prank(worker);
         covenant.reportIssue(covenantId, 5_000, "issue", "evidence");
+        vm.prank(creator);
+        tokenB.approve(address(covenant), deposit);
         vm.prank(creator);
         covenant.disputeIssue(covenantId, "dispute", "evidence");
 

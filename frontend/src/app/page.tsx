@@ -50,6 +50,8 @@ import {
 } from "../lib/contracts";
 
 const MAX_TRAIL_ITEMS = 12;
+const ISSUE_DEPOSIT_BPS = 500n;
+const ISSUE_DEPOSIT_DENOM = 10_000n;
 
 type TrailItem = {
   id: string;
@@ -73,6 +75,9 @@ const formatTokenA = (amount: bigint) =>
   `${Number(formatUnits(amount, 18)).toFixed(2)} SOILA`;
 
 const formatIntegrity = (points: bigint) => `+${points.toString()} integrity`;
+const toIntegrityPoints = (amountWei: bigint) =>
+  (amountWei + 1_000_000_000_000_000_000n - 1n) / 1_000_000_000_000_000_000n;
+const MONTH_SECONDS = 30 * 24 * 60 * 60;
 
 const formatPercent = (bps: bigint) => {
   const percent = Number(bps) / 100;
@@ -157,6 +162,16 @@ const safeParseUnits = (value: string, decimals: number) => {
   }
 };
 
+const formatCountdown = (seconds: number) => {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "now";
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  if (days > 0) return `${days}d ${hours}h`;
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+};
+
 const normalizeErrorMessage = (error: unknown) => {
   if (!error) return "Unknown error";
   if (typeof error === "string") return error;
@@ -217,6 +232,7 @@ export default function Home() {
   const [covenantTemplate, setCovenantTemplate] = useState("general");
   const [covenantTags, setCovenantTags] = useState("general");
   const [covenantTagFilter, setCovenantTagFilter] = useState("");
+  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
   const [covenantTagMap, setCovenantTagMap] = useState<Record<string, string>>({});
   const [covenantTemplateId, setCovenantTemplateId] = useState("0");
   const [covenantTemplateUri, setCovenantTemplateUri] = useState("");
@@ -264,6 +280,7 @@ export default function Home() {
   const [issueClaims, setIssueClaims] = useState<Record<number, string>>({});
   const [issueReasons, setIssueReasons] = useState<Record<number, string>>({});
   const [issueEvidenceUris, setIssueEvidenceUris] = useState<Record<number, string>>({});
+  const [issueDepositEstimates, setIssueDepositEstimates] = useState<Record<number, bigint>>({});
   const [disputeReasons, setDisputeReasons] = useState<Record<number, string>>({});
   const [disputeEvidenceUris, setDisputeEvidenceUris] = useState<Record<number, string>>({});
   const [resolveClaims, setResolveClaims] = useState<Record<number, string>>({});
@@ -380,6 +397,46 @@ export default function Home() {
     args: [address],
     query: {
       enabled: Boolean(treasuryAddress && account.address),
+    },
+  });
+
+  const { data: lockedIntegrity, refetch: refetchLockedIntegrity } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "lockedIntegrity",
+    args: [address],
+    query: {
+      enabled: Boolean(treasuryAddress && account.address),
+    },
+  });
+
+  const { data: availableIntegrity, refetch: refetchAvailableIntegrity } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "availableIntegrity",
+    args: [address],
+    query: {
+      enabled: Boolean(treasuryAddress && account.address),
+    },
+  });
+
+  const { data: defenseQuotaUsed, refetch: refetchDefenseQuotaUsed } = useReadContract({
+    address: covenantAddr,
+    abi: covenantAbi,
+    functionName: "defenseQuotaUsed",
+    args: [address],
+    query: {
+      enabled: Boolean(covenantAddress && account.address),
+    },
+  });
+
+  const { data: defenseQuotaMonth, refetch: refetchDefenseQuotaMonth } = useReadContract({
+    address: covenantAddr,
+    abi: covenantAbi,
+    functionName: "defenseQuotaMonth",
+    args: [address],
+    query: {
+      enabled: Boolean(covenantAddress && account.address),
     },
   });
 
@@ -740,6 +797,103 @@ export default function Home() {
     if (integrityScore === undefined) return "--";
     return integrityScore.toString();
   }, [integrityScore]);
+
+  const formattedLockedIntegrity = useMemo(() => {
+    if (lockedIntegrity === undefined) return "--";
+    return lockedIntegrity.toString();
+  }, [lockedIntegrity]);
+
+  const formattedAvailableIntegrity = useMemo(() => {
+    if (availableIntegrity === undefined) return "--";
+    return availableIntegrity.toString();
+  }, [availableIntegrity]);
+
+  const defenseQuotaRemaining = useMemo(() => {
+    if (integrityScore === undefined || defenseQuotaUsed === undefined) return null;
+    if (integrityScore < 100n) return 0;
+    const used = Number(defenseQuotaUsed);
+    return Math.max(0, 2 - used);
+  }, [defenseQuotaUsed, integrityScore]);
+
+  const defenseQuotaResetInfo = useMemo(() => {
+    if (defenseQuotaMonth === undefined) return null;
+    const currentMonth = Math.floor(nowSec / MONTH_SECONDS);
+    const nextResetAt = (currentMonth + 1) * MONTH_SECONDS;
+    const remainingSeconds = Math.max(0, nextResetAt - nowSec);
+    return {
+      nextResetAt,
+      remainingSeconds,
+      label: formatCountdown(remainingSeconds),
+    };
+  }, [defenseQuotaMonth, nowSec]);
+
+  const tokenBAvailable = useMemo(() => {
+    if (tokenBUnlocked !== undefined) return tokenBUnlocked;
+    if (tokenBBalance !== undefined) return tokenBBalance;
+    return 0n;
+  }, [tokenBBalance, tokenBUnlocked]);
+
+  const getDepositBreakdown = useCallback(
+    (deposit: bigint) => {
+      if (deposit <= 0n) {
+        return { tokenBPart: 0n, integrityPoints: 0n };
+      }
+      const tokenBPart = tokenBAvailable < deposit ? tokenBAvailable : deposit;
+      const integrityPartWei = deposit - tokenBPart;
+      const integrityPoints = toIntegrityPoints(integrityPartWei);
+      return { tokenBPart, integrityPoints };
+    },
+    [tokenBAvailable]
+  );
+
+  const isSelf = useCallback(
+    (target: string) =>
+      Boolean(account.address && target.toLowerCase() === account.address.toLowerCase()),
+    [account.address]
+  );
+
+  const hasDefenseQuota = useMemo(() => {
+    if (integrityScore === undefined || defenseQuotaRemaining === null) return false;
+    return integrityScore >= 100n && defenseQuotaRemaining > 0;
+  }, [defenseQuotaRemaining, integrityScore]);
+
+  const renderDepositBreakdown = useCallback(
+    (deposit: bigint, isActor: boolean) => {
+      if (!isActor || deposit <= 0n) return null;
+      if (hasDefenseQuota) {
+        return (
+          <span className={styles.issueHelp}>
+            Defense quota available: deposit waived ({defenseQuotaRemaining ?? 0}/2 remaining).
+          </span>
+        );
+      }
+      const breakdown = getDepositBreakdown(deposit);
+      const parts: string[] = [];
+      if (breakdown.tokenBPart > 0n) {
+        parts.push(`Token B: ${formatTokenB(breakdown.tokenBPart)}`);
+      }
+      if (breakdown.integrityPoints > 0n) {
+        parts.push(`Integrity: ${breakdown.integrityPoints.toString()} pts`);
+      }
+      const label =
+        parts.length > 0 ? `Deposit breakdown — ${parts.join(" + ")}` : "Deposit required.";
+      const insufficientIntegrity =
+        breakdown.integrityPoints > 0n &&
+        (availableIntegrity ?? 0n) < breakdown.integrityPoints;
+      return (
+        <>
+          <span className={styles.issueHelp}>{label}</span>
+          {insufficientIntegrity ? (
+            <span className={styles.issueHelp}>
+              Not enough integrity: need {breakdown.integrityPoints.toString()} pts, available{" "}
+              {(availableIntegrity ?? 0n).toString()} pts.
+            </span>
+          ) : null}
+        </>
+      );
+    },
+    [availableIntegrity, defenseQuotaRemaining, getDepositBreakdown, hasDefenseQuota]
+  );
 
   const showSuccess = useCallback((message: string) => {
     if (successTimeoutRef.current) {
@@ -1269,17 +1423,25 @@ export default function Home() {
       refetchTokenBLocked(),
       refetchTokenBUnlocked(),
       refetchIntegrity(),
+      refetchLockedIntegrity(),
+      refetchAvailableIntegrity(),
       refetchEligibility(),
+      refetchDefenseQuotaUsed(),
+      refetchDefenseQuotaMonth(),
       refreshCovenants(),
       loadUnclaimed(),
     ]);
   }, [
     refetchEligibility,
     refetchIntegrity,
+    refetchLockedIntegrity,
+    refetchAvailableIntegrity,
     refetchTokenA,
     refetchTokenB,
     refetchTokenBLocked,
     refetchTokenBUnlocked,
+    refetchDefenseQuotaUsed,
+    refetchDefenseQuotaMonth,
     refreshCovenants,
     loadUnclaimed,
   ]);
@@ -1322,6 +1484,13 @@ export default function Home() {
       setTaskWorker(account.address);
     }
   }, [account.address, taskWorker]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowSec(Math.floor(Date.now() / 1000));
+    }, 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!covenantWorker && account.address) {
@@ -2191,8 +2360,71 @@ export default function Home() {
     }
   };
 
+  const getIssueDeposit = useCallback(
+    async (item?: (typeof covenants)[number]) => {
+      if (!item || !publicClient || !treasuryAddress) return 0n;
+      let base = item.tokenBReward;
+      if (item.paymentToken === 1) {
+        try {
+          base = (await publicClient.readContract({
+            address: treasuryAddr,
+            abi: treasuryAbi,
+            functionName: "previewCrystallization",
+            args: [item.tokenBReward],
+          })) as bigint;
+        } catch {
+          return 0n;
+        }
+      }
+      return (base * ISSUE_DEPOSIT_BPS) / ISSUE_DEPOSIT_DENOM;
+    },
+    [publicClient, treasuryAddr, treasuryAddress]
+  );
+
+  useEffect(() => {
+    if (!publicClient || !treasuryAddress) {
+      setIssueDepositEstimates({});
+      return;
+    }
+    let cancelled = false;
+    const loadDeposits = async () => {
+      const entries = await Promise.all(
+        covenants.map(async (item) => {
+          let base = item.tokenBReward;
+          if (item.paymentToken === 1) {
+            try {
+              base = (await publicClient.readContract({
+                address: treasuryAddr,
+                abi: treasuryAbi,
+                functionName: "previewCrystallization",
+                args: [item.tokenBReward],
+              })) as bigint;
+            } catch {
+              base = 0n;
+            }
+          }
+          const deposit = (base * ISSUE_DEPOSIT_BPS) / ISSUE_DEPOSIT_DENOM;
+          return [item.id, deposit] as const;
+        })
+      );
+      if (cancelled) return;
+      const next: Record<number, bigint> = {};
+      entries.forEach(([id, amount]) => {
+        if (amount > 0n) {
+          next[id] = amount;
+        }
+      });
+      setIssueDepositEstimates(next);
+    };
+    void loadDeposits();
+    return () => {
+      cancelled = true;
+    };
+  }, [covenants, publicClient, treasuryAddr, treasuryAddress]);
+
   const handleReportIssue = async (covenantId: number) => {
     if (!covenantAddress) return;
+    if (!tokenBAddress) return;
     const claim = issueClaims[covenantId] ?? "";
     const reason = issueReasons[covenantId] ?? "";
     const evidenceUri = issueEvidenceUris[covenantId] ?? "";
@@ -2208,6 +2440,22 @@ export default function Home() {
     if (!confirmed) return;
     const actionKey = `report-issue-${covenantId}`;
     try {
+      const covenantItem = covenants.find((entry) => entry.id === covenantId);
+      const deposit = await getIssueDeposit(covenantItem);
+      if (deposit > 0n && !hasDefenseQuota) {
+        const breakdown = getDepositBreakdown(deposit);
+        const tokenBPart = breakdown.tokenBPart;
+        if (tokenBPart > 0n) {
+        await runTransaction(`approve-issue-${covenantId}`, () =>
+          writeContractAsync({
+            address: tokenBAddr,
+            abi: tokenBAbi,
+            functionName: "approve",
+            args: [covenantAddress, tokenBPart],
+          })
+        );
+        }
+      }
       await runTransaction(actionKey, () =>
         writeContractAsync({
           address: covenantAddress,
@@ -2254,10 +2502,27 @@ export default function Home() {
 
   const handleDisputeIssue = async (covenantId: number) => {
     if (!covenantAddress) return;
+    if (!tokenBAddress) return;
     const reason = disputeReasons[covenantId] ?? "";
     const evidenceUri = disputeEvidenceUris[covenantId] ?? "";
     const actionKey = `dispute-${covenantId}`;
     try {
+      const covenantItem = covenants.find((entry) => entry.id === covenantId);
+      const deposit = await getIssueDeposit(covenantItem);
+      if (deposit > 0n && !hasDefenseQuota) {
+        const breakdown = getDepositBreakdown(deposit);
+        const tokenBPart = breakdown.tokenBPart;
+        if (tokenBPart > 0n) {
+        await runTransaction(`approve-dispute-${covenantId}`, () =>
+          writeContractAsync({
+            address: tokenBAddr,
+            abi: tokenBAbi,
+            functionName: "approve",
+            args: [covenantAddress, tokenBPart],
+          })
+        );
+        }
+      }
       await runTransaction(actionKey, () =>
         writeContractAsync({
           address: covenantAddress,
@@ -2320,6 +2585,141 @@ export default function Home() {
         })
       );
       await postTransactionSync();
+      setTxError(null);
+      showSuccess("Transaction successful!");
+    } catch (error) {
+      setTxError(formatTxError(error));
+      setTxSuccess(null);
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const resourceIdBytes = useMemo(() => {
+    const trimmed = resourceIdInput.trim();
+    if (!trimmed) return null;
+    return keccak256(stringToBytes(trimmed));
+  }, [resourceIdInput]);
+
+  const handleLoadResource = async () => {
+    if (!publicClient || !resourceIdBytes || !resourceRegistryAddress) return;
+    const data = (await publicClient.readContract({
+      address: resourceRegistryAddress,
+      abi: resourceRegistryAbi,
+      functionName: "resources",
+      args: [resourceIdBytes],
+    })) as [string, bigint, bigint, bigint, boolean];
+    const pending = (await publicClient.readContract({
+      address: resourceRegistryAddress,
+      abi: resourceRegistryAbi,
+      functionName: "pendingTax",
+      args: [resourceIdBytes],
+    })) as [bigint, bigint];
+    setResourceInfo({
+      owner: data[0],
+      valuation: data[1],
+      taxRateBps: data[2],
+      lastTaxTimestamp: data[3],
+      exists: data[4],
+      due: pending[0],
+      elapsed: pending[1],
+    });
+  };
+
+  const handleRegisterResource = async () => {
+    if (!resourceRegistryAddress || !resourceIdBytes) return;
+    const valuation = safeParseUnits(resourceValuationInput || "0", 18);
+    const rate = Number.parseInt(resourceTaxRateInput || "0", 10);
+    if (!Number.isFinite(rate) || rate < 0) {
+      setTxError("Invalid tax rate.");
+      return;
+    }
+    try {
+      await runTransaction("registerResource", () =>
+        writeContractAsync({
+          address: registryAddr,
+          abi: resourceRegistryAbi,
+          functionName: "registerResource",
+          args: [resourceIdBytes, valuation, BigInt(rate)],
+        })
+      );
+      await postTransactionSync();
+      await handleLoadResource();
+      setTxError(null);
+      showSuccess("Transaction successful!");
+    } catch (error) {
+      setTxError(formatTxError(error));
+      setTxSuccess(null);
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const handleUpdateValuation = async () => {
+    if (!resourceRegistryAddress || !resourceIdBytes) return;
+    const valuation = safeParseUnits(resourceValuationInput || "0", 18);
+    try {
+      await runTransaction("updateValuation", () =>
+        writeContractAsync({
+          address: registryAddr,
+          abi: resourceRegistryAbi,
+          functionName: "updateValuation",
+          args: [resourceIdBytes, valuation],
+        })
+      );
+      await postTransactionSync();
+      await handleLoadResource();
+      setTxError(null);
+      showSuccess("Transaction successful!");
+    } catch (error) {
+      setTxError(formatTxError(error));
+      setTxSuccess(null);
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const handlePayResourceTax = async () => {
+    if (!resourceRegistryAddress || !resourceIdBytes) return;
+    try {
+      await runTransaction("payTax", () =>
+        writeContractAsync({
+          address: registryAddr,
+          abi: resourceRegistryAbi,
+          functionName: "payTax",
+          args: [resourceIdBytes],
+        })
+      );
+      await postTransactionSync();
+      await handleLoadResource();
+      setTxError(null);
+      showSuccess("Transaction successful!");
+    } catch (error) {
+      setTxError(formatTxError(error));
+      setTxSuccess(null);
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
+  const handleBuyResource = async () => {
+    if (!resourceRegistryAddress || !resourceIdBytes) return;
+    const price = safeParseUnits(resourceBuyPriceInput || "0", 18);
+    try {
+      await runTransaction("buyResource", () =>
+        writeContractAsync({
+          address: registryAddr,
+          abi: resourceRegistryAbi,
+          functionName: "buyResource",
+          args: [resourceIdBytes, price],
+        })
+      );
+      await postTransactionSync();
+      await handleLoadResource();
       setTxError(null);
       showSuccess("Transaction successful!");
     } catch (error) {
@@ -2441,9 +2841,19 @@ export default function Home() {
             <div className={styles.metric}>
               <p className={styles.metricLabel}>Integrity score</p>
               <p className={styles.metricValue}>{formattedIntegrity}</p>
+              <div className={styles.metricBreakdown}>
+                <span>Available: {formattedAvailableIntegrity}</span>
+                <span>Locked: {formattedLockedIntegrity}</span>
+              </div>
               <p className={styles.metricFootnote}>
                 {governanceEligible ? "Governance eligible" : "Not eligible yet"}
               </p>
+              {defenseQuotaRemaining !== null ? (
+                <p className={styles.metricFootnote}>
+                  Defense quota: {defenseQuotaRemaining}/2 remaining
+                  {defenseQuotaResetInfo ? ` · resets in ${defenseQuotaResetInfo.label}` : ""}
+                </p>
+              ) : null}
             </div>
           </div>
         </section>
@@ -3469,6 +3879,17 @@ export default function Home() {
                           <span className={styles.issueHelp}>
                             % of reward to keep if there is a problem.
                           </span>
+                          {issueDepositEstimates[item.id] ? (
+                            <>
+                              <span className={styles.issueHelp}>
+                                Issue deposit: {formatTokenB(issueDepositEstimates[item.id])} (5%)
+                              </span>
+                              {renderDepositBreakdown(
+                                issueDepositEstimates[item.id],
+                                isSelf(item.worker)
+                              )}
+                            </>
+                          ) : null}
                         </label>
                         <label className={styles.issueField}>
                           <span className={styles.issueLabel}>Support reason</span>
@@ -3555,6 +3976,17 @@ export default function Home() {
                           <span className={styles.issueHelp}>
                             Disputes auto-hold part of the payout. Missing details may auto-reject after 48h.
                           </span>
+                          {issueDepositEstimates[item.id] ? (
+                            <>
+                              <span className={styles.issueHelp}>
+                                Dispute deposit: {formatTokenB(issueDepositEstimates[item.id])} (5%)
+                              </span>
+                              {renderDepositBreakdown(
+                                issueDepositEstimates[item.id],
+                                isSelf(item.creator)
+                              )}
+                            </>
+                          ) : null}
                         </label>
                         <label className={styles.issueField}>
                           <span className={styles.issueLabel}>Evidence URL</span>
@@ -3679,132 +4111,3 @@ export default function Home() {
     </div>
   );
 }
-  const resourceIdBytes = useMemo(() => {
-    const trimmed = resourceIdInput.trim();
-    if (!trimmed) return null;
-    return keccak256(stringToBytes(trimmed));
-  }, [resourceIdInput]);
-  const handleLoadResource = async () => {
-    if (!publicClient || !resourceIdBytes || !resourceRegistryAddress) return;
-    const data = (await publicClient.readContract({
-      address: resourceRegistryAddress,
-      abi: resourceRegistryAbi,
-      functionName: "resources",
-      args: [resourceIdBytes],
-    })) as [string, bigint, bigint, bigint, boolean];
-    const pending = (await publicClient.readContract({
-      address: resourceRegistryAddress,
-      abi: resourceRegistryAbi,
-      functionName: "pendingTax",
-      args: [resourceIdBytes],
-    })) as [bigint, bigint];
-    setResourceInfo({
-      owner: data[0],
-      valuation: data[1],
-      taxRateBps: data[2],
-      lastTaxTimestamp: data[3],
-      exists: data[4],
-      due: pending[0],
-      elapsed: pending[1],
-    });
-  };
-
-  const handleRegisterResource = async () => {
-    if (!resourceRegistryAddress || !resourceIdBytes) return;
-    const valuation = safeParseUnits(resourceValuationInput || "0", 18);
-    const rate = Number.parseInt(resourceTaxRateInput || "0", 10);
-    if (!Number.isFinite(rate) || rate < 0) {
-      setTxError("Invalid tax rate.");
-      return;
-    }
-    try {
-      await runTransaction("registerResource", () =>
-        writeContractAsync({
-          address: registryAddr,
-          abi: resourceRegistryAbi,
-          functionName: "registerResource",
-          args: [resourceIdBytes, valuation, BigInt(rate)],
-        })
-      );
-      await postTransactionSync();
-      setTxError(null);
-      showSuccess("Resource registered.");
-      await handleLoadResource();
-    } catch (error) {
-      setTxError(formatTxError(error));
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
-
-  const handleUpdateValuation = async () => {
-    if (!resourceRegistryAddress || !resourceIdBytes) return;
-    const valuation = safeParseUnits(resourceValuationInput || "0", 18);
-    try {
-      await runTransaction("updateValuation", () =>
-        writeContractAsync({
-          address: registryAddr,
-          abi: resourceRegistryAbi,
-          functionName: "updateValuation",
-          args: [resourceIdBytes, valuation],
-        })
-      );
-      await postTransactionSync();
-      setTxError(null);
-      showSuccess("Valuation updated.");
-      await handleLoadResource();
-    } catch (error) {
-      setTxError(formatTxError(error));
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
-
-  const handlePayResourceTax = async () => {
-    if (!resourceRegistryAddress || !resourceIdBytes) return;
-    try {
-      await runTransaction("payTax", () =>
-        writeContractAsync({
-          address: registryAddr,
-          abi: resourceRegistryAbi,
-          functionName: "payTax",
-          args: [resourceIdBytes],
-        })
-      );
-      await postTransactionSync();
-      setTxError(null);
-      showSuccess("Tax paid.");
-      await handleLoadResource();
-    } catch (error) {
-      setTxError(formatTxError(error));
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
-
-  const handleBuyResource = async () => {
-    if (!resourceRegistryAddress || !resourceIdBytes) return;
-    const price = safeParseUnits(resourceBuyPriceInput || "0", 18);
-    try {
-      await runTransaction("buyResource", () =>
-        writeContractAsync({
-          address: registryAddr,
-          abi: resourceRegistryAbi,
-          functionName: "buyResource",
-          args: [resourceIdBytes, price],
-        })
-      );
-      await postTransactionSync();
-      setTxError(null);
-      showSuccess("Resource purchased.");
-      await handleLoadResource();
-    } catch (error) {
-      setTxError(formatTxError(error));
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
