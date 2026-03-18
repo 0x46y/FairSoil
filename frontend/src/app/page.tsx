@@ -2872,8 +2872,16 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={styles.grid}>
-          <article className={`${styles.card} ${styles.cardCompact}`}>
+        <section className={`${styles.dashboardSection} ${styles.participantSection}`}>
+          <div className={styles.sectionHeading}>
+            <div>
+              <span className={styles.sectionEyebrow}>For participants</span>
+              <h2>Use FairSoil</h2>
+            </div>
+            <p>Daily use flows first: check eligibility, verify your address, claim bonuses, and create work agreements.</p>
+          </div>
+          <div className={styles.grid}>
+            <article className={`${styles.card} ${styles.cardCompact}`}>
             <h3>Governance readiness</h3>
             <p>
               You qualify via Token B holdings or integrity score threshold.
@@ -2883,8 +2891,8 @@ export default function Home() {
               <span>Min Token B: 1</span>
               <span>Min Integrity: 100</span>
             </div>
-          </article>
-          <article className={`${styles.card} ${styles.cardCompact}`}>
+            </article>
+            <article className={`${styles.card} ${styles.cardCompact}`}>
             <h3>Primary verification</h3>
             <p>
               {isPrimaryAddress === undefined
@@ -2926,246 +2934,8 @@ export default function Home() {
                 {actionLabel("setPrimary", "Verify (mock)")}
               </button>
             </div>
-          </article>
-          <article className={`${styles.card} ${styles.cardCompact}`}>
-            <h3>Treasury snapshot</h3>
-            <p>Current reserves and cumulative flows (latest snapshot).</p>
-            <div className={styles.metricBreakdown}>
-              <span>Reserves A: {formattedReservesA}</span>
-              <span>Reserves B: {formattedReservesB}</span>
-            </div>
-            <div className={styles.metricBreakdown}>
-              <span>Liabilities A: {formattedLiabilitiesA}</span>
-              <span>Liabilities B: {formattedLiabilitiesB}</span>
-            </div>
-            <div className={styles.metricBreakdown}>
-              <span>In total: {formattedTreasuryIn}</span>
-              <span>Out A: {formattedTreasuryOutA}</span>
-              <span>Out B: {formattedTreasuryOutB}</span>
-            </div>
-          </article>
-          <article className={`${styles.card} ${styles.cardWide}`}>
-            <h3>APPI control</h3>
-            <p>Minimal oracle loop for Phase1 validation.</p>
-            <div className={styles.metricBreakdown}>
-              <span>Oracle: {safeAddress(appiOracleAddr as string | undefined)}</span>
-              <span>Last APPI: {formattedLastAPPI}</span>
-              <span>Daily UBI: {formattedDailyUBI}</span>
-            </div>
-            <div className={styles.metricBreakdown}>
-              <span>
-                Daily index ({appiDayForRead ?? "--"}): {formattedAppiDailyIndex}
-              </span>
-              <span>
-                Current day: {currentDayIndex !== null ? currentDayIndex : "--"}
-              </span>
-            </div>
-            <div className={styles.metricBreakdown}>
-              <span>Reporter diversity: {appiDiversity}</span>
-              <span>Confidence: {formattedAppiConfidence}</span>
-              <span>Max reports: {formattedAppiMaxReports}</span>
-            </div>
-            <div className={styles.taskForm}>
-              <label className={styles.taskField}>
-                Oracle address
-                <input
-                  className={styles.taskInput}
-                  value={appiOracleInput}
-                  onChange={(event) => setAppiOracleInput(event.target.value)}
-                  placeholder="0x…"
-                  name="appiOracleAddress"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </label>
-              <label className={styles.taskField}>
-                Category ids
-                <input
-                  className={styles.taskInput}
-                  value={appiCategoryInput}
-                  onChange={(event) => setAppiCategoryInput(event.target.value)}
-                  placeholder="e.g. 1,2,3"
-                />
-              </label>
-              <label className={styles.taskField}>
-                Price (18 decimals)
-                <input
-                  className={styles.taskInput}
-                  value={appiPriceInput}
-                  onChange={(event) => setAppiPriceInput(event.target.value)}
-                  placeholder="e.g. 100"
-                />
-              </label>
-              <label className={styles.taskField}>
-                Day index
-                <input
-                  className={styles.taskInput}
-                  value={appiDayInput}
-                  onChange={(event) => setAppiDayInput(event.target.value)}
-                  placeholder={currentDayIndex !== null ? currentDayIndex.toString() : "e.g. 12345"}
-                />
-              </label>
-              <label className={styles.taskField}>
-                Confidence (bps)
-                <input
-                  className={styles.taskInput}
-                  value={appiConfidenceBps}
-                  onChange={(event) => setAppiConfidenceBps(event.target.value)}
-                  placeholder="10000"
-                />
-              </label>
-              <label className={styles.taskField}>
-                Max reports/category
-                <input
-                  className={styles.taskInput}
-                  value={appiMaxReports}
-                  onChange={(event) => setAppiMaxReports(event.target.value)}
-                  placeholder="50"
-                />
-              </label>
-            </div>
-            {appiStats.length > 0 ? (
-              <div className={styles.metricBreakdown}>
-                {appiStats.map((entry) => (
-                  <span key={`appi-${entry.category}`}>
-                    Cat {entry.category}: {entry.reports} reports ({entry.unique} unique)
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            <div className={styles.cardActions}>
-              <button
-                className={styles.secondaryButton}
-                onClick={handleSetAppiOracle}
-                disabled={!account.address || !isTreasuryOwner || isBusy}
-              >
-                {actionLabel("setAPPIOracle", "Set oracle")}
-              </button>
-              <button
-                className={styles.secondaryButton}
-                onClick={handleSetAppiCategories}
-                disabled={!account.address || !isTreasuryOwner || isBusy}
-              >
-                {actionLabel("setAPPIcategories", "Set categories")}
-              </button>
-              <button
-                className={styles.secondaryButton}
-                onClick={handleSubmitAppiPrice}
-                disabled={!account.address || isBusy}
-              >
-                {actionLabel("submitAPPI", "Submit price")}
-              </button>
-              <button
-                className={styles.secondaryButton}
-                onClick={handleApplyAppi}
-                disabled={!account.address || !isTreasuryOwner || isBusy}
-              >
-                {actionLabel("applyAPPI", "Apply APPI")}
-              </button>
-              <button
-                className={styles.secondaryButton}
-                onClick={handleSetAppiConfidence}
-                disabled={!account.address || !isTreasuryOwner || isBusy}
-              >
-                {actionLabel("setAPPIConfidence", "Set confidence")}
-              </button>
-            </div>
-            <p className={styles.taskHint}>
-              Owner sets oracle/categories, verified reporters submit prices, owner applies APPI.
-            </p>
-          </article>
-          <article className={`${styles.card} ${styles.cardMedium}`}>
-            <h3>Resource registry (Harberger MVP)</h3>
-            <p>Register resources, set valuation, and pay recurring tax in Token B.</p>
-            <div className={styles.taskForm}>
-              <label className={styles.taskField}>
-                Resource ID (string)
-                <input
-                  className={styles.taskInput}
-                  value={resourceIdInput}
-                  onChange={(event) => setResourceIdInput(event.target.value)}
-                  placeholder="e.g. land:alpha"
-                />
-              </label>
-              <div className={styles.taskRow}>
-                <label className={styles.taskField}>
-                  Valuation (Token B)
-                  <input
-                    className={styles.taskInput}
-                    value={resourceValuationInput}
-                    onChange={(event) => setResourceValuationInput(event.target.value)}
-                  />
-                </label>
-                <label className={styles.taskField}>
-                  Tax rate (bps)
-                  <input
-                    className={styles.taskInput}
-                    value={resourceTaxRateInput}
-                    onChange={(event) => setResourceTaxRateInput(event.target.value)}
-                    placeholder="500"
-                  />
-                </label>
-              </div>
-              <label className={styles.taskField}>
-                Buy price (Token B)
-                <input
-                  className={styles.taskInput}
-                  value={resourceBuyPriceInput}
-                  onChange={(event) => setResourceBuyPriceInput(event.target.value)}
-                />
-              </label>
-            </div>
-            <div className={styles.cardActions}>
-              <button
-                className={styles.secondaryButton}
-                onClick={handleRegisterResource}
-                disabled={!account.address || !resourceRegistryAddress || isBusy}
-              >
-                {actionLabel("registerResource", "Register")}
-              </button>
-              <button
-                className={styles.secondaryButton}
-                onClick={handleUpdateValuation}
-                disabled={!account.address || !resourceRegistryAddress || isBusy}
-              >
-                {actionLabel("updateValuation", "Update valuation")}
-              </button>
-              <button
-                className={styles.secondaryButton}
-                onClick={handlePayResourceTax}
-                disabled={!account.address || !resourceRegistryAddress || isBusy}
-              >
-                {actionLabel("payTax", "Pay tax")}
-              </button>
-              <button
-                className={styles.secondaryButton}
-                onClick={handleBuyResource}
-                disabled={!account.address || !resourceRegistryAddress || isBusy}
-              >
-                {actionLabel("buyResource", "Buy")}
-              </button>
-              <button
-                className={styles.secondaryButton}
-                onClick={handleLoadResource}
-                disabled={!resourceRegistryAddress || !resourceIdBytes || isBusy}
-              >
-                {actionLabel("loadResource", "Load")}
-              </button>
-            </div>
-            {resourceInfo ? (
-              <div className={styles.metricBreakdown}>
-                <span>Owner: {safeAddress(resourceInfo.owner)}</span>
-                <span>Valuation: {Number(formatUnits(resourceInfo.valuation, 18)).toFixed(2)}</span>
-                <span>Tax rate: {resourceInfo.taxRateBps.toString()} bps</span>
-                <span>Pending tax: {Number(formatUnits(resourceInfo.due, 18)).toFixed(4)}</span>
-                <span>Elapsed: {resourceInfo.elapsed.toString()}s</span>
-              </div>
-            ) : null}
-            <p className={styles.taskHint}>
-              Resource IDs are hashed locally to bytes32 before on-chain calls.
-            </p>
-          </article>
-          <article className={`${styles.card} ${styles.cardMedium}`}>
+            </article>
+            <article className={`${styles.card} ${styles.cardMedium}`}>
             <h3>Saved bonuses</h3>
             <p>
               Accrue daily bonuses, then claim in batches. Amounts older than 30 days
@@ -3231,66 +3001,8 @@ export default function Home() {
                 Day index = block timestamp / 86,400. Claiming resets those days.
               </p>
             </div>
-          </article>
-          <article className={`${styles.card} ${styles.cardMedium}`}>
-            <h3>Verified contributions</h3>
-            <p>
-              Report verified outcomes. Support requests can still earn partial
-              rewards.
-            </p>
-            <div className={styles.taskForm}>
-              <label className={styles.taskField}>
-                Worker address
-                <input
-                  className={styles.taskInput}
-                  value={taskWorker}
-                  onChange={(event) => setTaskWorker(event.target.value)}
-                  placeholder="0x…"
-                  name="taskWorkerAddress"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                <span className={styles.fieldHint}>
-                  Address of the worker who completed the task (must be verified).
-                </span>
-              </label>
-              <div className={styles.taskRow}>
-                <label className={styles.taskField}>
-                  Token B bonus
-                  <input
-                    className={styles.taskInput}
-                    value={taskTokenBAmount}
-                    onChange={(event) => setTaskTokenBAmount(event.target.value)}
-                    placeholder="500"
-                  />
-                  <span className={styles.fieldHint}>Bonus amount minted to the worker.</span>
-                </label>
-                <label className={styles.taskField}>
-                  Integrity
-                  <input
-                    className={styles.taskInput}
-                    value={taskIntegrityPoints}
-                    onChange={(event) => setTaskIntegrityPoints(event.target.value)}
-                    placeholder="100"
-                  />
-                  <span className={styles.fieldHint}>
-                    Integrity points added to the worker’s score.
-                  </span>
-                </label>
-              </div>
-            </div>
-            <button
-              className={styles.ghostButton}
-              onClick={handleReport}
-              disabled={!account.address || missingEnv || isBusy || !taskWorker}
-            >
-              {actionLabel("reportTaskCompleted", "Report Contribution (admin)")}
-            </button>
-            <p className={styles.taskHint}>
-              Requires the owner wallet and a verified primary address.
-            </p>
-          </article>
-          <article className={`${styles.card} ${styles.cardCompact}`}>
+            </article>
+            <article className={`${styles.card} ${styles.cardCompact}`}>
             <h3>Soil Treasury</h3>
             <p>
               Daily bonus set at 100 SOILA. Claims reset at 00:00 UTC.
@@ -3298,8 +3010,8 @@ export default function Home() {
             <div className={styles.cardFooter}>
               <span>Next claim window: 03:12</span>
             </div>
-          </article>
-          <article className={`${styles.card} ${styles.cardFull}`}>
+            </article>
+            <article className={`${styles.card} ${styles.cardFull}`}>
             <h3>Create work agreement</h3>
             <p>
               Lock Token B rewards upfront so a worker can submit and get
@@ -3645,7 +3357,316 @@ export default function Home() {
                 </div>
               </>
             ) : null}
-          </article>
+            </article>
+          </div>
+        </section>
+
+        <section className={`${styles.dashboardSection} ${styles.operatorSection}`}>
+          <div className={styles.sectionHeading}>
+            <div>
+              <span className={styles.sectionEyebrow}>For operators</span>
+              <h2>Run the system</h2>
+            </div>
+            <p>Operational controls and treasury tooling live below so the main user journey stays readable.</p>
+          </div>
+          <div className={styles.grid}>
+            <article className={`${styles.card} ${styles.cardCompact}`}>
+              <h3>Treasury snapshot</h3>
+              <p>Current reserves and cumulative flows (latest snapshot).</p>
+              <div className={styles.metricBreakdown}>
+                <span>Reserves A: {formattedReservesA}</span>
+                <span>Reserves B: {formattedReservesB}</span>
+              </div>
+              <div className={styles.metricBreakdown}>
+                <span>Liabilities A: {formattedLiabilitiesA}</span>
+                <span>Liabilities B: {formattedLiabilitiesB}</span>
+              </div>
+              <div className={styles.metricBreakdown}>
+                <span>In total: {formattedTreasuryIn}</span>
+                <span>Out A: {formattedTreasuryOutA}</span>
+                <span>Out B: {formattedTreasuryOutB}</span>
+              </div>
+            </article>
+            <article className={`${styles.card} ${styles.cardWide}`}>
+              <h3>APPI control</h3>
+              <p>Minimal oracle loop for Phase1 validation.</p>
+              <div className={styles.metricBreakdown}>
+                <span>Oracle: {safeAddress(appiOracleAddr as string | undefined)}</span>
+                <span>Last APPI: {formattedLastAPPI}</span>
+                <span>Daily UBI: {formattedDailyUBI}</span>
+              </div>
+              <div className={styles.metricBreakdown}>
+                <span>
+                  Daily index ({appiDayForRead ?? "--"}): {formattedAppiDailyIndex}
+                </span>
+                <span>
+                  Current day: {currentDayIndex !== null ? currentDayIndex : "--"}
+                </span>
+              </div>
+              <div className={styles.metricBreakdown}>
+                <span>Reporter diversity: {appiDiversity}</span>
+                <span>Confidence: {formattedAppiConfidence}</span>
+                <span>Max reports: {formattedAppiMaxReports}</span>
+              </div>
+              <div className={styles.taskForm}>
+                <label className={styles.taskField}>
+                  Oracle address
+                  <input
+                    className={styles.taskInput}
+                    value={appiOracleInput}
+                    onChange={(event) => setAppiOracleInput(event.target.value)}
+                    placeholder="0x…"
+                    name="appiOracleAddress"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </label>
+                <label className={styles.taskField}>
+                  Category ids
+                  <input
+                    className={styles.taskInput}
+                    value={appiCategoryInput}
+                    onChange={(event) => setAppiCategoryInput(event.target.value)}
+                    placeholder="e.g. 1,2,3"
+                  />
+                </label>
+                <label className={styles.taskField}>
+                  Price (18 decimals)
+                  <input
+                    className={styles.taskInput}
+                    value={appiPriceInput}
+                    onChange={(event) => setAppiPriceInput(event.target.value)}
+                    placeholder="e.g. 100"
+                  />
+                </label>
+                <label className={styles.taskField}>
+                  Day index
+                  <input
+                    className={styles.taskInput}
+                    value={appiDayInput}
+                    onChange={(event) => setAppiDayInput(event.target.value)}
+                    placeholder={currentDayIndex !== null ? currentDayIndex.toString() : "e.g. 12345"}
+                  />
+                </label>
+                <label className={styles.taskField}>
+                  Confidence (bps)
+                  <input
+                    className={styles.taskInput}
+                    value={appiConfidenceBps}
+                    onChange={(event) => setAppiConfidenceBps(event.target.value)}
+                    placeholder="10000"
+                  />
+                </label>
+                <label className={styles.taskField}>
+                  Max reports/category
+                  <input
+                    className={styles.taskInput}
+                    value={appiMaxReports}
+                    onChange={(event) => setAppiMaxReports(event.target.value)}
+                    placeholder="50"
+                  />
+                </label>
+              </div>
+              {appiStats.length > 0 ? (
+                <div className={styles.metricBreakdown}>
+                  {appiStats.map((entry) => (
+                    <span key={`appi-${entry.category}`}>
+                      Cat {entry.category}: {entry.reports} reports ({entry.unique} unique)
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <div className={styles.cardActions}>
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handleSetAppiOracle}
+                  disabled={!account.address || !isTreasuryOwner || isBusy}
+                >
+                  {actionLabel("setAPPIOracle", "Set oracle")}
+                </button>
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handleSetAppiCategories}
+                  disabled={!account.address || !isTreasuryOwner || isBusy}
+                >
+                  {actionLabel("setAPPIcategories", "Set categories")}
+                </button>
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handleSubmitAppiPrice}
+                  disabled={!account.address || isBusy}
+                >
+                  {actionLabel("submitAPPI", "Submit price")}
+                </button>
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handleApplyAppi}
+                  disabled={!account.address || !isTreasuryOwner || isBusy}
+                >
+                  {actionLabel("applyAPPI", "Apply APPI")}
+                </button>
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handleSetAppiConfidence}
+                  disabled={!account.address || !isTreasuryOwner || isBusy}
+                >
+                  {actionLabel("setAPPIConfidence", "Set confidence")}
+                </button>
+              </div>
+              <p className={styles.taskHint}>
+                Owner sets oracle/categories, verified reporters submit prices, owner applies APPI.
+              </p>
+            </article>
+            <article className={`${styles.card} ${styles.cardMedium}`}>
+              <h3>Resource registry (Harberger MVP)</h3>
+              <p>Register resources, set valuation, and pay recurring tax in Token B.</p>
+              <div className={styles.taskForm}>
+                <label className={styles.taskField}>
+                  Resource ID (string)
+                  <input
+                    className={styles.taskInput}
+                    value={resourceIdInput}
+                    onChange={(event) => setResourceIdInput(event.target.value)}
+                    placeholder="e.g. land:alpha"
+                  />
+                </label>
+                <div className={styles.taskRow}>
+                  <label className={styles.taskField}>
+                    Valuation (Token B)
+                    <input
+                      className={styles.taskInput}
+                      value={resourceValuationInput}
+                      onChange={(event) => setResourceValuationInput(event.target.value)}
+                    />
+                  </label>
+                  <label className={styles.taskField}>
+                    Tax rate (bps)
+                    <input
+                      className={styles.taskInput}
+                      value={resourceTaxRateInput}
+                      onChange={(event) => setResourceTaxRateInput(event.target.value)}
+                      placeholder="500"
+                    />
+                  </label>
+                </div>
+                <label className={styles.taskField}>
+                  Buy price (Token B)
+                  <input
+                    className={styles.taskInput}
+                    value={resourceBuyPriceInput}
+                    onChange={(event) => setResourceBuyPriceInput(event.target.value)}
+                  />
+                </label>
+              </div>
+              <div className={styles.cardActions}>
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handleRegisterResource}
+                  disabled={!account.address || !resourceRegistryAddress || isBusy}
+                >
+                  {actionLabel("registerResource", "Register")}
+                </button>
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handleUpdateValuation}
+                  disabled={!account.address || !resourceRegistryAddress || isBusy}
+                >
+                  {actionLabel("updateValuation", "Update valuation")}
+                </button>
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handlePayResourceTax}
+                  disabled={!account.address || !resourceRegistryAddress || isBusy}
+                >
+                  {actionLabel("payTax", "Pay tax")}
+                </button>
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handleBuyResource}
+                  disabled={!account.address || !resourceRegistryAddress || isBusy}
+                >
+                  {actionLabel("buyResource", "Buy")}
+                </button>
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handleLoadResource}
+                  disabled={!resourceRegistryAddress || !resourceIdBytes || isBusy}
+                >
+                  {actionLabel("loadResource", "Load")}
+                </button>
+              </div>
+              {resourceInfo ? (
+                <div className={styles.metricBreakdown}>
+                  <span>Owner: {safeAddress(resourceInfo.owner)}</span>
+                  <span>Valuation: {Number(formatUnits(resourceInfo.valuation, 18)).toFixed(2)}</span>
+                  <span>Tax rate: {resourceInfo.taxRateBps.toString()} bps</span>
+                  <span>Pending tax: {Number(formatUnits(resourceInfo.due, 18)).toFixed(4)}</span>
+                  <span>Elapsed: {resourceInfo.elapsed.toString()}s</span>
+                </div>
+              ) : null}
+              <p className={styles.taskHint}>
+                Resource IDs are hashed locally to bytes32 before on-chain calls.
+              </p>
+            </article>
+            <article className={`${styles.card} ${styles.cardMedium}`}>
+              <h3>Verified contributions</h3>
+              <p>
+                Report verified outcomes. Support requests can still earn partial
+                rewards.
+              </p>
+              <div className={styles.taskForm}>
+                <label className={styles.taskField}>
+                  Worker address
+                  <input
+                    className={styles.taskInput}
+                    value={taskWorker}
+                    onChange={(event) => setTaskWorker(event.target.value)}
+                    placeholder="0x…"
+                    name="taskWorkerAddress"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <span className={styles.fieldHint}>
+                    Address of the worker who completed the task (must be verified).
+                  </span>
+                </label>
+                <div className={styles.taskRow}>
+                  <label className={styles.taskField}>
+                    Token B bonus
+                    <input
+                      className={styles.taskInput}
+                      value={taskTokenBAmount}
+                      onChange={(event) => setTaskTokenBAmount(event.target.value)}
+                      placeholder="500"
+                    />
+                    <span className={styles.fieldHint}>Bonus amount minted to the worker.</span>
+                  </label>
+                  <label className={styles.taskField}>
+                    Integrity
+                    <input
+                      className={styles.taskInput}
+                      value={taskIntegrityPoints}
+                      onChange={(event) => setTaskIntegrityPoints(event.target.value)}
+                      placeholder="100"
+                    />
+                    <span className={styles.fieldHint}>
+                      Integrity points added to the worker’s score.
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <button
+                className={styles.ghostButton}
+                onClick={handleReport}
+                disabled={!account.address || missingEnv || isBusy || !taskWorker}
+              >
+                {actionLabel("reportTaskCompleted", "Report Contribution (admin)")}
+              </button>
+              <p className={styles.taskHint}>
+                Requires the owner wallet and a verified primary address.
+              </p>
+            </article>
+          </div>
         </section>
 
         <section className={styles.timeline}>

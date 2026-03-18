@@ -218,30 +218,33 @@
 
 .metricLabel {
   color: var(--ink-500);
-  font-size: 12px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  font-weight: 700;
 }
 
 .metricValue {
-  font-size: 32px;
+  font-size: clamp(30px, 3vw, 38px);
   font-weight: 700;
   margin: 8px 0;
+  line-height: 1;
 }
 
 .metricBreakdown {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--ink-500);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
 }
 
 .metricFootnote {
   color: var(--ink-500);
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .grid {
@@ -254,7 +257,7 @@
 .card {
   background: #fff;
   border-radius: 28px;
-  padding: 20px;
+  padding: 22px;
   border: 1px solid var(--sand-200);
   box-shadow: 0 14px 30px rgba(70, 55, 30, 0.08);
   display: flex;
@@ -265,13 +268,15 @@
 }
 
 .card h3 {
-  font-size: 18px;
+  font-size: 20px;
+  line-height: 1.2;
 }
 
 .card p {
   color: var(--ink-700);
-  line-height: 1.6;
+  line-height: 1.7;
   overflow-wrap: anywhere;
+  font-size: 14px;
 }
 
 .cardCompact {
@@ -290,6 +295,69 @@
   grid-column: 1 / -1;
 }
 
+.dashboardSection {
+  display: grid;
+  gap: 20px;
+  padding: 28px;
+  border-radius: 32px;
+  border: 1px solid rgba(122, 92, 43, 0.1);
+  box-shadow: 0 18px 40px rgba(30, 26, 16, 0.06);
+}
+
+.sectionHeading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: end;
+}
+
+.sectionHeading h2 {
+  font-family: var(--font-fraunces), serif;
+  font-size: clamp(24px, 3vw, 34px);
+}
+
+.sectionHeading p {
+  color: var(--ink-700);
+  max-width: 720px;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.sectionEyebrow {
+  display: inline-flex;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(244, 217, 157, 0.35);
+  color: var(--soil-600);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.participantSection {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 251, 244, 0.9)),
+    radial-gradient(circle at top right, rgba(244, 217, 157, 0.18), transparent 40%);
+}
+
+.operatorSection {
+  background:
+    linear-gradient(180deg, rgba(249, 245, 238, 0.92), rgba(243, 236, 226, 0.96)),
+    radial-gradient(circle at top right, rgba(126, 168, 186, 0.12), transparent 42%);
+  border-color: rgba(70, 55, 30, 0.12);
+}
+
+.participantSection .card {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.operatorSection .card {
+  background: rgba(255, 252, 247, 0.78);
+  border-color: rgba(122, 92, 43, 0.14);
+  box-shadow: 0 12px 26px rgba(70, 55, 30, 0.06);
+}
+
 .taskForm {
   display: grid;
   gap: 10px;
@@ -304,18 +372,20 @@
 .taskField {
   display: grid;
   gap: 6px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--ink-500);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
+  font-weight: 700;
 }
 
 .fieldHint {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-500);
   text-transform: none;
   letter-spacing: 0;
   overflow-wrap: anywhere;
+  line-height: 1.5;
 }
 
 .taskInput {
@@ -334,9 +404,10 @@
 }
 
 .taskHint {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-500);
   overflow-wrap: anywhere;
+  line-height: 1.5;
 }
 
 .templateForm {
@@ -383,7 +454,7 @@
   flex-wrap: wrap;
   gap: 8px 16px;
   color: var(--ink-500);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .cardActions {
