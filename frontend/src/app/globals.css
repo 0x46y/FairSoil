@@ -31,6 +31,24 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.skipLink {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  z-index: 1000;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #14140f;
+  color: #fff;
+  text-decoration: none;
+  transform: translateY(-150%);
+  transition: transform 0.2s ease;
+}
+
+.skipLink:focus-visible {
+  transform: translateY(0);
+}
+
 * {
   box-sizing: border-box;
   padding: 0;

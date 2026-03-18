@@ -60,14 +60,22 @@ type TrailItem = {
   body?: ReactNode;
 };
 
-const shortAddress = (value: string) => `${value.slice(0, 6)}...${value.slice(-4)}`;
+type TrailLog = {
+  eventName?: string;
+  transactionHash?: string;
+  logIndex?: number;
+  blockNumber: bigint;
+  args?: Record<string, unknown>;
+};
+
+const shortAddress = (value: string) => `${value.slice(0, 6)}…${value.slice(-4)}`;
 const safeAddress = (value?: string) => (value ? shortAddress(value) : "Unknown");
-const formatDate = (timestamp: bigint) =>
-  new Date(Number(timestamp) * 1000).toLocaleDateString("en-US", {
+const formatDate = (timestamp: bigint, locale: string) =>
+  new Intl.DateTimeFormat(locale, {
     year: "numeric",
     month: "short",
     day: "numeric",
-  });
+  }).format(new Date(Number(timestamp) * 1000));
 
 const formatTokenB = (amount: bigint) =>
   `${Number(formatUnits(amount, 18)).toFixed(2)} SOILB`;
@@ -127,7 +135,7 @@ const formatReason = (value: unknown, fallback: string) => {
   const trimmed = value.trim();
   if (!trimmed) return fallback;
   if (trimmed.startsWith("0x") && trimmed.length > 10) {
-    return `${trimmed.slice(0, 10)}...`;
+    return `${trimmed.slice(0, 10)}…`;
   }
   return trimmed;
 };
@@ -195,7 +203,7 @@ const normalizeErrorMessage = (error: unknown) => {
   return `Transaction failed: ${message}`;
 };
 
-const formatRelativeTime = (timestamp: number, nowMs: number) => {
+const formatRelativeTime = (timestamp: number, nowMs: number, locale: string) => {
   const diffSeconds = Math.max(0, Math.floor(nowMs / 1000 - timestamp));
   if (diffSeconds < 60) return "Just now";
   const minutes = Math.floor(diffSeconds / 60);
@@ -204,7 +212,7 @@ const formatRelativeTime = (timestamp: number, nowMs: number) => {
   if (hours < 24) return `${hours}h ago`;
   if (hours < 48) return "Yesterday";
   const date = new Date(timestamp * 1000);
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(date);
 };
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -317,6 +325,7 @@ export default function Home() {
   const [currentDayIndex, setCurrentDayIndex] = useState<number | null>(null);
   const [trailItems, setTrailItems] = useState<TrailItem[]>([]);
   const [trailNow, setTrailNow] = useState(() => Date.now());
+  const [locale, setLocale] = useState("en-US");
   const trailIds = useRef(new Set<string>());
   const [txStatus, setTxStatus] = useState<"idle" | "signing" | "confirming">("idle");
   const [txAction, setTxAction] = useState<string | null>(null);
@@ -1009,7 +1018,7 @@ export default function Home() {
     return covenantReward > balance;
   }, [covenantPayInTokenA, covenantReward, tokenABalance, tokenBUnlocked]);
 
-  const buildTrailItemFromLog = useCallback((log: any, timestamp: number): TrailItem | null => {
+  const buildTrailItemFromLog = useCallback((log: TrailLog, timestamp: number): TrailItem | null => {
     if (!log?.eventName) return null;
     const id = `${log.transactionHash ?? "0x"}-${log.logIndex ?? 0}`;
     const eventName = log.eventName as string;
@@ -1306,7 +1315,7 @@ export default function Home() {
   }, [publicClient, covenantAddress, treasuryAddress, buildTrailItemFromLog]);
 
   const handleLiveLogs = useCallback(
-    async (logs: any[]) => {
+    async (logs: TrailLog[]) => {
       if (!publicClient || logs.length === 0) return;
       const blockMap = new Map<bigint, number>();
       const items = await Promise.all(
@@ -1472,7 +1481,7 @@ export default function Home() {
   const actionLabel = useCallback(
     (actionKey: string, defaultLabel: string) => {
       if (txAction !== actionKey) return defaultLabel;
-      return txStatus === "confirming" ? "Confirming..." : "Processing...";
+      return txStatus === "confirming" ? "Confirming…" : "Processing…";
     },
     [txAction, txStatus]
   );
@@ -1490,6 +1499,11 @@ export default function Home() {
       setNowSec(Math.floor(Date.now() / 1000));
     }, 30_000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    setLocale(navigator.languages?.[0] ?? navigator.language ?? "en-US");
   }, []);
 
   useEffect(() => {
@@ -2746,7 +2760,7 @@ export default function Home() {
   return (
     <div className={styles.page}>
       <div className={styles.backgroundGlow} aria-hidden="true" />
-      <main className={styles.main}>
+      <main id="main-content" className={styles.main}>
         <header className={styles.header}>
           <div className={styles.brand}>
             <span className={styles.mark} />
@@ -2859,7 +2873,7 @@ export default function Home() {
         </section>
 
         <section className={styles.grid}>
-          <article className={styles.card}>
+          <article className={`${styles.card} ${styles.cardCompact}`}>
             <h3>Governance readiness</h3>
             <p>
               You qualify via Token B holdings or integrity score threshold.
@@ -2870,7 +2884,7 @@ export default function Home() {
               <span>Min Integrity: 100</span>
             </div>
           </article>
-          <article className={styles.card}>
+          <article className={`${styles.card} ${styles.cardCompact}`}>
             <h3>Primary verification</h3>
             <p>
               {isPrimaryAddress === undefined
@@ -2913,7 +2927,7 @@ export default function Home() {
               </button>
             </div>
           </article>
-          <article className={styles.card}>
+          <article className={`${styles.card} ${styles.cardCompact}`}>
             <h3>Treasury snapshot</h3>
             <p>Current reserves and cumulative flows (latest snapshot).</p>
             <div className={styles.metricBreakdown}>
@@ -2930,7 +2944,7 @@ export default function Home() {
               <span>Out B: {formattedTreasuryOutB}</span>
             </div>
           </article>
-          <article className={styles.card}>
+          <article className={`${styles.card} ${styles.cardWide}`}>
             <h3>APPI control</h3>
             <p>Minimal oracle loop for Phase1 validation.</p>
             <div className={styles.metricBreakdown}>
@@ -2958,7 +2972,10 @@ export default function Home() {
                   className={styles.taskInput}
                   value={appiOracleInput}
                   onChange={(event) => setAppiOracleInput(event.target.value)}
-                  placeholder="0x..."
+                  placeholder="0x…"
+                  name="appiOracleAddress"
+                  autoComplete="off"
+                  spellCheck={false}
                 />
               </label>
               <label className={styles.taskField}>
@@ -3057,7 +3074,7 @@ export default function Home() {
               Owner sets oracle/categories, verified reporters submit prices, owner applies APPI.
             </p>
           </article>
-          <article className={styles.card}>
+          <article className={`${styles.card} ${styles.cardMedium}`}>
             <h3>Resource registry (Harberger MVP)</h3>
             <p>Register resources, set valuation, and pay recurring tax in Token B.</p>
             <div className={styles.taskForm}>
@@ -3148,7 +3165,7 @@ export default function Home() {
               Resource IDs are hashed locally to bytes32 before on-chain calls.
             </p>
           </article>
-          <article className={styles.card}>
+          <article className={`${styles.card} ${styles.cardMedium}`}>
             <h3>Saved bonuses</h3>
             <p>
               Accrue daily bonuses, then claim in batches. Amounts older than 30 days
@@ -3215,7 +3232,7 @@ export default function Home() {
               </p>
             </div>
           </article>
-          <article className={styles.card}>
+          <article className={`${styles.card} ${styles.cardMedium}`}>
             <h3>Verified contributions</h3>
             <p>
               Report verified outcomes. Support requests can still earn partial
@@ -3228,7 +3245,10 @@ export default function Home() {
                   className={styles.taskInput}
                   value={taskWorker}
                   onChange={(event) => setTaskWorker(event.target.value)}
-                  placeholder="0x..."
+                  placeholder="0x…"
+                  name="taskWorkerAddress"
+                  autoComplete="off"
+                  spellCheck={false}
                 />
                 <span className={styles.fieldHint}>
                   Address of the worker who completed the task (must be verified).
@@ -3270,7 +3290,7 @@ export default function Home() {
               Requires the owner wallet and a verified primary address.
             </p>
           </article>
-          <article className={styles.card}>
+          <article className={`${styles.card} ${styles.cardCompact}`}>
             <h3>Soil Treasury</h3>
             <p>
               Daily bonus set at 100 SOILA. Claims reset at 00:00 UTC.
@@ -3279,7 +3299,7 @@ export default function Home() {
               <span>Next claim window: 03:12</span>
             </div>
           </article>
-          <article className={styles.card}>
+          <article className={`${styles.card} ${styles.cardFull}`}>
             <h3>Create work agreement</h3>
             <p>
               Lock Token B rewards upfront so a worker can submit and get
@@ -3322,7 +3342,10 @@ export default function Home() {
                   className={styles.taskInput}
                   value={covenantWorker}
                   onChange={(event) => setCovenantWorker(event.target.value)}
-                  placeholder="0x..."
+                  placeholder="0x…"
+                  name="covenantWorkerAddress"
+                  autoComplete="off"
+                  spellCheck={false}
                 />
                 <span className={styles.fieldHint}>
                   The worker who will submit and receive the reward.
@@ -3427,8 +3450,8 @@ export default function Home() {
                   ) : null}
                   {selectedTemplate ? (
                     <span className={styles.fieldHint}>
-                      Created at: {formatDate(selectedTemplate.createdAt)} · Public domain on:{" "}
-                      {formatDate(selectedTemplate.createdAt + 730n * 24n * 60n * 60n)}
+                      Created at: {formatDate(selectedTemplate.createdAt, locale)} · Public domain on:{" "}
+                      {formatDate(selectedTemplate.createdAt + 730n * 24n * 60n * 60n, locale)}
                     </span>
                   ) : null}
                   <span className={styles.fieldHint}>
@@ -3474,8 +3497,8 @@ export default function Home() {
                 ) : null}
                 {selectedTemplate ? (
                   <span className={styles.fieldHint}>
-                    Created at: {formatDate(selectedTemplate.createdAt)} · Public domain on:{" "}
-                    {formatDate(selectedTemplate.createdAt + 730n * 24n * 60n * 60n)}
+                    Created at: {formatDate(selectedTemplate.createdAt, locale)} · Public domain on:{" "}
+                    {formatDate(selectedTemplate.createdAt + 730n * 24n * 60n * 60n, locale)}
                   </span>
                 ) : null}
                 <span className={styles.fieldHint}>
@@ -3510,7 +3533,9 @@ export default function Home() {
                   className={styles.taskInput}
                   value={covenantTemplateUri}
                   onChange={(event) => setCovenantTemplateUri(event.target.value)}
-                  placeholder="ipfs://..."
+                  placeholder="ipfs://…"
+                  name="covenantTemplateUri"
+                  autoComplete="off"
                 />
               </label>
               <label className={styles.taskField}>
@@ -3570,6 +3595,9 @@ export default function Home() {
                     value={templateFilter}
                     onChange={(event) => setTemplateFilter(event.target.value)}
                     placeholder="Filter by URI or creator"
+                    aria-label="Filter templates by URI or creator"
+                    name="templateFilter"
+                    autoComplete="off"
                   />
                 </div>
                 <div className={styles.templateList}>
@@ -3592,8 +3620,8 @@ export default function Home() {
                           <div className={styles.templateMeta}>
                             <span>Author: {safeAddress(item.creator)}</span>
                             <span>
-                              Created at: {formatDate(item.createdAt)} · Public domain on:{" "}
-                              {formatDate(item.createdAt + 730n * 24n * 60n * 60n)}
+                              Created at: {formatDate(item.createdAt, locale)} · Public domain on:{" "}
+                              {formatDate(item.createdAt + 730n * 24n * 60n * 60n, locale)}
                             </span>
                             {item.metadataUri}
                           </div>
@@ -3631,7 +3659,10 @@ export default function Home() {
                 className={styles.timelineSearch}
                 value={trailQuery}
                 onChange={(event) => setTrailQuery(event.target.value)}
-                placeholder="Search events..."
+                placeholder="Search events…"
+                aria-label="Search audit trail events"
+                name="trailQuery"
+                autoComplete="off"
               />
               <select
                 className={styles.timelineSelect}
@@ -3639,6 +3670,8 @@ export default function Home() {
                 onChange={(event) =>
                   setTrailFilter(event.target.value as typeof trailFilter)
                 }
+                aria-label="Filter audit trail events"
+                name="trailFilter"
               >
                 {auditFilters.map((filter) => (
                   <option key={filter.value} value={filter.value}>
@@ -3703,7 +3736,7 @@ export default function Home() {
               filteredTrailItems.map((item) => (
                 <div className={styles.timelineItem} key={item.id}>
                   <span className={styles.timelineTime}>
-                    {formatRelativeTime(item.timestamp, trailNow)}
+                    {formatRelativeTime(item.timestamp, trailNow, locale)}
                   </span>
                   <div>
                     <p className={styles.timelineTitle}>{item.title}</p>
@@ -3728,7 +3761,10 @@ export default function Home() {
                   className={styles.covenantSearch}
                   value={covenantTagFilter}
                   onChange={(event) => setCovenantTagFilter(event.target.value)}
-                  placeholder="Filter by tag..."
+                  placeholder="Filter by tag…"
+                  aria-label="Filter agreements by tag"
+                  name="covenantTagFilter"
+                  autoComplete="off"
                 />
                 <button
                   className={styles.secondaryButton}
@@ -3752,7 +3788,7 @@ export default function Home() {
             </div>
             {covenants.length === 0 ? (
               <div className={styles.covenantRowEmpty}>
-                {isLoadingCovenants ? "Loading agreements..." : "No agreements yet."}
+                {isLoadingCovenants ? "Loading agreements…" : "No agreements yet."}
               </div>
             ) : (
               covenants
@@ -3764,7 +3800,7 @@ export default function Home() {
                 .map((item) => (
                 <div className={styles.covenantRow} key={`covenant-${item.id}`}>
                   <span>#{item.id}</span>
-                  <span>{item.worker.slice(0, 10)}...</span>
+                  <span>{item.worker.slice(0, 10)}…</span>
                   <span>
                     {Number(formatUnits(item.tokenBReward, 18)).toFixed(2)}{" "}
                     {item.paymentToken === 1 ? "SOILA" : "SOILB"}
@@ -3916,7 +3952,7 @@ export default function Home() {
                                 [item.id]: event.target.value,
                               }))
                             }
-                            placeholder="https://..."
+                            placeholder="https://…"
                           />
                           {formatEvidenceLink(issueEvidenceUris[item.id]) ? (
                             <div className={styles.issuePreview}>
@@ -3999,7 +4035,7 @@ export default function Home() {
                                 [item.id]: event.target.value,
                               }))
                             }
-                            placeholder="https://..."
+                            placeholder="https://…"
                           />
                           {formatEvidenceLink(disputeEvidenceUris[item.id]) ? (
                             <div className={styles.issuePreview}>

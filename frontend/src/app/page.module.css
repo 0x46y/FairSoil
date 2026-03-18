@@ -19,12 +19,12 @@
 .main {
   position: relative;
   z-index: 1;
-  width: min(1120px, 92vw);
+  width: min(1380px, 95vw);
   margin: 0 auto;
-  padding: 56px 0 96px;
+  padding: 48px 0 88px;
   display: flex;
   flex-direction: column;
-  gap: 56px;
+  gap: 40px;
 }
 
 .header {
@@ -144,6 +144,22 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.ghostButton:focus-visible,
+.taskInput:focus-visible,
+.issueInput:focus-visible,
+.issueTextarea:focus-visible,
+.timelineSearch:focus-visible,
+.timelineSelect:focus-visible,
+.covenantSearch:focus-visible,
+.templateSearch:focus-visible {
+  outline: 3px solid rgba(122, 92, 43, 0.3);
+  outline-offset: 2px;
+  border-color: rgba(122, 92, 43, 0.65);
+  box-shadow: 0 0 0 4px rgba(196, 154, 90, 0.18);
+}
+
 .primaryButton:disabled,
 .secondaryButton:disabled,
 .ghostButton:disabled {
@@ -230,20 +246,22 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
 }
 
 .card {
   background: #fff;
   border-radius: 28px;
-  padding: 24px;
+  padding: 20px;
   border: 1px solid var(--sand-200);
   box-shadow: 0 14px 30px rgba(70, 55, 30, 0.08);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-height: 180px;
+  gap: 14px;
+  min-height: 0;
+  min-width: 0;
 }
 
 .card h3 {
@@ -253,6 +271,23 @@
 .card p {
   color: var(--ink-700);
   line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.cardCompact {
+  grid-column: span 3;
+}
+
+.cardMedium {
+  grid-column: span 4;
+}
+
+.cardWide {
+  grid-column: span 6;
+}
+
+.cardFull {
+  grid-column: 1 / -1;
 }
 
 .taskForm {
@@ -280,6 +315,7 @@
   color: var(--ink-500);
   text-transform: none;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 .taskInput {
@@ -289,6 +325,8 @@
   font-size: 14px;
   color: var(--ink-900);
   background: #fff;
+  width: 100%;
+  min-width: 0;
 }
 
 .taskInput::placeholder {
@@ -298,6 +336,7 @@
 .taskHint {
   font-size: 12px;
   color: var(--ink-500);
+  overflow-wrap: anywhere;
 }
 
 .templateForm {
@@ -328,6 +367,7 @@
   color: var(--ink-700);
   padding: 6px 0;
   border-bottom: 1px dashed var(--sand-200);
+  gap: 12px;
 }
 
 .unclaimedActions {
@@ -340,6 +380,8 @@
 .cardFooter {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
   color: var(--ink-500);
   font-size: 12px;
 }
@@ -348,6 +390,7 @@
   margin-top: 12px;
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .warning {
@@ -511,6 +554,7 @@
 .timelineBody {
   color: var(--ink-700);
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .timelineLink {
@@ -575,7 +619,15 @@
 .covenantRowHeader,
 .covenantRow {
   display: grid;
-  grid-template-columns: 60px minmax(140px, 1.2fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(70px, 0.7fr) minmax(120px, 1fr) minmax(180px, 1fr);
+  grid-template-columns:
+    60px
+    minmax(140px, 1.2fr)
+    minmax(90px, 1fr)
+    minmax(90px, 1fr)
+    minmax(70px, 0.7fr)
+    minmax(90px, 0.8fr)
+    minmax(120px, 1fr)
+    minmax(180px, 1fr);
   gap: 12px;
   align-items: center;
 }
@@ -640,6 +692,7 @@
   justify-content: space-between;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--sand-200);
@@ -648,16 +701,24 @@
   color: var(--ink-800);
 }
 
+.templateRow > :first-child {
+  min-width: 0;
+}
+
 .templateActions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .templateMeta {
   color: var(--ink-500);
   font-size: 11px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .disputeTrack {
@@ -821,6 +882,44 @@
   .covenantRowHeader,
   .covenantRow {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1200px) {
+  .cardCompact,
+  .cardMedium {
+    grid-column: span 6;
+  }
+
+  .cardWide,
+  .cardFull {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 800px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cardCompact,
+  .cardMedium,
+  .cardWide,
+  .cardFull {
+    grid-column: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backgroundGlow,
+  .metric {
+    animation: none;
+  }
+
+  .primaryButton,
+  .secondaryButton,
+  .ghostButton {
+    transition: none;
   }
 }
 

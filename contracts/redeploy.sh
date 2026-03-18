@@ -37,7 +37,7 @@ if [[ ! -f "$BROADCAST_FILE" ]]; then
 fi
 
 export BROADCAST_FILE
-read -r TOKEN_A TOKEN_B TREASURY COVENANT <<<"$(python3 - <<'PY'
+read -r TOKEN_A TOKEN_B TREASURY COVENANT RESOURCE_REGISTRY COVENANT_LIBRARY <<<"$(python3 - <<'PY'
 import json
 import os
 import sys
@@ -62,18 +62,32 @@ token_a = last_address("ERC1967Proxy")
 token_b = last_address("FairSoilTokenB")
 treasury = last_address("SoilTreasury")
 covenant = last_address("Covenant")
+resource_registry = last_address("ResourceRegistry")
+covenant_library = last_address("CovenantLibrary")
 
 if not token_a:
   # Fallback if proxy name is missing.
   token_a = last_address("FairSoilTokenA")
 
-if not all([token_a, token_b, treasury, covenant]):
+if not all([token_a, token_b, treasury, covenant, resource_registry, covenant_library]):
   print("", file=sys.stderr)
   print("Unable to parse deploy addresses from broadcast JSON.", file=sys.stderr)
-  print(f"tokenA={token_a} tokenB={token_b} treasury={treasury} covenant={covenant}", file=sys.stderr)
+  print(
+    " ".join(
+      [
+        f"tokenA={token_a}",
+        f"tokenB={token_b}",
+        f"treasury={treasury}",
+        f"covenant={covenant}",
+        f"resourceRegistry={resource_registry}",
+        f"covenantLibrary={covenant_library}",
+      ]
+    ),
+    file=sys.stderr,
+  )
   sys.exit(1)
 
-print(token_a, token_b, treasury, covenant)
+print(token_a, token_b, treasury, covenant, resource_registry, covenant_library)
 PY
 )"
 
@@ -90,7 +104,15 @@ NEXT_PUBLIC_TOKENA_ADDRESS=$TOKEN_A
 NEXT_PUBLIC_TOKENB_ADDRESS=$TOKEN_B
 NEXT_PUBLIC_TREASURY_ADDRESS=$TREASURY
 NEXT_PUBLIC_COVENANT_ADDRESS=$COVENANT
+NEXT_PUBLIC_RESOURCE_REGISTRY_ADDRESS=$RESOURCE_REGISTRY
+NEXT_PUBLIC_COVENANT_LIBRARY_ADDRESS=$COVENANT_LIBRARY
 NEXT_PUBLIC_RPC_URL=$PUBLIC_RPC_URL
+
+NEXT_PUBLIC_AUDIT_DISPUTE_THRESHOLD=5
+NEXT_PUBLIC_AUDIT_TREASURY_THRESHOLD=20
+NEXT_PUBLIC_AUDIT_RESERVE_A_THRESHOLD=100
+NEXT_PUBLIC_AUDIT_RESERVE_B_THRESHOLD=100
+NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 EOF
 
 echo "Updated $FRONTEND_ENV"
@@ -98,6 +120,8 @@ echo "TOKEN_A=$TOKEN_A"
 echo "TOKEN_B=$TOKEN_B"
 echo "TREASURY=$TREASURY"
 echo "COVENANT=$COVENANT"
+echo "RESOURCE_REGISTRY=$RESOURCE_REGISTRY"
+echo "COVENANT_LIBRARY=$COVENANT_LIBRARY"
 echo "RPC_URL=$PUBLIC_RPC_URL"
 
 if [[ -n "${WALLET_ADDRESS:-}" ]]; then
