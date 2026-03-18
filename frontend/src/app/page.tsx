@@ -2895,62 +2895,73 @@ export default function Home() {
             </div>
             <p>Daily use flows first: check eligibility, verify your address, claim bonuses, and create work agreements.</p>
           </div>
-          <div className={styles.grid}>
-            <article className={`${styles.card} ${styles.cardCompact}`}>
-            <h3>Governance readiness</h3>
-            <p>
-              You qualify via Token B holdings or integrity score threshold.
-              Next draw in 12 hours.
-            </p>
-            <div className={styles.cardFooter}>
-              <span>Min Token B: 1</span>
-              <span>Min Integrity: 100</span>
+          <div className={styles.participantGrid}>
+            <div className={styles.participantStack}>
+              <article className={styles.card}>
+                <h3>Governance readiness</h3>
+                <p>
+                  You qualify via Token B holdings or integrity score threshold.
+                  Next draw in 12 hours.
+                </p>
+                <div className={styles.cardFooter}>
+                  <span>Min Token B: 1</span>
+                  <span>Min Integrity: 100</span>
+                </div>
+              </article>
+              <article className={styles.card}>
+                <h3>Primary verification</h3>
+                <p>
+                  {isPrimaryAddress === undefined
+                    ? "Check your verification status."
+                    : isPrimaryAddress
+                    ? "Primary address verified."
+                    : worldIdAppId && worldIdActionId
+                    ? "Verify with World ID to unlock Tier 3 benefits."
+                    : "Not verified yet. Owner can verify for MVP testing."}
+                </p>
+                <div className={styles.cardFooter}>
+                  <span>Tier 3 required for UBI claim</span>
+                  <span>{isTokenAOwner ? "Owner connected" : "Owner required"}</span>
+                </div>
+                <div className={styles.cardActions}>
+                  {worldIdAppId && worldIdActionId ? (
+                    <button
+                      className={styles.secondaryButton}
+                      onClick={handleWorldIdVerify}
+                      disabled={!account.address || isBusy}
+                    >
+                      {actionLabel("worldIdVerify", worldIdMock ? "Verify (mock)" : "Verify with World ID")}
+                    </button>
+                  ) : null}
+                  {zknfcVerifierUrl ? (
+                    <button
+                      className={styles.secondaryButton}
+                      onClick={handleZkNfcVerify}
+                      disabled={!account.address || isBusy}
+                    >
+                      {actionLabel("zknfcVerify", zknfcMock ? "Verify (mock)" : "Verify with ZK-NFC")}
+                    </button>
+                  ) : null}
+                  <button
+                    className={styles.secondaryButton}
+                    onClick={handleSetPrimary}
+                    disabled={!account.address || !isTokenAOwner || isBusy}
+                  >
+                    {actionLabel("setPrimary", "Verify (mock)")}
+                  </button>
+                </div>
+              </article>
+              <article className={`${styles.card} ${styles.participantStackWide}`}>
+                <h3>Soil Treasury</h3>
+                <p>
+                  Daily bonus set at 100 SOILA. Claims reset at 00:00 UTC.
+                </p>
+                <div className={styles.cardFooter}>
+                  <span>Next claim window: 03:12</span>
+                </div>
+              </article>
             </div>
-            </article>
-            <article className={`${styles.card} ${styles.cardCompact}`}>
-            <h3>Primary verification</h3>
-            <p>
-              {isPrimaryAddress === undefined
-                ? "Check your verification status."
-                : isPrimaryAddress
-                ? "Primary address verified."
-                : worldIdAppId && worldIdActionId
-                ? "Verify with World ID to unlock Tier 3 benefits."
-                : "Not verified yet. Owner can verify for MVP testing."}
-            </p>
-            <div className={styles.cardFooter}>
-              <span>Tier 3 required for UBI claim</span>
-              <span>{isTokenAOwner ? "Owner connected" : "Owner required"}</span>
-            </div>
-            <div className={styles.cardActions}>
-              {worldIdAppId && worldIdActionId ? (
-                <button
-                  className={styles.secondaryButton}
-                  onClick={handleWorldIdVerify}
-                  disabled={!account.address || isBusy}
-                >
-                  {actionLabel("worldIdVerify", worldIdMock ? "Verify (mock)" : "Verify with World ID")}
-                </button>
-              ) : null}
-              {zknfcVerifierUrl ? (
-                <button
-                  className={styles.secondaryButton}
-                  onClick={handleZkNfcVerify}
-                  disabled={!account.address || isBusy}
-                >
-                  {actionLabel("zknfcVerify", zknfcMock ? "Verify (mock)" : "Verify with ZK-NFC")}
-                </button>
-              ) : null}
-              <button
-                className={styles.secondaryButton}
-                onClick={handleSetPrimary}
-                disabled={!account.address || !isTokenAOwner || isBusy}
-              >
-                {actionLabel("setPrimary", "Verify (mock)")}
-              </button>
-            </div>
-            </article>
-            <article className={`${styles.card} ${styles.cardMedium}`}>
+            <article className={styles.card}>
             <h3>Saved bonuses</h3>
             <p>
               Accrue daily bonuses, then claim in batches. Amounts older than 30 days
@@ -3017,15 +3028,8 @@ export default function Home() {
               </p>
             </div>
             </article>
-            <article className={`${styles.card} ${styles.cardCompact}`}>
-            <h3>Soil Treasury</h3>
-            <p>
-              Daily bonus set at 100 SOILA. Claims reset at 00:00 UTC.
-            </p>
-            <div className={styles.cardFooter}>
-              <span>Next claim window: 03:12</span>
-            </div>
-            </article>
+          </div>
+          <div className={styles.grid}>
             <article className={`${styles.card} ${styles.cardFull}`}>
             <h3>Create work agreement</h3>
             <p>
@@ -3936,24 +3940,46 @@ export default function Home() {
                 })
                 .map((item) => (
                 <div className={styles.covenantRow} key={`covenant-${item.id}`}>
-                  <span>#{item.id}</span>
-                  <span>{item.worker.slice(0, 10)}…</span>
-                  <span>
-                    {Number(formatUnits(item.tokenBReward, 18)).toFixed(2)}{" "}
-                    {item.paymentToken === 1 ? "SOILA" : "SOILB"}
-                  </span>
-                  <span>
-                    {item.templateId > 0n ? (() => {
-                      const template = templateById.get(Number(item.templateId));
-                      if (!template) return "--";
-                      return `${formatPercent(template.royaltyBps)}% → ${formatPercent(
-                        template.effectiveRoyaltyBps
-                      )}%`;
-                    })() : "--"}
-                  </span>
-                  <span>{item.integrityPoints.toString()}</span>
-                  <span>{Number(item.issueClaimBps) / 100}%</span>
-                  <span>
+                  <div className={styles.covenantCell}>
+                    <span className={styles.covenantCellLabel}>Agreement</span>
+                    <span className={styles.covenantCellValue}>#{item.id}</span>
+                  </div>
+                  <div className={styles.covenantCell}>
+                    <span className={styles.covenantCellLabel}>Worker</span>
+                    <span className={`${styles.covenantCellValue} ${styles.covenantWorkerValue}`}>
+                      {item.worker.slice(0, 10)}…
+                    </span>
+                  </div>
+                  <div className={styles.covenantCell}>
+                    <span className={styles.covenantCellLabel}>Reward</span>
+                    <span className={styles.covenantCellValue}>
+                      {Number(formatUnits(item.tokenBReward, 18)).toFixed(2)}{" "}
+                      {item.paymentToken === 1 ? "SOILA" : "SOILB"}
+                    </span>
+                  </div>
+                  <div className={styles.covenantCell}>
+                    <span className={styles.covenantCellLabel}>Royalty</span>
+                    <span className={styles.covenantCellValue}>
+                      {item.templateId > 0n ? (() => {
+                        const template = templateById.get(Number(item.templateId));
+                        if (!template) return "--";
+                        return `${formatPercent(template.royaltyBps)}% → ${formatPercent(
+                          template.effectiveRoyaltyBps
+                        )}%`;
+                      })() : "--"}
+                    </span>
+                  </div>
+                  <div className={styles.covenantCell}>
+                    <span className={styles.covenantCellLabel}>Integrity</span>
+                    <span className={styles.covenantCellValue}>{item.integrityPoints.toString()}</span>
+                  </div>
+                  <div className={styles.covenantCell}>
+                    <span className={styles.covenantCellLabel}>Claim</span>
+                    <span className={styles.covenantCellValue}>{Number(item.issueClaimBps) / 100}%</span>
+                  </div>
+                  <div className={styles.covenantCell}>
+                    <span className={styles.covenantCellLabel}>Status</span>
+                    <span>
                     <span className={styles.statusBadge}>
                       {covenantStatusLabels[item.status] ?? "Unknown"}
                     </span>
@@ -3962,7 +3988,8 @@ export default function Home() {
                         {covenantTagMap[String(item.id)]}
                       </span>
                     ) : null}
-                  </span>
+                    </span>
+                  </div>
                   <div className={styles.covenantActions}>
                     {item.status >= 5 ? (
                       <div className={styles.disputeTrack}>
@@ -4016,7 +4043,7 @@ export default function Home() {
                     account.address &&
                     item.creator.toLowerCase() === account.address.toLowerCase() ? (
                       <button
-                        className={styles.secondaryButton}
+                        className={`${styles.secondaryButton} ${styles.covenantActionPrimary}`}
                         onClick={() => handleCancelCovenant(item.id)}
                         disabled={isBusy}
                       >
@@ -4027,7 +4054,7 @@ export default function Home() {
                     account.address &&
                     item.worker.toLowerCase() === account.address.toLowerCase() ? (
                       <button
-                        className={styles.ghostButton}
+                        className={`${styles.ghostButton} ${styles.covenantActionPrimary}`}
                         onClick={() => handleSubmitWork(item.id)}
                         disabled={isBusy}
                       >
@@ -4116,7 +4143,7 @@ export default function Home() {
                     item.creator.toLowerCase() === account.address.toLowerCase() ? (
                       <>
                         <button
-                          className={styles.primaryButton}
+                          className={`${styles.primaryButton} ${styles.covenantActionPrimary}`}
                           onClick={() => handleApproveWork(item.id)}
                           disabled={isBusy}
                         >
@@ -4187,7 +4214,7 @@ export default function Home() {
                         </label>
                         {item.status === 5 ? (
                           <button
-                            className={styles.primaryButton}
+                            className={`${styles.primaryButton} ${styles.covenantActionPrimary}`}
                             onClick={() => handleAcceptIssue(item.id)}
                             disabled={isBusy}
                           >
@@ -4256,7 +4283,7 @@ export default function Home() {
                           />
                         </label>
                         <button
-                          className={styles.primaryButton}
+                          className={`${styles.primaryButton} ${styles.covenantActionPrimary}`}
                           onClick={() => handleResolveDispute(item.id)}
                           disabled={isBusy}
                         >

@@ -19,7 +19,7 @@
 .main {
   position: relative;
   z-index: 1;
-  width: min(1380px, 95vw);
+  width: min(1520px, 97vw);
   margin: 0 auto;
   padding: 48px 0 88px;
   display: flex;
@@ -350,6 +350,28 @@
 
 .participantSection .card {
   background: rgba(255, 255, 255, 0.9);
+}
+
+.participantGrid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.95fr) minmax(480px, 1.35fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.participantStack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.participantStack .card {
+  grid-column: span 1;
+}
+
+.participantStackWide {
+  grid-column: 1 / -1;
 }
 
 .operatorSection .card {
@@ -853,19 +875,21 @@
 }
 
 .covenantRow {
-  padding: 14px 18px;
-  border-radius: 18px;
+  padding: 18px 20px;
+  border-radius: 22px;
   background: #fff;
   border: 1px solid var(--sand-200);
   font-size: 14px;
   color: var(--ink-800);
   box-shadow: 0 10px 22px rgba(70, 55, 30, 0.04);
+  align-items: start;
 }
 
 .covenantActions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: flex-start;
 }
 
 .covenantTags {
@@ -885,6 +909,43 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-weight: 700;
+}
+
+.covenantCell {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.covenantCellLabel {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+  font-weight: 700;
+}
+
+.covenantCellValue {
+  font-size: 14px;
+  color: var(--ink-900);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.covenantWorkerValue {
+  font-family: var(--font-fraunces), serif;
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.covenantActionPrimary {
+  background: linear-gradient(135deg, var(--soil-500), var(--soil-300));
+  color: #1c1408;
+  box-shadow: 0 10px 20px rgba(122, 92, 43, 0.18);
+}
+
+.covenantActionPrimary:hover {
+  transform: translateY(-1px);
 }
 
 .templateHeader {
@@ -1121,10 +1182,18 @@
   .cardFull {
     grid-column: 1 / -1;
   }
+
+  .participantGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 800px) {
   .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .participantStack {
     grid-template-columns: 1fr;
   }
 
