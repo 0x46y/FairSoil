@@ -48,6 +48,9 @@ class Participant:
     was_active: bool = False
     first_day_with_1b: int | None = None
     first_day_with_governance: int | None = None
+    last_active_day: int | None = None
+    low_balance_since: int | None = None
+    recovered_from_low_balance: bool = False
 
     def reset_month_if_needed(self, day: int) -> None:
         month = day // 30
@@ -139,6 +142,7 @@ class Phase1Simulation:
         self.virtual_stake_usage_total = 0
         self.defense_quota_usage_total = 0
         self.defense_quota_eligible_total = 0
+        self.dispute_protection_events_total = 0
         self.dispute_records: list[tuple[str, bool]] = []
         self._seed_population()
 
@@ -174,6 +178,7 @@ class Phase1Simulation:
             self._process_new_covenants(day)
             self._finalize_due_covenants(day)
             self._update_milestones(day)
+            self._update_recovery_markers(day)
             self._record_day(day, appi)
 
     def _add_newcomers(self, day: int) -> None:
@@ -255,6 +260,7 @@ class Phase1Simulation:
             participant.a_balance += decayed
             self.a_supply_total += decayed
             participant.was_active = True
+            participant.last_active_day = day
 
     def _process_new_covenants(self, day: int) -> None:
         participant_count = sum(1 for p in self.participants if p.join_day <= day)
@@ -319,7 +325,9 @@ class Phase1Simulation:
             worker.integrity += self.rng.uniform(2.0, 8.0)
             worker.covenant_success += 1
             worker.was_active = True
+            worker.last_active_day = day
             creator.was_active = True
+            creator.last_active_day = day
             self.b_liabilities -= covenant.liability_b
         self.open_covenants = remaining
 
@@ -356,6 +364,7 @@ class Phase1Simulation:
 
     def _use_dispute_protection(self, participant: Participant, deposit: float) -> None:
         participant.reset_month_if_needed(self._current_day())
+        self.dispute_protection_events_total += 1
         if (
             participant.integrity >= self.config.defense_quota_min_integrity
             and participant.defense_quota_used < self.config.defense_quota_per_month
@@ -364,6 +373,7 @@ class Phase1Simulation:
             self.defense_quota_usage_total += 1
             self.defense_quota_eligible_total += 1
             participant.was_active = True
+            participant.last_active_day = self._current_day()
             return
         if participant.integrity >= self.config.defense_quota_min_integrity:
             self.defense_quota_eligible_total += 1
@@ -374,6 +384,7 @@ class Phase1Simulation:
         participant.used_virtual_stake += 1
         self.virtual_stake_usage_total += 1
         participant.was_active = True
+        participant.last_active_day = self._current_day()
 
     def _pick_creator(self, day: int) -> Participant | None:
         candidates = [
@@ -410,6 +421,28 @@ class Phase1Simulation:
             ):
                 participant.first_day_with_governance = day
 
+    def _update_recovery_markers(self, day: int) -> None:
+        for participant in self.participants:
+            if participant.join_day > day:
+                continue
+            if participant.b_balance < 1.0:
+                if participant.low_balance_since is None:
+                    participant.low_balance_since = day
+                elif (
+                    not participant.recovered_from_low_balance
+                    and participant.last_active_day is not None
+                    and participant.last_active_day >= participant.low_balance_since
+                    and day - participant.low_balance_since <= 30
+                ):
+                    participant.recovered_from_low_balance = True
+            else:
+                if (
+                    participant.low_balance_since is not None
+                    and day - participant.low_balance_since <= 30
+                ):
+                    participant.recovered_from_low_balance = True
+                participant.low_balance_since = None
+
     def _record_day(self, day: int, appi: float) -> None:
         b_balances = [p.b_balance for p in self.participants if p.join_day <= day]
         integrity = [p.integrity for p in self.participants if p.join_day <= day]
@@ -431,8 +464,15 @@ class Phase1Simulation:
             "median_b_balance": round(median(b_balances) if b_balances else 0.0, 4),
             "gini_b": round(self._gini(b_balances), 4),
             "gini_integrity": round(self._gini(integrity), 4),
-            "virtual_stake_usage_rate": round(self.virtual_stake_usage_total / max(1, len(self.dispute_records)), 4),
-            "defense_quota_usage_rate": round(self.defense_quota_usage_total / max(1, len(self.dispute_records)), 4),
+            "virtual_stake_usage_rate": round(
+                self.virtual_stake_usage_total / max(1, self.dispute_protection_events_total), 4
+            ),
+            "defense_quota_usage_rate": round(
+                self.defense_quota_usage_total / max(1, self.dispute_protection_events_total), 4
+            ),
+            "defense_quota_uptake_rate": round(
+                self.defense_quota_usage_total / max(1, self.defense_quota_eligible_total), 4
+            ),
             "defense_quota_eligible_total": self.defense_quota_eligible_total,
         }
         self.daily_rows.append(row)
@@ -450,9 +490,11 @@ class Phase1Simulation:
             for p in active
             if p.cohort == "newcomer" and p.first_day_with_governance is not None
         ]
-        low_balance = [p for p in active if p.b_balance < 1.0]
+        low_balance_cohort = [
+            p for p in active if p.low_balance_since is not None or p.recovered_from_low_balance
+        ]
         recovery_rate = (
-            sum(1 for p in low_balance if p.integrity >= 20.0 or p.was_active) / max(1, len(low_balance))
+            sum(1 for p in low_balance_cohort if p.recovered_from_low_balance) / max(1, len(low_balance_cohort))
         )
         inactive_reentry_rate = (
             sum(1 for p in active if p.cohort == "newcomer" and p.was_active)
@@ -479,8 +521,15 @@ class Phase1Simulation:
             "zero_B_but_active_ratio": round(zero_b_active_ratio, 4),
             "covenant_success_rate_newcomer": round(newcomer_success_rate, 4),
             "dispute_win_rate_by_balance_bucket": self._dispute_win_rates(),
-            "virtual_stake_usage_rate": round(self.virtual_stake_usage_total / max(1, len(self.dispute_records)), 4),
-            "defense_quota_usage_rate": round(self.defense_quota_usage_total / max(1, len(self.dispute_records)), 4),
+            "virtual_stake_usage_rate": round(
+                self.virtual_stake_usage_total / max(1, self.dispute_protection_events_total), 4
+            ),
+            "defense_quota_usage_rate": round(
+                self.defense_quota_usage_total / max(1, self.dispute_protection_events_total), 4
+            ),
+            "defense_quota_uptake_rate": round(
+                self.defense_quota_usage_total / max(1, self.defense_quota_eligible_total), 4
+            ),
             "defense_quota_eligible_total": self.defense_quota_eligible_total,
             "config_governance_min_b": self.config.governance_min_b,
             "config_governance_min_integrity": self.config.governance_min_integrity,

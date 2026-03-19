@@ -34,6 +34,22 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## E2E checks
+
+Playwright covers the current participant/operator dashboard split without requiring a connected wallet.
+
+Run the E2E suite against an already running local dev server:
+
+```bash
+npm run e2e
+```
+
+Run it headed for manual debugging:
+
+```bash
+npm run e2e:headed
+```
+
 ### Local chain setup
 
 In another terminal, run Anvil and deploy contracts from the `contracts` directory:

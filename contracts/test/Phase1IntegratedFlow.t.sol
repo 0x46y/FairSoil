@@ -217,6 +217,56 @@ contract Phase1IntegratedFlowTest is Test {
         assertEq(treasury.integrityScore(worker), workerIntegrityBefore + 12);
     }
 
+    function testIssueAcceptanceCanSpawnAndSettleAppealCovenant() public {
+        vm.prank(creator);
+        tokenB.approve(address(covenant), 400e18);
+
+        vm.prank(creator);
+        uint256 originalId = covenant.createCovenant(worker, 400e18, 0, false);
+
+        uint256 issueDeposit = (400e18 * 500) / 10_000;
+        uint256 creatorBeforeOriginal = tokenB.balanceOf(creator);
+        uint256 workerBeforeOriginal = tokenB.balanceOf(worker);
+
+        vm.prank(worker);
+        tokenB.approve(address(covenant), issueDeposit);
+        vm.prank(worker);
+        covenant.reportIssue(originalId, 2_500, "Partial work accepted", "ipfs://worker-issue");
+
+        vm.prank(creator);
+        covenant.acceptIssue(originalId);
+
+        assertEq(tokenB.balanceOf(worker), workerBeforeOriginal + 100e18);
+        assertEq(tokenB.balanceOf(creator), creatorBeforeOriginal + 300e18);
+
+        vm.prank(creator);
+        tokenB.approve(address(covenant), 150e18);
+
+        vm.prank(creator);
+        uint256 appealId = covenant.createAppealCovenant(
+            originalId,
+            150e18,
+            8,
+            false,
+            Covenant.PaymentMode.Escrow
+        );
+
+        assertEq(covenant.appealCovenantOf(originalId), appealId);
+        assertEq(covenant.originalCovenantOf(appealId), originalId);
+
+        uint256 workerBeforeAppeal = tokenB.balanceOf(worker);
+        uint256 workerIntegrityBeforeAppeal = treasury.integrityScore(worker);
+
+        vm.prank(worker);
+        covenant.submitWork(appealId);
+
+        vm.prank(creator);
+        covenant.approveWork(appealId);
+
+        assertEq(tokenB.balanceOf(worker), workerBeforeAppeal + 150e18);
+        assertEq(treasury.integrityScore(worker), workerIntegrityBeforeAppeal + 8);
+    }
+
     function _categories() internal pure returns (uint256[] memory cats) {
         cats = new uint256[](1);
         cats[0] = 1;

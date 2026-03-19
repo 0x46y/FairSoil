@@ -105,14 +105,16 @@ Phase1 の現行実装は、以下の性質を持つ。
 - `dispute_win_rate_by_balance_bucket`
   初期資産帯ごとの dispute 勝率
 - `defense_quota_usage_rate`
-  defense quota の使用率
+  dispute 保護イベント全体に対する defense quota 利用比率
+- `defense_quota_uptake_rate`
+  defense quota が使える参加者のうち、実際に quota を使った比率
 - `virtual_stake_usage_rate`
   virtual stake の使用率
 
 ### 4-3. 再起可能性メトリクス
 
 - `recovery_rate_30d`
-  低残高参加者が30日後に再び活動可能になる割合
+  低残高状態に入った参加者が、30日以内に再活動または低残高脱出できた割合
 - `inactive_reentry_rate`
   一時離脱者の復帰率
 - `zero_B_but_active_ratio`
