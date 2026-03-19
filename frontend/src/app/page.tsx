@@ -2916,6 +2916,10 @@ export default function Home() {
               <br />
               <strong>What is still not finished:</strong> full DAO governance,
               production identity flow, and external dispute arbitration.
+              <br />
+              <strong>What we are still testing:</strong> dispute fairness for low-balance
+              users. Phase 1 keeps a manual arbiter, while Phase 2 is expected to move
+              high-value cases to outside adjudication.
             </div>
             <div className={styles.heroActions}>
               <button
@@ -4289,6 +4293,9 @@ export default function Home() {
                             The dispute arbiter first proposes an outcome, then finalizes it. High-value
                             cases can still route to outside adjudication.
                           </span>
+                          <span className={styles.disputeSubhintStrong}>
+                            The arbiter should review the evidence and timeline, not the wallet size.
+                          </span>
                           {externalAdjudicationUrl ? (
                             <span className={styles.disputeSubhint}>
                               <a
@@ -4454,6 +4461,9 @@ export default function Home() {
                           <span className={styles.issueHelp}>
                             Opening a dispute temporarily holds part of the payout. Missing details may fail after 48h.
                           </span>
+                          <span className={styles.issueHelp}>
+                            The goal is to review the evidence fairly. A larger wallet should not decide the outcome.
+                          </span>
                           {issueDepositEstimates[item.id] ? (
                             <>
                               <span className={styles.issueHelp}>
@@ -4486,6 +4496,9 @@ export default function Home() {
                           ) : null}
                           <span className={styles.issueHelp}>
                             Evidence is optional, but it can increase the maximum refundable amount.
+                          </span>
+                          <span className={styles.issueHelp}>
+                            Add the clearest evidence you have. The dispute arbiter is expected to judge the record, not the wallet size.
                           </span>
                         </label>
                         {item.status === 5 ? (

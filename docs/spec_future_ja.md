@@ -3,12 +3,29 @@
 このドキュメントは、**現時点のオンチェーン実装に含まれない将来案**をまとめたものです。  
 README_ja.md の実装済み仕様と混在しないよう、Phase2+の構想はここへ集約します。
 
+関連:
+- Phase2 migration map: `docs/phase2_migration_map_ja.md`
+
 ## Phase2+ 構想（概要）
 - APPI の confidence 強化（価格操作耐性）。
 - 追加のガバナンス/インセンティブ・モジュール（QF/RPGF、予測など）。
 - UX/AI 支援の拡張（オフチェーンのみ）。
 
 ## Phase2+ 構想（詳細）
+### 0) 外部裁定 / 外部陪審ソケット
+- **目的:** 低資産層が dispute で不利になりやすい偏りを弱め、村内の資産格差から裁定を切り離す。
+- **背景:** Phase1 の近似シミュレーションでは、deposit 緩和だけでは low-balance 参加者の勝率改善が限定的で、裁定ロジックの独立性の方が効果が大きかった。
+- **方針:** `disputeResolver` は将来の外部裁定コントラクトや jury システムへ差し替え可能なソケットとして維持する。
+- **裁定原則:** 参照すべきなのは、提出証拠、手順整合性、時系列、過去の悪意履歴であり、当事者の資産量そのものではない。
+- **最小インターフェース案:**
+  - `requestExternalResolution(covenantId, evidenceRoot, metadataUri)`
+  - `finalizeExternalResolution(covenantId, workerPayoutBps, integrityPoints, slashingPenalty, rulingHash)`
+- **導入順序:**
+  1) Phase1 は単一の `dispute arbiter` が手動運用
+  2) Phase2 で高額案件のみ外部裁定へ route
+  3) 安定後に jury / elected arbiter / external protocol へ拡張
+- **注意:** 低資産側への一律補正をオンチェーン判定に直接ハードコードしない。悪用されるため、補正は外部裁定や手続き設計で吸収する。
+
 ### 1) APPI Confidence 強化
 - APPI の寄与に confidence を付与（例: 最小報告人数、多様性、鮮度）。
 - 相関の高い報告を減衰し、価格操作を抑える。

@@ -124,6 +124,114 @@ echo "RESOURCE_REGISTRY=$RESOURCE_REGISTRY"
 echo "COVENANT_LIBRARY=$COVENANT_LIBRARY"
 echo "RPC_URL=$PUBLIC_RPC_URL"
 
+if [[ -n "${DAILY_UBI_AMOUNT:-}" ]]; then
+  cast send "$TREASURY" \
+    "setDailyUBIAmount(uint256)" "$DAILY_UBI_AMOUNT" \
+    --rpc-url "$RPC_URL" \
+    --private-key "$PRIVATE_KEY"
+  echo "Applied DAILY_UBI_AMOUNT=$DAILY_UBI_AMOUNT"
+fi
+
+if [[ -n "${GOVERNANCE_MIN_TOKEN_B:-}" || -n "${GOVERNANCE_MIN_INTEGRITY:-}" ]]; then
+  cast send "$TREASURY" \
+    "setGovernanceThresholds(uint256,uint256)" \
+    "${GOVERNANCE_MIN_TOKEN_B:-1000000000000000000}" \
+    "${GOVERNANCE_MIN_INTEGRITY:-100}" \
+    --rpc-url "$RPC_URL" \
+    --private-key "$PRIVATE_KEY"
+  echo "Applied governance thresholds"
+fi
+
+if [[ -n "${CRYSTALLIZATION_RATE_BPS:-}" ]]; then
+  cast send "$TREASURY" \
+    "setCrystallizationRateBps(uint256)" "$CRYSTALLIZATION_RATE_BPS" \
+    --rpc-url "$RPC_URL" \
+    --private-key "$PRIVATE_KEY"
+  echo "Applied CRYSTALLIZATION_RATE_BPS=$CRYSTALLIZATION_RATE_BPS"
+fi
+
+if [[ -n "${CRYSTALLIZATION_FEE_BPS:-}" ]]; then
+  cast send "$TREASURY" \
+    "setCrystallizationFeeBps(uint256)" "$CRYSTALLIZATION_FEE_BPS" \
+    --rpc-url "$RPC_URL" \
+    --private-key "$PRIVATE_KEY"
+  echo "Applied CRYSTALLIZATION_FEE_BPS=$CRYSTALLIZATION_FEE_BPS"
+fi
+
+if [[ -n "${APPI_MAX_INCREASE_BPS:-}" || -n "${APPI_MAX_DECREASE_BPS:-}" ]]; then
+  cast send "$TREASURY" \
+    "setAPPIChangeLimits(uint256,uint256)" \
+    "${APPI_MAX_INCREASE_BPS:-500}" \
+    "${APPI_MAX_DECREASE_BPS:-200}" \
+    --rpc-url "$RPC_URL" \
+    --private-key "$PRIVATE_KEY"
+  echo "Applied APPI change limits"
+fi
+
+if [[ -n "${DEFICIT_CAP_A:-}" ]]; then
+  cast send "$TREASURY" \
+    "setDeficitCapA(uint256)" "$DEFICIT_CAP_A" \
+    --rpc-url "$RPC_URL" \
+    --private-key "$PRIVATE_KEY"
+  echo "Applied DEFICIT_CAP_A=$DEFICIT_CAP_A"
+fi
+
+if [[ -n "${ADVANCE_CAP_B:-}" ]]; then
+  cast send "$TREASURY" \
+    "setAdvanceCapB(uint256)" "$ADVANCE_CAP_B" \
+    --rpc-url "$RPC_URL" \
+    --private-key "$PRIVATE_KEY"
+  echo "Applied ADVANCE_CAP_B=$ADVANCE_CAP_B"
+fi
+
+if [[ -n "${DISPUTE_RESOLVER:-}" ]]; then
+  cast send "$COVENANT" \
+    "setDisputeResolver(address)" "$DISPUTE_RESOLVER" \
+    --rpc-url "$RPC_URL" \
+    --private-key "$PRIVATE_KEY"
+  echo "Applied DISPUTE_RESOLVER=$DISPUTE_RESOLVER"
+fi
+
+if [[ -n "${APPI_MIN_UNIQUE_REPORTERS:-}" || -n "${APPI_MIN_INTEGRITY_SCORE:-}" ]]; then
+  APPI_ORACLE_ADDRESS="$(cast call "$TREASURY" "appiOracle()(address)" --rpc-url "$RPC_URL")"
+  if [[ "$APPI_ORACLE_ADDRESS" != "0x0000000000000000000000000000000000000000" ]]; then
+    cast send "$APPI_ORACLE_ADDRESS" \
+      "setThresholds(uint256,uint256)" \
+      "${APPI_MIN_UNIQUE_REPORTERS:-5}" \
+      "${APPI_MIN_INTEGRITY_SCORE:-0}" \
+      --rpc-url "$RPC_URL" \
+      --private-key "$PRIVATE_KEY"
+    echo "Applied APPI thresholds"
+  else
+    echo "Skipping APPI threshold overrides because appiOracle is not set."
+  fi
+fi
+
+if [[ -n "${APPI_CONFIDENCE_BPS:-}" || -n "${APPI_MAX_REPORTS:-}" ]]; then
+  APPI_ORACLE_ADDRESS="${APPI_ORACLE_ADDRESS:-$(cast call "$TREASURY" "appiOracle()(address)" --rpc-url "$RPC_URL")}"
+  if [[ "$APPI_ORACLE_ADDRESS" != "0x0000000000000000000000000000000000000000" ]]; then
+    cast send "$APPI_ORACLE_ADDRESS" \
+      "setConfidence(uint256,uint256)" \
+      "${APPI_CONFIDENCE_BPS:-10000}" \
+      "${APPI_MAX_REPORTS:-50}" \
+      --rpc-url "$RPC_URL" \
+      --private-key "$PRIVATE_KEY"
+    echo "Applied APPI confidence settings"
+  else
+    echo "Skipping APPI confidence overrides because appiOracle is not set."
+  fi
+fi
+
+if [[ -n "${ROYALTY_MAX_BPS:-}" || -n "${ROYALTY_MAX_AMOUNT:-}" ]]; then
+  cast send "$COVENANT_LIBRARY" \
+    "setRoyaltyCaps(uint256,uint256)" \
+    "${ROYALTY_MAX_BPS:-1000}" \
+    "${ROYALTY_MAX_AMOUNT:-50000000000000000000}" \
+    --rpc-url "$RPC_URL" \
+    --private-key "$PRIVATE_KEY"
+  echo "Applied royalty caps"
+fi
+
 if [[ -n "${WALLET_ADDRESS:-}" ]]; then
   echo "Setting primary address and minting Token B for $WALLET_ADDRESS..."
   cast send "$TOKEN_A" \

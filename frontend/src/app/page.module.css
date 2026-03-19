@@ -1208,6 +1208,14 @@
   opacity: 0.8;
 }
 
+.disputeSubhintStrong {
+  display: block;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--ink-700);
+  font-weight: 600;
+}
+
 .issueActions {
   display: grid;
   gap: 8px;

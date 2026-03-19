@@ -3,12 +3,30 @@
 This document captures ideas that are *not* part of the current on-chain scope.
 It exists to avoid mixing implemented behavior with future concepts in README_ja.md.
 
+Related:
+- Phase2 migration map: `docs/phase2_migration_map_en.md`
+- Phase2 parameter catalog: `docs/phase2_parameter_catalog_en.md`
+
 ## Phase2+ Ideas (Outline)
 - APPI confidence weighting (anti-manipulation).
 - Additional governance/incentive modules (QF/RPGF, forecasting, etc.).
 - Extended UX/AI assist features (off-chain only).
 
 ## Phase2+ Ideas (Expanded, English)
+### 0) External Arbiter / Jury Socket
+- **Goal:** reduce the structural bias that can disadvantage low-balance users in disputes and decouple adjudication from village wealth hierarchies.
+- **Background:** coarse Phase1 simulations suggest that reducing deposits alone is not enough; adjudication independence matters more.
+- **Direction:** keep `disputeResolver` as a socket that can later route to external adjudication contracts or jury systems.
+- **Adjudication principle:** decisions should prioritize evidence, procedural consistency, timeline, and malicious behavior history, not wallet size itself.
+- **Minimal interface sketch:**
+  - `requestExternalResolution(covenantId, evidenceRoot, metadataUri)`
+  - `finalizeExternalResolution(covenantId, workerPayoutBps, integrityPoints, slashingPenalty, rulingHash)`
+- **Rollout path:**
+  1) Phase1 manual arbiter
+  2) Phase2 route only higher-value disputes externally
+  3) later expand toward jury / elected arbiter / external protocols
+- **Caution:** do not hard-code “poor side always gets a bonus” logic on-chain; that is too easy to game.
+
 ### 1) APPI Confidence Weighting
 - Add confidence to APPI contributions (e.g., minimum unique reporters, diversity, recency).
 - Downweight clustered or correlated reports to reduce price manipulation.
