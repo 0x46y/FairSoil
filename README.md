@@ -7,6 +7,11 @@ The full Japanese version of this README is in `README_ja.md`.
 - Detailed spec (EN): `docs/spec_en.md`
 - Vision details: `docs/vision_en.md`
 - Phase2+ ideas: `docs/spec_future_en.md`
+- Phase2 migration map: `docs/phase2_migration_map_en.md`
+- Phase2 parameter catalog: `docs/phase2_parameter_catalog_en.md`
+- Grants one-pager: `docs/grants_onepager_en.md`
+- 3-minute demo runbook: `docs/demo_runbook_en.md`
+- Grants use of funds: `docs/grants_use_of_funds_en.md`
 - Review bundle (full consolidated master): `docs/review_bundle_en.md`
   - Regenerate: `python scripts/build_review_bundle_en.py`
 
@@ -45,6 +50,38 @@ NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 - APPI confidence weighting, governance/incentive modules (QF/RPGF/forecasting)
 - Additional UX/AI support (off-chain)
 
+## Phase1 Roles (Temporary)
+- **Temporary Operator:** in Phase1, a temporary operator updates Treasury, APPI, and other system settings.
+- **Dispute Arbiter:** disputes are resolved by a single address or limited-role arbiter during the MVP stage.
+- **Positioning:** this is not final DAO governance; it is guarded MVP operation.
+- **Future direction:** in Phase2, the temporary operator is expected to move toward timelock + governance, and the dispute arbiter toward external adjudication or elected models.
+
+## What Phase1 Already Does
+- distributes Token A to verified addresses and supports batched claim flow
+- supports Token B escrowed work agreements, submission, approval, rejection, and cancellation
+- supports the minimum issue / dispute / proposed / finalized flow
+- tracks Treasury reserves, liabilities, and treasury in/out events
+- exposes MVP modules such as APPI, Resource Registry, and Template Library
+
+## What Phase1 Does Not Yet Do
+- full DAO governance
+- production-grade external adjudication
+- production identity operations and legal/compliance flow
+- multi-village factory rollout
+
+## Current Testing Position
+- Foundry coverage exists for the main Phase1 areas, including `FairSoilMVP`, `Covenant`, `CovenantEscrowFlow`, `CircuitBreaker`, `SoilTreasuryUnclaimedUBI`, `ResourceRegistry`, `CovenantLibrary`, `APPIIntegration`, and invariants.
+- The current priority is not widening the vision, but proving that one guarded village can run without breaking.
+- Frontend work is also focused on participant/operator separation, plain-language guidance, and main-flow clarity.
+- A simulation plan exists in `docs/phase1_simulation_plan_ja.md`, with runnable scripts for coarse scenario checks.
+
+## Phase1 Weaknesses Identified So Far
+- Coarse simulations do not currently show strong evidence of immediate UBI-driven inflation collapse.
+- A more important current risk is **dispute bias against low-balance users**.
+- Lowering deposits alone does not seem sufficient; adjudication independence and external adjudication paths appear more promising.
+- Phase1 therefore treats the dispute arbiter as a temporary manual role that should prioritize evidence and context over wallet size, with Phase2 expected to move toward external arbiter / jury models.
+- These findings are still simulation-level and should continue to be updated with tests and real usage.
+
 ## Identity (experimental core, adoption-friendly entry)
 - **Tier 1:** Email / social login for read‑only onboarding
 - **Tier 2:** Passkey (device biometrics) for limited access
@@ -59,6 +96,7 @@ NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 - AI summaries are off-chain, used for issue framing only (not decisions).
 - Resolve uses two-step finalization and one-time appeal to reduce mistakes.
 - **External adjudication plugin:** keep `disputeResolver` as a socket for external services (e.g., Kleros). Start with minimal local operation (single address/limited role) and route high-value disputes to external adjudication.
+- **Adjudication principle:** dispute outcomes should be driven by evidence, procedure, and context, not by which side has more money. Economic conditions may still matter for anti-spam rules, but not as a direct basis for favoring one side.
 - **Adoption strategy (lightweight entry):** allow “view/try” before verification,
   then unlock benefits by identity tier. Start with practical pain points
   (e.g., attendance proof, local volunteering, anti‑scalping tickets).
