@@ -465,6 +465,17 @@ export const covenantAbi = [
   },
   {
     type: "function",
+    name: "setTransparencyNote",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "covenantId", type: "uint256" },
+      { name: "note", type: "string" },
+      { name: "digest", type: "bytes32" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
     name: "nextId",
     stateMutability: "view",
     inputs: [],
@@ -489,6 +500,20 @@ export const covenantAbi = [
       { name: "paymentToken", type: "uint8" },
       { name: "status", type: "uint8" },
     ],
+  },
+  {
+    type: "function",
+    name: "transparencyNotes",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "uint256" }],
+    outputs: [{ name: "", type: "string" }],
+  },
+  {
+    type: "function",
+    name: "transparencyDigests",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "uint256" }],
+    outputs: [{ name: "", type: "bytes32" }],
   },
   {
     type: "function",
@@ -731,6 +756,31 @@ export const resourceRegistryAbi = [
       { name: "lastTaxTimestamp", type: "uint256" },
       { name: "exists", type: "bool" },
     ],
+  },
+  {
+    type: "function",
+    name: "setResourceMetadata",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "resourceId", type: "bytes32" },
+      { name: "note", type: "string" },
+      { name: "digest", type: "bytes32" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "resourceMetadataNotes",
+    stateMutability: "view",
+    inputs: [{ name: "resourceId", type: "bytes32" }],
+    outputs: [{ name: "", type: "string" }],
+  },
+  {
+    type: "function",
+    name: "resourceMetadataDigests",
+    stateMutability: "view",
+    inputs: [{ name: "resourceId", type: "bytes32" }],
+    outputs: [{ name: "", type: "bytes32" }],
   },
 ] as const;
 

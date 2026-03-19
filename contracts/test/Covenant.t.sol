@@ -93,6 +93,33 @@ contract CovenantTest is Test {
         covenant.createCovenant(unverified, 100e18, 0, false);
     }
 
+    function testCreatorCanSetTransparencyNote() public {
+        vm.prank(creator);
+        tokenB.approve(address(covenant), 100e18);
+
+        vm.prank(creator);
+        uint256 covenantId = covenant.createCovenant(worker, 100e18, 0, false);
+
+        bytes32 digest = keccak256(bytes("{\"scope\":\"repair\"}"));
+        vm.prank(creator);
+        covenant.setTransparencyNote(covenantId, "{\"scope\":\"repair\"}", digest);
+
+        assertEq(covenant.transparencyNotes(covenantId), "{\"scope\":\"repair\"}");
+        assertEq(covenant.transparencyDigests(covenantId), digest);
+    }
+
+    function testOnlyCreatorCanSetTransparencyNote() public {
+        vm.prank(creator);
+        tokenB.approve(address(covenant), 100e18);
+
+        vm.prank(creator);
+        uint256 covenantId = covenant.createCovenant(worker, 100e18, 0, false);
+
+        vm.prank(worker);
+        vm.expectRevert("Creator only");
+        covenant.setTransparencyNote(covenantId, "note", keccak256(bytes("note")));
+    }
+
     function testIssueFlowAcceptsSplitAndIntegrity() public {
         vm.prank(creator);
         tokenB.approve(address(covenant), 300e18);

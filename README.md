@@ -11,6 +11,7 @@ The full Japanese version of this README is in `README_ja.md`.
 - Phase2 parameter catalog: `docs/phase2_parameter_catalog_en.md`
 - Token A calibration note: `docs/token_a_calibration_notes_en.md`
 - Phase1 threat model: `docs/phase1_threat_model_en.md`
+- Market vocabulary: `docs/market_vocabulary_en.md`
 - Phase1 identity integration note: `docs/phase1_identity_integration_en.md`
 - Phase1 dispute fairness note: `docs/phase1_dispute_fairness_en.md`
 - Identity nullifier scope note: `docs/identity_nullifier_scope_en.md`
@@ -102,6 +103,7 @@ NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 - Phase1 therefore treats the dispute arbiter as a temporary manual role that should prioritize evidence and context over wallet size, with Phase2 expected to move toward external arbiter / jury models.
 - These findings are still simulation-level and should continue to be updated with tests and real usage.
 - Another major risk area is **hidden markup, market opacity, and collusive reputation farming**. Details: `docs/phase1_threat_model_en.md`
+- To keep price comparisons stable, Phase1 now uses fixed vocabulary for scope / material / urgency / hours band. Details: `docs/market_vocabulary_en.md`
 
 ## Phase1 dispute fairness policy
 - rulings should be driven by evidence, timeline, and procedure, not wallet size

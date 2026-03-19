@@ -68,4 +68,27 @@ contract ResourceRegistryTest is Test {
         assertEq(newOwner, buyer);
         assertEq(valuation, 600 ether);
     }
+
+    function testOwnerCanSetResourceMetadata() public {
+        bytes32 resourceId = keccak256("land:meta");
+        vm.prank(owner);
+        registry.registerResource(resourceId, 1000 ether, 500);
+
+        bytes32 digest = keccak256(bytes("{\"range\":\"900-1100\"}"));
+        vm.prank(owner);
+        registry.setResourceMetadata(resourceId, "{\"range\":\"900-1100\"}", digest);
+
+        assertEq(registry.resourceMetadataNotes(resourceId), "{\"range\":\"900-1100\"}");
+        assertEq(registry.resourceMetadataDigests(resourceId), digest);
+    }
+
+    function testOnlyOwnerCanSetResourceMetadata() public {
+        bytes32 resourceId = keccak256("land:secure");
+        vm.prank(owner);
+        registry.registerResource(resourceId, 1000 ether, 500);
+
+        vm.prank(buyer);
+        vm.expectRevert("Owner only");
+        registry.setResourceMetadata(resourceId, "note", keccak256(bytes("note")));
+    }
 }

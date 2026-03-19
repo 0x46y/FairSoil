@@ -87,6 +87,9 @@ type QuoteBreakdownInput = {
 type ParsedTemplateMetadata = {
   sourceUri: string;
   scopeLabel: string;
+  estimatedHours: number;
+  materialClass: string;
+  urgency: string;
   expectedMin: bigint;
   expectedMax: bigint;
   marketNote: string;
@@ -96,10 +99,39 @@ type ParsedTemplateMetadata = {
 
 type CovenantTransparencyNote = {
   scopeLabel: string;
+  estimatedHours: number;
+  materialClass: string;
+  urgency: string;
   relatedPartyDisclosure: string;
   marketContext: string;
   breakdown: QuoteBreakdownInput;
 };
+
+const scopeVocabulary = [
+  { value: "general", label: "General" },
+  { value: "repair", label: "Repair" },
+  { value: "delivery", label: "Delivery" },
+  { value: "audit", label: "Audit" },
+  { value: "tutoring", label: "Tutoring" },
+  { value: "education-support", label: "Education support" },
+  { value: "care-support", label: "Care support" },
+  { value: "emergency-support", label: "Emergency support" },
+  { value: "field-ops", label: "Field ops" },
+] as const;
+
+const materialVocabulary = [
+  { value: "standard", label: "Standard" },
+  { value: "light", label: "Light materials" },
+  { value: "specialized", label: "Specialized parts" },
+  { value: "scarce", label: "Scarce / regulated" },
+] as const;
+
+const urgencyVocabulary = [
+  { value: "normal", label: "Normal" },
+  { value: "soon", label: "Soon" },
+  { value: "same-day", label: "Same day" },
+  { value: "emergency", label: "Emergency" },
+] as const;
 
 const shortAddress = (value: string) => `${value.slice(0, 6)}…${value.slice(-4)}`;
 const safeAddress = (value?: string) => (value ? shortAddress(value) : "Unknown");
@@ -292,6 +324,57 @@ const emptyQuoteBreakdown = (): QuoteBreakdownInput => ({
   other: "",
 });
 
+const normalizeBand = (value: number) => {
+  if (!Number.isFinite(value) || value <= 0) return "unspecified";
+  if (value <= 2) return "0-2h";
+  if (value <= 8) return "2-8h";
+  if (value <= 24) return "8-24h";
+  return "24h+";
+};
+
+const normalizeScope = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return "";
+  const direct = scopeVocabulary.find((entry) => entry.value === normalized);
+  if (direct) return direct.value;
+  if (normalized.includes("repair") || normalized.includes("plumb") || normalized.includes("fix")) {
+    return "repair";
+  }
+  if (normalized.includes("deliver")) return "delivery";
+  if (normalized.includes("audit")) return "audit";
+  if (normalized.includes("tutor") || normalized.includes("teach")) return "tutoring";
+  if (normalized.includes("education")) return "education-support";
+  if (normalized.includes("care")) return "care-support";
+  if (normalized.includes("emergency") || normalized.includes("urgent")) return "emergency-support";
+  if (normalized.includes("field")) return "field-ops";
+  return "general";
+};
+
+const normalizeMaterialClass = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  return materialVocabulary.find((entry) => entry.value === normalized)?.value || "standard";
+};
+
+const normalizeUrgency = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  return urgencyVocabulary.find((entry) => entry.value === normalized)?.value || "normal";
+};
+
+const scopeLabelFor = (value: string) =>
+  scopeVocabulary.find((entry) => entry.value === normalizeScope(value))?.label || "General";
+const materialLabelFor = (value: string) =>
+  materialVocabulary.find((entry) => entry.value === normalizeMaterialClass(value))?.label || "Standard";
+const urgencyLabelFor = (value: string) =>
+  urgencyVocabulary.find((entry) => entry.value === normalizeUrgency(value))?.label || "Normal";
+
+const buildMarketKey = (input: { scopeLabel: string; estimatedHours: number; materialClass: string; urgency: string }) => {
+  const scope = normalizeScope(input.scopeLabel);
+  if (!scope) return "";
+  const urgency = normalizeUrgency(input.urgency);
+  const materialClass = normalizeMaterialClass(input.materialClass);
+  return `${scope} | ${urgency} | ${materialClass} | ${normalizeBand(input.estimatedHours)}`;
+};
+
 const toQuoteTotal = (value: QuoteBreakdownInput) =>
   safeParseUnits(value.labor, 18) +
   safeParseUnits(value.materials, 18) +
@@ -302,6 +385,9 @@ const toQuoteTotal = (value: QuoteBreakdownInput) =>
 const buildTemplateMetadataValue = (input: {
   sourceUri: string;
   scopeLabel: string;
+  estimatedHours: string;
+  materialClass: string;
+  urgency: string;
   expectedMin: string;
   expectedMax: string;
   marketNote: string;
@@ -310,6 +396,9 @@ const buildTemplateMetadataValue = (input: {
 }) => {
   const hasStructuredFields =
     input.scopeLabel.trim() ||
+    input.estimatedHours.trim() ||
+    input.materialClass.trim() ||
+    input.urgency.trim() ||
     input.marketNote.trim() ||
     input.expectedMin.trim() ||
     input.expectedMax.trim() ||
@@ -322,9 +411,12 @@ const buildTemplateMetadataValue = (input: {
 
   return JSON.stringify({
     version: 1,
-    sourceUri: input.sourceUri.trim(),
-    scopeLabel: input.scopeLabel.trim(),
-    expectedMin: input.expectedMin.trim(),
+      sourceUri: input.sourceUri.trim(),
+      scopeLabel: input.scopeLabel.trim(),
+      estimatedHours: input.estimatedHours.trim(),
+      materialClass: input.materialClass.trim(),
+      urgency: input.urgency.trim(),
+      expectedMin: input.expectedMin.trim(),
     expectedMax: input.expectedMax.trim(),
     marketNote: input.marketNote.trim(),
     referralDisclosure: input.referralDisclosure,
@@ -342,6 +434,9 @@ const parseTemplateMetadata = (raw: string): ParsedTemplateMetadata => {
   const fallback: ParsedTemplateMetadata = {
     sourceUri: raw,
     scopeLabel: "",
+    estimatedHours: 0,
+    materialClass: "",
+    urgency: "",
     expectedMin: 0n,
     expectedMax: 0n,
     marketNote: "",
@@ -356,6 +451,9 @@ const parseTemplateMetadata = (raw: string): ParsedTemplateMetadata => {
     const parsed = JSON.parse(trimmed) as {
       sourceUri?: string;
       scopeLabel?: string;
+      estimatedHours?: string | number;
+      materialClass?: string;
+      urgency?: string;
       expectedMin?: string;
       expectedMax?: string;
       marketNote?: string;
@@ -364,7 +462,13 @@ const parseTemplateMetadata = (raw: string): ParsedTemplateMetadata => {
     };
     return {
       sourceUri: parsed.sourceUri?.trim() || "",
-      scopeLabel: parsed.scopeLabel?.trim() || "",
+      scopeLabel: normalizeScope(parsed.scopeLabel?.trim() || ""),
+      estimatedHours:
+        typeof parsed.estimatedHours === "number"
+          ? parsed.estimatedHours
+          : Number.parseFloat(parsed.estimatedHours || "0") || 0,
+      materialClass: normalizeMaterialClass(parsed.materialClass?.trim() || ""),
+      urgency: normalizeUrgency(parsed.urgency?.trim() || ""),
       expectedMin: safeParseUnits(parsed.expectedMin || "0", 18),
       expectedMax: safeParseUnits(parsed.expectedMax || "0", 18),
       marketNote: parsed.marketNote?.trim() || "",
@@ -384,6 +488,9 @@ const parseTemplateMetadata = (raw: string): ParsedTemplateMetadata => {
 
 const emptyTransparencyNote = (): CovenantTransparencyNote => ({
   scopeLabel: "",
+  estimatedHours: 0,
+  materialClass: "",
+  urgency: "",
   relatedPartyDisclosure: "",
   marketContext: "",
   breakdown: emptyQuoteBreakdown(),
@@ -394,7 +501,15 @@ const parseTransparencyNote = (raw: string | null): CovenantTransparencyNote => 
   try {
     const parsed = JSON.parse(raw) as Partial<CovenantTransparencyNote>;
     return {
-      scopeLabel: parsed.scopeLabel?.trim() || "",
+      scopeLabel: normalizeScope(parsed.scopeLabel?.trim() || ""),
+      estimatedHours:
+        typeof (parsed as { estimatedHours?: string | number }).estimatedHours === "number"
+          ? ((parsed as { estimatedHours?: number }).estimatedHours ?? 0)
+          : Number.parseFloat((parsed as { estimatedHours?: string }).estimatedHours || "0") || 0,
+      materialClass: normalizeMaterialClass(
+        (parsed as { materialClass?: string }).materialClass?.trim() || ""
+      ),
+      urgency: normalizeUrgency((parsed as { urgency?: string }).urgency?.trim() || ""),
       relatedPartyDisclosure: parsed.relatedPartyDisclosure?.trim() || "",
       marketContext: parsed.marketContext?.trim() || "",
       breakdown: {
@@ -501,6 +616,9 @@ export default function Home() {
   const [templateExpectedMin, setTemplateExpectedMin] = useState("");
   const [templateExpectedMax, setTemplateExpectedMax] = useState("");
   const [templateScopeLabel, setTemplateScopeLabel] = useState("");
+  const [templateEstimatedHours, setTemplateEstimatedHours] = useState("");
+  const [templateMaterialClass, setTemplateMaterialClass] = useState("standard");
+  const [templateUrgency, setTemplateUrgency] = useState("normal");
   const [templateMarketNote, setTemplateMarketNote] = useState("");
   const [templateReferralDisclosure, setTemplateReferralDisclosure] = useState(false);
   const [relatedPartyDisclosure, setRelatedPartyDisclosure] = useState("");
@@ -572,6 +690,8 @@ export default function Home() {
   const [resourceValuationInput, setResourceValuationInput] = useState("1000");
   const [resourceTaxRateInput, setResourceTaxRateInput] = useState("500");
   const [resourceBuyPriceInput, setResourceBuyPriceInput] = useState("1000");
+  const [resourceMetadataNoteInput, setResourceMetadataNoteInput] = useState("");
+  const [resourceRelatedPartyInput, setResourceRelatedPartyInput] = useState("");
   const [resourceInfo, setResourceInfo] = useState<{
     owner: string;
     valuation: bigint;
@@ -581,6 +701,7 @@ export default function Home() {
     due: bigint;
     elapsed: bigint;
   } | null>(null);
+  const [resourceMetadataNote, setResourceMetadataNote] = useState<string>("");
   const [unclaimedDays, setUnclaimedDays] = useState<{ day: number; amount: bigint }[]>([]);
   const [unclaimedFromDay, setUnclaimedFromDay] = useState("");
   const [unclaimedToDay, setUnclaimedToDay] = useState("");
@@ -1256,14 +1377,111 @@ export default function Home() {
     [selectedTemplate?.metadataUri]
   );
 
+  const scopeBaselines = useMemo(() => {
+    const buckets = new Map<
+      string,
+      {
+        rewards: bigint[];
+        templateMins: bigint[];
+        templateMaxes: bigint[];
+        templateCount: number;
+        agreementCount: number;
+        scope: string;
+        urgency: string;
+        materialClass: string;
+        hoursBand: string;
+      }
+    >();
+
+    const ensureBucket = (input: {
+      scopeLabel: string;
+      estimatedHours: number;
+      materialClass: string;
+      urgency: string;
+    }) => {
+      const normalized = buildMarketKey(input);
+      if (!normalized) return null;
+      const existing = buckets.get(normalized);
+      if (existing) return existing;
+      const created = {
+        rewards: [],
+        templateMins: [],
+        templateMaxes: [],
+        templateCount: 0,
+        agreementCount: 0,
+        scope: input.scopeLabel.trim().toLowerCase(),
+        urgency: input.urgency.trim().toLowerCase() || "normal",
+        materialClass: input.materialClass.trim().toLowerCase() || "standard",
+        hoursBand: normalizeBand(input.estimatedHours),
+      };
+      buckets.set(normalized, created);
+      return created;
+    };
+
+    templateList.forEach((template) => {
+      const meta = parseTemplateMetadata(template.metadataUri);
+      const bucket = ensureBucket(meta);
+      if (!bucket) return;
+      bucket.templateCount += 1;
+      if (meta.expectedMin > 0n) bucket.templateMins.push(meta.expectedMin);
+      if (meta.expectedMax > 0n) bucket.templateMaxes.push(meta.expectedMax);
+    });
+
+    covenants.forEach((item) => {
+      const template = templateById.get(Number(item.templateId));
+      const meta = template ? parseTemplateMetadata(template.metadataUri) : null;
+      const bucket = ensureBucket(
+        meta ?? {
+          scopeLabel: "",
+          estimatedHours: 0,
+          materialClass: "",
+          urgency: "",
+        }
+      );
+      if (!bucket) return;
+      bucket.rewards.push(item.tokenBReward);
+      bucket.agreementCount += 1;
+    });
+
+    const sortedEntries = Array.from(buckets.entries()).map(([scope, bucket]) => {
+      bucket.rewards.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      bucket.templateMins.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      bucket.templateMaxes.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      const pickMedian = (values: bigint[]) =>
+        values.length > 0 ? values[Math.floor(values.length / 2)] : 0n;
+      return {
+        scopeKey: scope,
+        scope: bucket.scope,
+        urgency: bucket.urgency,
+        materialClass: bucket.materialClass,
+        hoursBand: bucket.hoursBand,
+        templateCount: bucket.templateCount,
+        agreementCount: bucket.agreementCount,
+        observedMedian: pickMedian(bucket.rewards),
+        observedMin: bucket.rewards[0] ?? 0n,
+        observedMax: bucket.rewards[bucket.rewards.length - 1] ?? 0n,
+        templateMedianMin: pickMedian(bucket.templateMins),
+        templateMedianMax: pickMedian(bucket.templateMaxes),
+      };
+    });
+
+    return sortedEntries.sort((a, b) => b.agreementCount - a.agreementCount);
+  }, [covenants, templateById, templateList]);
+
+  const selectedScopeBaseline = useMemo(() => {
+    const selectedKey = buildMarketKey(selectedTemplateMeta);
+    if (!selectedKey) return null;
+    return scopeBaselines.find((entry) => entry.scopeKey === selectedKey) ?? null;
+  }, [scopeBaselines, selectedTemplateMeta]);
+
   const comparableRewards = useMemo(() => {
-    const selectedScope = selectedTemplateMeta.scopeLabel.trim().toLowerCase();
+    const selectedKey = buildMarketKey(selectedTemplateMeta);
     const source = covenants
       .filter((item) => {
-        if (selectedScope) {
+        if (selectedKey) {
           const template = templateById.get(Number(item.templateId));
           if (!template) return false;
-          return parseTemplateMetadata(template.metadataUri).scopeLabel.trim().toLowerCase() === selectedScope;
+          return buildMarketKey(parseTemplateMetadata(template.metadataUri)) === selectedKey;
         }
         if (templateIdValue !== null) {
           return item.templateId === templateIdValue;
@@ -1272,7 +1490,7 @@ export default function Home() {
       })
       .map((item) => item.tokenBReward);
     return source.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-  }, [covenants, selectedTemplateMeta.scopeLabel, templateById, templateIdValue]);
+  }, [covenants, selectedTemplateMeta, templateById, templateIdValue]);
 
   const comparableRewardStats = useMemo(() => {
     if (comparableRewards.length === 0) return null;
@@ -1323,14 +1541,21 @@ export default function Home() {
     if (!resourceInfo) return null;
     const proposedBuyPrice = safeParseUnits(resourceBuyPriceInput || "0", 18);
     if (proposedBuyPrice <= 0n || resourceInfo.valuation <= 0n) return null;
+    const resourceScope = parseTransparencyNote(resourceMetadataNote).scopeLabel.trim().toLowerCase();
+    const baseline = resourceScope
+      ? scopeBaselines.find((entry) => entry.scope === resourceScope) ?? null
+      : null;
     if (proposedBuyPrice > resourceInfo.valuation * 125n / 100n) {
       return "Buy price is more than 25% above the current public valuation.";
     }
     if (proposedBuyPrice < resourceInfo.valuation) {
       return "Buy price is below the public valuation and will fail on-chain.";
     }
+    if (baseline && baseline.observedMedian > 0n && resourceInfo.valuation > baseline.observedMedian * 3n / 2n) {
+      return `Public valuation is above the current ${baseline.scope} median by more than 50%.`;
+    }
     return null;
-  }, [resourceBuyPriceInput, resourceInfo]);
+  }, [resourceBuyPriceInput, resourceInfo, resourceMetadataNote, scopeBaselines]);
 
   const { data: crystallizedPreview } = useReadContract({
     address: treasuryAddr,
@@ -1747,7 +1972,6 @@ export default function Home() {
           }
         }
         const nextMap: Record<string, string> = {};
-        const nextTransparencyMap: Record<string, CovenantTransparencyNote> = {};
         for (let i = 0; i < localStorage.length; i += 1) {
           const storageKey = localStorage.key(i);
           if (!storageKey || !storageKey.startsWith("covenant-tags:")) continue;
@@ -1757,17 +1981,19 @@ export default function Home() {
             nextMap[id] = value;
           }
         }
-        for (let i = 0; i < localStorage.length; i += 1) {
-          const storageKey = localStorage.key(i);
-          if (!storageKey || !storageKey.startsWith("covenant-transparency:")) continue;
-          const id = storageKey.replace("covenant-transparency:", "");
-          const value = localStorage.getItem(storageKey);
-          if (value) {
-            nextTransparencyMap[id] = parseTransparencyNote(value);
-          }
-        }
+        const transparencyEntries = await Promise.all(
+          items.map(async (item) => {
+            const note = (await publicClient.readContract({
+              address: covenantAddr,
+              abi: covenantAbi,
+              functionName: "transparencyNotes",
+              args: [BigInt(item.id)],
+            })) as string;
+            return [String(item.id), parseTransparencyNote(note)] as const;
+          })
+        );
         setCovenantTagMap(nextMap);
-        setCovenantTransparencyMap(nextTransparencyMap);
+        setCovenantTransparencyMap(Object.fromEntries(transparencyEntries));
       }
     } finally {
       setIsLoadingCovenants(false);
@@ -2558,6 +2784,9 @@ export default function Home() {
     const points = Number.parseInt(covenantIntegrityPoints || "0", 10);
     const transparencyValue = JSON.stringify({
       scopeLabel: templateScopeLabel.trim(),
+      estimatedHours: Number.parseFloat(templateEstimatedHours || "0") || 0,
+      materialClass: templateMaterialClass,
+      urgency: templateUrgency,
       relatedPartyDisclosure: relatedPartyDisclosure.trim(),
       marketContext: marketContextNote.trim(),
       breakdown: quoteBreakdown,
@@ -2614,16 +2843,19 @@ export default function Home() {
           })
         );
       }
-      if (typeof window !== "undefined" && createdId !== null) {
-        try {
-          localStorage.setItem(`covenant-transparency:${createdId.toString()}`, transparencyValue);
-          setCovenantTransparencyMap((prev) => ({
-            ...prev,
-            [createdId!.toString()]: parseTransparencyNote(transparencyValue),
-          }));
-        } catch {
-          // ignore localStorage failures
-        }
+      if (createdId !== null) {
+        await runTransaction("setTransparencyNote", () =>
+          writeContractAsync({
+            address: covenantAddr,
+            abi: covenantAbi,
+            functionName: "setTransparencyNote",
+            args: [createdId, transparencyValue, keccak256(stringToBytes(transparencyValue))],
+          })
+        );
+        setCovenantTransparencyMap((prev) => ({
+          ...prev,
+          [createdId.toString()]: parseTransparencyNote(transparencyValue),
+        }));
       }
       await postTransactionSync();
       setTxError(null);
@@ -2648,6 +2880,9 @@ export default function Home() {
     const metadataValue = buildTemplateMetadataValue({
       sourceUri: covenantTemplateUri,
       scopeLabel: templateScopeLabel,
+      estimatedHours: templateEstimatedHours,
+      materialClass: templateMaterialClass,
+      urgency: templateUrgency,
       expectedMin: templateExpectedMin,
       expectedMax: templateExpectedMax,
       marketNote: templateMarketNote,
@@ -3082,6 +3317,12 @@ export default function Home() {
       functionName: "pendingTax",
       args: [resourceIdBytes],
     })) as [bigint, bigint];
+    const note = (await publicClient.readContract({
+      address: resourceRegistryAddress,
+      abi: resourceRegistryAbi,
+      functionName: "resourceMetadataNotes",
+      args: [resourceIdBytes],
+    })) as string;
     setResourceInfo({
       owner: data[0],
       valuation: data[1],
@@ -3091,6 +3332,26 @@ export default function Home() {
       due: pending[0],
       elapsed: pending[1],
     });
+    setResourceMetadataNote(note);
+  };
+
+  const persistResourceMetadata = async () => {
+    if (!resourceRegistryAddress || !resourceIdBytes) return;
+    const note = JSON.stringify({
+      scopeLabel: resourceIdInput.trim(),
+      relatedPartyDisclosure: resourceRelatedPartyInput.trim(),
+      marketContext: resourceMetadataNoteInput.trim(),
+      breakdown: emptyQuoteBreakdown(),
+    });
+    await runTransaction("setResourceMetadata", () =>
+      writeContractAsync({
+        address: registryAddr,
+        abi: resourceRegistryAbi,
+        functionName: "setResourceMetadata",
+        args: [resourceIdBytes, note, keccak256(stringToBytes(note))],
+      })
+    );
+    setResourceMetadataNote(note);
   };
 
   const handleRegisterResource = async () => {
@@ -3110,6 +3371,9 @@ export default function Home() {
           args: [resourceIdBytes, valuation, BigInt(rate)],
         })
       );
+      if (resourceMetadataNoteInput.trim() || resourceRelatedPartyInput.trim()) {
+        await persistResourceMetadata();
+      }
       await postTransactionSync();
       await handleLoadResource();
       setTxError(null);
@@ -3135,6 +3399,9 @@ export default function Home() {
           args: [resourceIdBytes, valuation],
         })
       );
+      if (resourceMetadataNoteInput.trim() || resourceRelatedPartyInput.trim()) {
+        await persistResourceMetadata();
+      }
       await postTransactionSync();
       await handleLoadResource();
       setTxError(null);
@@ -3815,6 +4082,17 @@ export default function Home() {
                         {comparableRewardStats.count} agreements.
                       </p>
                     ) : null}
+                    {selectedScopeBaseline ? (
+                      <p className={styles.fieldHint}>
+                        Market baseline for <strong>{selectedScopeBaseline.scope}</strong> ·{" "}
+                        {urgencyLabelFor(selectedScopeBaseline.urgency)} ·{" "}
+                        {materialLabelFor(selectedScopeBaseline.materialClass)} ·{" "}
+                        {selectedScopeBaseline.hoursBand}: observed median{" "}
+                        {Number(formatUnits(selectedScopeBaseline.observedMedian, 18)).toFixed(2)} SOILB, template
+                        median range {Number(formatUnits(selectedScopeBaseline.templateMedianMin, 18)).toFixed(2)}-
+                        {Number(formatUnits(selectedScopeBaseline.templateMedianMax, 18)).toFixed(2)} SOILB.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
                 <div className={styles.stepActions}>
@@ -3852,16 +4130,60 @@ export default function Home() {
                   </label>
                   <label className={styles.taskField}>
                     Work scope label
-                    <input
+                    <select
                       className={styles.taskInput}
                       value={templateScopeLabel}
                       onChange={(event) => setTemplateScopeLabel(event.target.value)}
-                      placeholder="e.g. plumbing emergency, tutoring, repair"
-                    />
+                    >
+                      {scopeVocabulary.map((entry) => (
+                        <option key={`scope-${entry.value}`} value={entry.value}>
+                          {entry.label}
+                        </option>
+                      ))}
+                    </select>
                     <span className={styles.fieldHint}>
-                      Short plain-language label used for future price comparisons and template discovery.
+                      Standard scope vocabulary used for future comparisons and template discovery.
                     </span>
                   </label>
+                  <div className={styles.taskRow}>
+                    <label className={styles.taskField}>
+                      Estimated hours
+                      <input
+                        className={styles.taskInput}
+                        value={templateEstimatedHours}
+                        onChange={(event) => setTemplateEstimatedHours(event.target.value)}
+                        placeholder="2"
+                      />
+                    </label>
+                    <label className={styles.taskField}>
+                      Material class
+                      <select
+                        className={styles.taskInput}
+                        value={templateMaterialClass}
+                        onChange={(event) => setTemplateMaterialClass(event.target.value)}
+                      >
+                        {materialVocabulary.map((entry) => (
+                          <option key={`material-${entry.value}`} value={entry.value}>
+                            {entry.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className={styles.taskField}>
+                      Urgency
+                      <select
+                        className={styles.taskInput}
+                        value={templateUrgency}
+                        onChange={(event) => setTemplateUrgency(event.target.value)}
+                      >
+                        {urgencyVocabulary.map((entry) => (
+                          <option key={`urgency-${entry.value}`} value={entry.value}>
+                            {entry.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
                   <label className={styles.taskField}>
                     Related party disclosure
                     <input
@@ -3886,6 +4208,10 @@ export default function Home() {
                       Explain why this price may differ from normal market ranges.
                     </span>
                   </label>
+                  <p className={styles.fieldHint}>
+                    Market comparison now uses <strong>scope + urgency + material class + hours band</strong>, not
+                    scope alone.
+                  </p>
                 </div>
             <button
               className={styles.ghostButton}
@@ -4079,6 +4405,45 @@ export default function Home() {
                       />
                     </label>
                   </div>
+                  <div className={styles.taskRow}>
+                    <label className={styles.taskField}>
+                      Estimated hours
+                      <input
+                        className={styles.taskInput}
+                        value={templateEstimatedHours}
+                        onChange={(event) => setTemplateEstimatedHours(event.target.value)}
+                        placeholder="2"
+                      />
+                    </label>
+                    <label className={styles.taskField}>
+                      Material class
+                      <select
+                        className={styles.taskInput}
+                        value={templateMaterialClass}
+                        onChange={(event) => setTemplateMaterialClass(event.target.value)}
+                      >
+                        {materialVocabulary.map((entry) => (
+                          <option key={`template-material-${entry.value}`} value={entry.value}>
+                            {entry.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className={styles.taskField}>
+                      Urgency
+                      <select
+                        className={styles.taskInput}
+                        value={templateUrgency}
+                        onChange={(event) => setTemplateUrgency(event.target.value)}
+                      >
+                        {urgencyVocabulary.map((entry) => (
+                          <option key={`template-urgency-${entry.value}`} value={entry.value}>
+                            {entry.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
                   <label className={styles.taskField}>
                     Market note
                     <input
@@ -4188,7 +4553,7 @@ export default function Home() {
                           <span>{formatPercent(item.effectiveRoyaltyBps)}% (Current)</span>{" "}
                           {!templateActiveMap[item.id] ? <span>(inactive)</span> : null}
                           {metadata.scopeLabel ? (
-                            <span className={styles.inlinePill}>{metadata.scopeLabel}</span>
+                            <span className={styles.inlinePill}>{scopeLabelFor(metadata.scopeLabel)}</span>
                           ) : null}
                           <div className={styles.templateMeta}>
                             <span>Author: {safeAddress(item.creator)}</span>
@@ -4203,6 +4568,13 @@ export default function Home() {
                                 {Number(formatUnits(metadata.expectedMin, 18)).toFixed(2)}-
                                 {Number(formatUnits(metadata.expectedMax, 18)).toFixed(2)}{" "}
                                 SOILB
+                              </span>
+                            ) : null}
+                            {metadata.estimatedHours > 0 || metadata.materialClass || metadata.urgency ? (
+                              <span>
+                                Compare by: {urgencyLabelFor(metadata.urgency)} ·{" "}
+                                {materialLabelFor(metadata.materialClass)} ·{" "}
+                                {normalizeBand(metadata.estimatedHours)}
                               </span>
                             ) : null}
                             {toQuoteTotal(metadata.breakdown) > 0n ? (
@@ -4297,6 +4669,46 @@ export default function Home() {
                 This is a compact balance-sheet view: reserves are current assets, liabilities are promised outflows,
                 and net shows how much buffer remains right now.
               </p>
+            </article>
+            <article className={`${styles.card} ${styles.cardWide}`}>
+              <h3>Market baselines by scope</h3>
+              <p>Observed medians and template ranges grouped by work scope.</p>
+              {scopeBaselines.length > 0 ? (
+                <div className={styles.templateList}>
+                  {scopeBaselines.slice(0, 6).map((entry) => (
+                    <div key={`scope-${entry.scope}`} className={styles.templateRow}>
+                      <div>
+                        <strong>{scopeLabelFor(entry.scope)}</strong>
+                        <div className={styles.templateMeta}>
+                          <span>
+                            Agreements: {entry.agreementCount} · Templates: {entry.templateCount}
+                          </span>
+                          <span>
+                            Compare by: {urgencyLabelFor(entry.urgency)} · {materialLabelFor(entry.materialClass)} ·{" "}
+                            {entry.hoursBand}
+                          </span>
+                          <span>
+                            Observed median: {Number(formatUnits(entry.observedMedian, 18)).toFixed(2)} SOILB
+                          </span>
+                          <span>
+                            Observed range: {Number(formatUnits(entry.observedMin, 18)).toFixed(2)}-
+                            {Number(formatUnits(entry.observedMax, 18)).toFixed(2)} SOILB
+                          </span>
+                          <span>
+                            Template median range: {Number(formatUnits(entry.templateMedianMin, 18)).toFixed(2)}-
+                            {Number(formatUnits(entry.templateMedianMax, 18)).toFixed(2)} SOILB
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className={styles.emptyState}>
+                  No grouped scope data yet. Save templates with a scope label and create agreements to build a
+                  reference market.
+                </p>
+              )}
             </article>
             <article className={`${styles.card} ${styles.cardWide}`}>
               <details className={styles.collapsibleCard}>
@@ -4494,6 +4906,24 @@ export default function Home() {
                     onChange={(event) => setResourceBuyPriceInput(event.target.value)}
                   />
                 </label>
+                <label className={styles.taskField}>
+                  Market note
+                  <input
+                    className={styles.taskInput}
+                    value={resourceMetadataNoteInput}
+                    onChange={(event) => setResourceMetadataNoteInput(event.target.value)}
+                    placeholder="e.g. Includes transport, maintenance, or scarce access."
+                  />
+                </label>
+                <label className={styles.taskField}>
+                  Related party disclosure
+                  <input
+                    className={styles.taskInput}
+                    value={resourceRelatedPartyInput}
+                    onChange={(event) => setResourceRelatedPartyInput(event.target.value)}
+                    placeholder="e.g. owner also operates the marketplace, none"
+                  />
+                </label>
               </div>
               <div className={styles.cardActions}>
                 <button
@@ -4531,6 +4961,13 @@ export default function Home() {
                 >
                   {actionLabel("loadResource", "Load resource")}
                 </button>
+                <button
+                  className={styles.secondaryButton}
+                  onClick={persistResourceMetadata}
+                  disabled={!account.address || !resourceRegistryAddress || !resourceIdBytes || isBusy}
+                >
+                  {actionLabel("setResourceMetadata", "Save market note")}
+                </button>
               </div>
               {resourceInfo ? (
                 <div className={styles.metricBreakdown}>
@@ -4539,6 +4976,18 @@ export default function Home() {
                   <span>Tax rate: {resourceInfo.taxRateBps.toString()} bps</span>
                   <span>Pending tax: {Number(formatUnits(resourceInfo.due, 18)).toFixed(4)}</span>
                   <span>Elapsed: {resourceInfo.elapsed.toString()}s</span>
+                </div>
+              ) : null}
+              {resourceMetadataNote ? (
+                <div className={styles.metricBreakdown}>
+                  {parseTransparencyNote(resourceMetadataNote).marketContext ? (
+                    <span>Market note: {parseTransparencyNote(resourceMetadataNote).marketContext}</span>
+                  ) : null}
+                  {parseTransparencyNote(resourceMetadataNote).relatedPartyDisclosure ? (
+                    <span>
+                      Related parties: {parseTransparencyNote(resourceMetadataNote).relatedPartyDisclosure}
+                    </span>
+                  ) : null}
                 </div>
               ) : null}
               {resourcePriceWarning ? (

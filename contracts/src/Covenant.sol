@@ -117,6 +117,8 @@ contract Covenant is Ownable {
     mapping(uint256 => uint256) public disputeDeposits;
     mapping(uint256 => uint256) public issueLockedIntegrity;
     mapping(uint256 => uint256) public disputeLockedIntegrity;
+    mapping(uint256 => string) public transparencyNotes;
+    mapping(uint256 => bytes32) public transparencyDigests;
     mapping(address => uint256) public cooldownUntil;
     mapping(address => uint256) public defenseQuotaMonth;
     mapping(address => uint256) public defenseQuotaUsed;
@@ -199,6 +201,7 @@ contract Covenant is Ownable {
         uint256 slashingPenalty
     );
     event LiabilityTagged(uint256 indexed covenantId, int256 deltaA, int256 deltaB, bytes32 reason);
+    event TransparencyNoteSet(uint256 indexed covenantId, bytes32 indexed digest, string note);
 
     constructor(address tokenBAddress, address tokenAAddress, address treasuryAddress)
         Ownable(msg.sender)
@@ -424,6 +427,15 @@ contract Covenant is Ownable {
 
         data.templateId = templateId;
         emit CovenantTemplateLinked(covenantId, templateId);
+    }
+
+    function setTransparencyNote(uint256 covenantId, string calldata note, bytes32 digest) external {
+        CovenantData storage data = covenants[covenantId];
+        require(data.creator != address(0), "Unknown covenant");
+        require(msg.sender == data.creator, "Creator only");
+        transparencyNotes[covenantId] = note;
+        transparencyDigests[covenantId] = digest;
+        emit TransparencyNoteSet(covenantId, digest, note);
     }
 
     function rejectWork(uint256 covenantId) external {

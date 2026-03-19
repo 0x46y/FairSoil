@@ -22,12 +22,15 @@ contract ResourceRegistry is Ownable {
     uint256 public constant SECONDS_PER_YEAR = 365 days;
 
     mapping(bytes32 => Resource) public resources;
+    mapping(bytes32 => string) public resourceMetadataNotes;
+    mapping(bytes32 => bytes32) public resourceMetadataDigests;
 
     event ResourceRegistered(bytes32 indexed resourceId, address indexed owner, uint256 valuation, uint256 taxRateBps);
     event ValuationUpdated(bytes32 indexed resourceId, uint256 valuation);
     event TaxRateUpdated(bytes32 indexed resourceId, uint256 taxRateBps);
     event TaxPaid(bytes32 indexed resourceId, address indexed payer, uint256 amount, uint256 periodSeconds);
     event ResourcePurchased(bytes32 indexed resourceId, address indexed from, address indexed to, uint256 price);
+    event ResourceMetadataSet(bytes32 indexed resourceId, bytes32 indexed digest, string note);
 
     constructor(address tokenBAddress, address treasuryAddress) Ownable(msg.sender) {
         require(tokenBAddress != address(0), "TokenB required");
@@ -86,6 +89,15 @@ contract ResourceRegistry is Ownable {
         _settleTax(resourceId);
         resource.taxRateBps = taxRateBps;
         emit TaxRateUpdated(resourceId, taxRateBps);
+    }
+
+    function setResourceMetadata(bytes32 resourceId, string calldata note, bytes32 digest) external {
+        Resource storage resource = resources[resourceId];
+        require(resource.exists, "Unknown resource");
+        require(msg.sender == resource.owner, "Owner only");
+        resourceMetadataNotes[resourceId] = note;
+        resourceMetadataDigests[resourceId] = digest;
+        emit ResourceMetadataSet(resourceId, digest, note);
     }
 
     function pendingTax(bytes32 resourceId) public view returns (uint256 due, uint256 elapsedSeconds) {
