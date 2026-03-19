@@ -3,38 +3,42 @@
 import type { ReactNode } from "react";
 import { formatUnits } from "viem";
 import styles from "../app/page.module.css";
-import type { StringMapSetter, WorkAgreementItem } from "./WorkAgreementRow";
+import type { DisputeFormState } from "../lib/useDisputeFormState";
+import type { WorkAgreementItem } from "./WorkAgreementRow";
 
 export function WorkAgreementActionPanel(props: {
   item: WorkAgreementItem;
   accountAddress?: string;
   isDisputeResolver: boolean;
   isBusy: boolean;
-  issueClaims: Record<number, string>;
-  setIssueClaims: StringMapSetter;
-  issueReasons: Record<number, string>;
-  setIssueReasons: StringMapSetter;
-  issueEvidenceUris: Record<number, string>;
-  setIssueEvidenceUris: StringMapSetter;
-  issueDepositEstimates: Record<number, bigint>;
-  disputeReasons: Record<number, string>;
-  setDisputeReasons: StringMapSetter;
-  disputeEvidenceUris: Record<number, string>;
-  setDisputeEvidenceUris: StringMapSetter;
-  resolveClaims: Record<number, string>;
-  setResolveClaims: StringMapSetter;
-  resolveIntegrity: Record<number, string>;
-  setResolveIntegrity: StringMapSetter;
-  resolveSlashing: Record<number, string>;
-  setResolveSlashing: StringMapSetter;
-  resolveClaimSummaries: Record<number, string>;
-  setResolveClaimSummaries: StringMapSetter;
-  resolveRequesterResponses: Record<number, string>;
-  setResolveRequesterResponses: StringMapSetter;
-  resolveMissingEvidenceNotes: Record<number, string>;
-  setResolveMissingEvidenceNotes: StringMapSetter;
-  resolveEvidenceUris: Record<number, string>;
-  setResolveEvidenceUris: StringMapSetter;
+  disputeState: Pick<
+    DisputeFormState,
+    | "issueClaims"
+    | "setIssueClaims"
+    | "issueReasons"
+    | "setIssueReasons"
+    | "issueEvidenceUris"
+    | "setIssueEvidenceUris"
+    | "issueDepositEstimates"
+    | "disputeReasons"
+    | "setDisputeReasons"
+    | "disputeEvidenceUris"
+    | "setDisputeEvidenceUris"
+    | "resolveClaims"
+    | "setResolveClaims"
+    | "resolveIntegrity"
+    | "setResolveIntegrity"
+    | "resolveSlashing"
+    | "setResolveSlashing"
+    | "resolveClaimSummaries"
+    | "setResolveClaimSummaries"
+    | "resolveRequesterResponses"
+    | "setResolveRequesterResponses"
+    | "resolveMissingEvidenceNotes"
+    | "setResolveMissingEvidenceNotes"
+    | "resolveEvidenceUris"
+    | "setResolveEvidenceUris"
+  >;
   formatEvidenceLink: (value: unknown) => ReactNode;
   renderDepositBreakdown: (deposit: bigint, isActor: boolean) => ReactNode;
   isSelf: (target: string) => boolean;
@@ -54,6 +58,22 @@ export function WorkAgreementActionPanel(props: {
     accountAddress,
     isDisputeResolver,
     isBusy,
+    disputeState,
+    formatEvidenceLink,
+    renderDepositBreakdown,
+    isSelf,
+    actionLabel,
+    handleCancelCovenant,
+    handleSubmitWork,
+    handleReportIssue,
+    handleApproveWork,
+    handleRejectWork,
+    handleAcceptIssue,
+    handleDisputeIssue,
+    handleResolveDispute,
+    handleFinalizeResolution,
+  } = props;
+  const {
     issueClaims,
     setIssueClaims,
     issueReasons,
@@ -79,20 +99,7 @@ export function WorkAgreementActionPanel(props: {
     setResolveMissingEvidenceNotes,
     resolveEvidenceUris,
     setResolveEvidenceUris,
-    formatEvidenceLink,
-    renderDepositBreakdown,
-    isSelf,
-    actionLabel,
-    handleCancelCovenant,
-    handleSubmitWork,
-    handleReportIssue,
-    handleApproveWork,
-    handleRejectWork,
-    handleAcceptIssue,
-    handleDisputeIssue,
-    handleResolveDispute,
-    handleFinalizeResolution,
-  } = props;
+  } = disputeState;
 
   return (
     <>

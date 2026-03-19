@@ -52,6 +52,8 @@ import {
   urgencyVocabulary,
 } from "../lib/marketVocabulary";
 import { useCovenantReview } from "../lib/useCovenantReview";
+import { useDisputeFormState } from "../lib/useDisputeFormState";
+import { useCovenantActions } from "../lib/useCovenantActions";
 import { useIdentityFlow } from "../lib/useIdentityFlow";
 import { WorkAgreementsSection } from "../components/WorkAgreementsSection";
 import { WorkAgreementRow } from "../components/WorkAgreementRow";
@@ -77,8 +79,6 @@ import {
 } from "../lib/contracts";
 
 const MAX_TRAIL_ITEMS = 12;
-const ISSUE_DEPOSIT_BPS = 500n;
-const ISSUE_DEPOSIT_DENOM = 10_000n;
 
 type TrailItem = {
   id: string;
@@ -435,20 +435,11 @@ export default function Home() {
     }[]
   >([]);
   const [isLoadingCovenants, setIsLoadingCovenants] = useState(false);
-  const [issueClaims, setIssueClaims] = useState<Record<number, string>>({});
-  const [issueReasons, setIssueReasons] = useState<Record<number, string>>({});
-  const [issueEvidenceUris, setIssueEvidenceUris] = useState<Record<number, string>>({});
-  const [issueDepositEstimates, setIssueDepositEstimates] = useState<Record<number, bigint>>({});
-  const [disputeReasons, setDisputeReasons] = useState<Record<number, string>>({});
-  const [disputeEvidenceUris, setDisputeEvidenceUris] = useState<Record<number, string>>({});
-  const [resolveClaims, setResolveClaims] = useState<Record<number, string>>({});
-  const [resolveIntegrity, setResolveIntegrity] = useState<Record<number, string>>({});
-  const [resolveSlashing, setResolveSlashing] = useState<Record<number, string>>({});
-  const [resolveClaimSummaries, setResolveClaimSummaries] = useState<Record<number, string>>({});
-  const [resolveRequesterResponses, setResolveRequesterResponses] = useState<Record<number, string>>({});
-  const [resolveMissingEvidenceNotes, setResolveMissingEvidenceNotes] = useState<Record<number, string>>({});
-  const [resolveEvidenceUris, setResolveEvidenceUris] = useState<Record<number, string>>({});
-  const [disputeReviewRecords, setDisputeReviewRecords] = useState<Record<number, DisputeReviewRecord>>({});
+  const disputeFormState = useDisputeFormState();
+  const {
+    disputeReviewRecords,
+    setDisputeReviewRecords,
+  } = disputeFormState;
   const [appiOracleInput, setAppiOracleInput] = useState("");
   const [appiCategoryInput, setAppiCategoryInput] = useState("");
   const [appiPriceInput, setAppiPriceInput] = useState("");
@@ -1099,6 +1090,38 @@ export default function Home() {
       successTimeoutRef.current = null;
     }, 5000);
   }, []);
+
+  const {
+    handleSubmitWork,
+    handleApproveWork,
+    handleRejectWork,
+    handleCancelCovenant,
+    handleReportIssue,
+    handleAcceptIssue,
+    handleDisputeIssue,
+    handleResolveDispute,
+    handleFinalizeResolution,
+  } = useCovenantActions({
+    covenantAddress,
+    tokenBAddress,
+    covenantAddr,
+    tokenBAddr,
+    treasuryAddr,
+    publicClient,
+    covenants,
+    disputeState: disputeFormState,
+    hasDefenseQuota,
+    getDepositBreakdown,
+    runTransaction,
+    writeContractAsync,
+    postTransactionSync,
+    setTxError,
+    setTxSuccess,
+    setTxStatus,
+    setTxAction,
+    showSuccess,
+    formatTxError,
+  });
 
   const covenantReward = useMemo(
     () => safeParseUnits(covenantRewardAmount, 18),
@@ -1797,7 +1820,7 @@ export default function Home() {
     } finally {
       setIsLoadingCovenants(false);
     }
-  }, [publicClient, covenantAddr]);
+  }, [publicClient, covenantAddr, setDisputeReviewRecords]);
 
   const loadUnclaimed = useCallback(async () => {
     if (!publicClient || treasuryAddr === zeroAddress || !account.address) return;
@@ -2655,354 +2678,7 @@ export default function Home() {
     }
   };
 
-  const handleSubmitWork = async (covenantId: number) => {
-    if (!covenantAddress) return;
-    const actionKey = `submit-${covenantId}`;
-    try {
-      await runTransaction(actionKey, () =>
-        writeContractAsync({
-          address: covenantAddress,
-          abi: covenantAbi,
-          functionName: "submitWork",
-          args: [BigInt(covenantId)],
-        })
-      );
-      await postTransactionSync();
-      setTxError(null);
-      showSuccess("Transaction successful!");
-    } catch (error) {
-      setTxError(formatTxError(error));
-      setTxSuccess(null);
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
 
-  const handleApproveWork = async (covenantId: number) => {
-    if (!covenantAddress) return;
-    const actionKey = `approve-${covenantId}`;
-    try {
-      await runTransaction(actionKey, () =>
-        writeContractAsync({
-          address: covenantAddress,
-          abi: covenantAbi,
-          functionName: "approveWork",
-          args: [BigInt(covenantId)],
-        })
-      );
-      await postTransactionSync();
-      setTxError(null);
-      showSuccess("Transaction successful!");
-    } catch (error) {
-      setTxError(formatTxError(error));
-      setTxSuccess(null);
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
-
-  const handleRejectWork = async (covenantId: number) => {
-    if (!covenantAddress) return;
-    const actionKey = `reject-${covenantId}`;
-    try {
-      await runTransaction(actionKey, () =>
-        writeContractAsync({
-          address: covenantAddress,
-          abi: covenantAbi,
-          functionName: "rejectWork",
-          args: [BigInt(covenantId)],
-        })
-      );
-      await postTransactionSync();
-      setTxError(null);
-      showSuccess("Transaction successful!");
-    } catch (error) {
-      setTxError(formatTxError(error));
-      setTxSuccess(null);
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
-
-  const handleCancelCovenant = async (covenantId: number) => {
-    if (!covenantAddress) return;
-    const actionKey = `cancel-${covenantId}`;
-    try {
-      await runTransaction(actionKey, () =>
-        writeContractAsync({
-          address: covenantAddress,
-          abi: covenantAbi,
-          functionName: "cancel",
-          args: [BigInt(covenantId)],
-        })
-      );
-      await postTransactionSync();
-      setTxError(null);
-      showSuccess("Transaction successful!");
-    } catch (error) {
-      setTxError(formatTxError(error));
-      setTxSuccess(null);
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
-
-  const getIssueDeposit = useCallback(
-    async (item?: (typeof covenants)[number]) => {
-      if (!item || !publicClient || treasuryAddr === zeroAddress) return 0n;
-      let base = item.tokenBReward;
-      if (item.paymentToken === 1) {
-        try {
-          base = (await publicClient.readContract({
-            address: treasuryAddr,
-            abi: treasuryAbi,
-            functionName: "previewCrystallization",
-            args: [item.tokenBReward],
-          })) as bigint;
-        } catch {
-          return 0n;
-        }
-      }
-      return (base * ISSUE_DEPOSIT_BPS) / ISSUE_DEPOSIT_DENOM;
-    },
-    [publicClient, treasuryAddr]
-  );
-
-  useEffect(() => {
-    if (!publicClient || treasuryAddr === zeroAddress) {
-      setIssueDepositEstimates({});
-      return;
-    }
-    let cancelled = false;
-    const loadDeposits = async () => {
-      const entries = await Promise.all(
-        covenants.map(async (item) => {
-          let base = item.tokenBReward;
-          if (item.paymentToken === 1) {
-            try {
-              base = (await publicClient.readContract({
-                address: treasuryAddr,
-                abi: treasuryAbi,
-                functionName: "previewCrystallization",
-                args: [item.tokenBReward],
-              })) as bigint;
-            } catch {
-              base = 0n;
-            }
-          }
-          const deposit = (base * ISSUE_DEPOSIT_BPS) / ISSUE_DEPOSIT_DENOM;
-          return [item.id, deposit] as const;
-        })
-      );
-      if (cancelled) return;
-      const next: Record<number, bigint> = {};
-      entries.forEach(([id, amount]) => {
-        if (amount > 0n) {
-          next[id] = amount;
-        }
-      });
-      setIssueDepositEstimates(next);
-    };
-    void loadDeposits();
-    return () => {
-      cancelled = true;
-    };
-  }, [covenants, publicClient, treasuryAddr]);
-
-  const handleReportIssue = async (covenantId: number) => {
-    if (!covenantAddress) return;
-    if (!tokenBAddress) return;
-    const claim = issueClaims[covenantId] ?? "";
-    const reason = issueReasons[covenantId] ?? "";
-    const evidenceUri = issueEvidenceUris[covenantId] ?? "";
-    if (!claim.trim()) return;
-    const parsedClaim = Number(claim);
-    if (Number.isNaN(parsedClaim)) return;
-    const claimBps = Math.min(100, Math.max(0, parsedClaim));
-    const confirmationMessage =
-      claimBps === 0
-        ? "You are claiming 0% (forfeiting the entire reward). Is this intended?"
-        : `You are claiming ${claimBps}% of the reward. Proceed?`;
-    const confirmed = window.confirm(confirmationMessage);
-    if (!confirmed) return;
-    const actionKey = `report-issue-${covenantId}`;
-    try {
-      const covenantItem = covenants.find((entry) => entry.id === covenantId);
-      const deposit = await getIssueDeposit(covenantItem);
-      if (deposit > 0n && !hasDefenseQuota) {
-        const breakdown = getDepositBreakdown(deposit);
-        const tokenBPart = breakdown.tokenBPart;
-        if (tokenBPart > 0n) {
-        await runTransaction(`approve-issue-${covenantId}`, () =>
-          writeContractAsync({
-            address: tokenBAddr,
-            abi: tokenBAbi,
-            functionName: "approve",
-            args: [covenantAddress, tokenBPart],
-          })
-        );
-        }
-      }
-      await runTransaction(actionKey, () =>
-        writeContractAsync({
-          address: covenantAddress,
-          abi: covenantAbi,
-          functionName: "reportIssue",
-          args: [BigInt(covenantId), BigInt(claimBps * 100), reason, evidenceUri],
-        })
-      );
-      await postTransactionSync();
-      setTxError(null);
-      showSuccess("Transaction successful!");
-    } catch (error) {
-      setTxError(formatTxError(error));
-      setTxSuccess(null);
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
-
-  const handleAcceptIssue = async (covenantId: number) => {
-    if (!covenantAddress) return;
-    const actionKey = `accept-issue-${covenantId}`;
-    try {
-      await runTransaction(actionKey, () =>
-        writeContractAsync({
-          address: covenantAddress,
-          abi: covenantAbi,
-          functionName: "acceptIssue",
-          args: [BigInt(covenantId)],
-        })
-      );
-      await postTransactionSync();
-      setTxError(null);
-      showSuccess("Transaction successful!");
-    } catch (error) {
-      setTxError(formatTxError(error));
-      setTxSuccess(null);
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
-
-  const handleDisputeIssue = async (covenantId: number) => {
-    if (!covenantAddress) return;
-    if (!tokenBAddress) return;
-    const reason = disputeReasons[covenantId] ?? "";
-    const evidenceUri = disputeEvidenceUris[covenantId] ?? "";
-    const actionKey = `dispute-${covenantId}`;
-    try {
-      const covenantItem = covenants.find((entry) => entry.id === covenantId);
-      const deposit = await getIssueDeposit(covenantItem);
-      if (deposit > 0n && !hasDefenseQuota) {
-        const breakdown = getDepositBreakdown(deposit);
-        const tokenBPart = breakdown.tokenBPart;
-        if (tokenBPart > 0n) {
-        await runTransaction(`approve-dispute-${covenantId}`, () =>
-          writeContractAsync({
-            address: tokenBAddr,
-            abi: tokenBAbi,
-            functionName: "approve",
-            args: [covenantAddress, tokenBPart],
-          })
-        );
-        }
-      }
-      await runTransaction(actionKey, () =>
-        writeContractAsync({
-          address: covenantAddress,
-          abi: covenantAbi,
-          functionName: "disputeIssue",
-          args: [BigInt(covenantId), reason, evidenceUri],
-        })
-      );
-      await postTransactionSync();
-      setTxError(null);
-      showSuccess("Transaction successful!");
-    } catch (error) {
-      setTxError(formatTxError(error));
-      setTxSuccess(null);
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
-
-  const handleResolveDispute = async (covenantId: number) => {
-    if (!covenantAddress) return;
-    const payout = resolveClaims[covenantId] ?? "0";
-    const payoutPct = Math.min(100, Math.max(0, Number(payout)));
-    const integrity = Number.parseInt(resolveIntegrity[covenantId] ?? "0", 10);
-    const slashingAmount = resolveSlashing[covenantId] ?? "0";
-    const note = JSON.stringify({
-      claimSummary: resolveClaimSummaries[covenantId] ?? "",
-      requesterResponse: resolveRequesterResponses[covenantId] ?? "",
-      missingEvidence: resolveMissingEvidenceNotes[covenantId] ?? "",
-      recommendedPayoutPct: payoutPct,
-    });
-    const evidenceUri = resolveEvidenceUris[covenantId] ?? "";
-    const slashingPenalty = parseUnits(slashingAmount, 18);
-    const actionKey = `resolve-${covenantId}`;
-    try {
-      if (note.trim() || evidenceUri.trim()) {
-        await runTransaction(`resolve-record-${covenantId}`, () =>
-          writeContractAsync({
-            address: covenantAddress,
-            abi: covenantAbi,
-            functionName: "setResolutionRecord",
-            args: [BigInt(covenantId), note, evidenceUri],
-          })
-        );
-      }
-      await runTransaction(actionKey, () =>
-        writeContractAsync({
-          address: covenantAddress,
-          abi: covenantAbi,
-          functionName: "resolveDispute",
-          args: [BigInt(covenantId), BigInt(payoutPct * 100), BigInt(integrity), slashingPenalty],
-        })
-      );
-      await postTransactionSync();
-      setTxError(null);
-      showSuccess("Transaction successful!");
-    } catch (error) {
-      setTxError(formatTxError(error));
-      setTxSuccess(null);
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
-
-  const handleFinalizeResolution = async (covenantId: number) => {
-    if (!covenantAddress) return;
-    const actionKey = `finalize-${covenantId}`;
-    try {
-      await runTransaction(actionKey, () =>
-        writeContractAsync({
-          address: covenantAddress,
-          abi: covenantAbi,
-          functionName: "finalizeResolution",
-          args: [BigInt(covenantId)],
-        })
-      );
-      await postTransactionSync();
-      setTxError(null);
-      showSuccess("Transaction successful!");
-    } catch (error) {
-      setTxError(formatTxError(error));
-      setTxSuccess(null);
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
 
   const resourceIdBytes = useMemo(() => {
     const trimmed = resourceIdInput.trim();
@@ -5002,31 +4678,7 @@ export default function Home() {
               locale={locale}
               disputeSteps={disputeSteps}
               isBusy={isBusy}
-              issueClaims={issueClaims}
-              setIssueClaims={setIssueClaims}
-              issueReasons={issueReasons}
-              setIssueReasons={setIssueReasons}
-              issueEvidenceUris={issueEvidenceUris}
-              setIssueEvidenceUris={setIssueEvidenceUris}
-              issueDepositEstimates={issueDepositEstimates}
-              disputeReasons={disputeReasons}
-              setDisputeReasons={setDisputeReasons}
-              disputeEvidenceUris={disputeEvidenceUris}
-              setDisputeEvidenceUris={setDisputeEvidenceUris}
-              resolveClaims={resolveClaims}
-              setResolveClaims={setResolveClaims}
-              resolveIntegrity={resolveIntegrity}
-              setResolveIntegrity={setResolveIntegrity}
-              resolveSlashing={resolveSlashing}
-              setResolveSlashing={setResolveSlashing}
-              resolveClaimSummaries={resolveClaimSummaries}
-              setResolveClaimSummaries={setResolveClaimSummaries}
-              resolveRequesterResponses={resolveRequesterResponses}
-              setResolveRequesterResponses={setResolveRequesterResponses}
-              resolveMissingEvidenceNotes={resolveMissingEvidenceNotes}
-              setResolveMissingEvidenceNotes={setResolveMissingEvidenceNotes}
-              resolveEvidenceUris={resolveEvidenceUris}
-              setResolveEvidenceUris={setResolveEvidenceUris}
+              disputeState={disputeFormState}
               formatPercent={formatPercent}
               nextStepForCovenant={nextStepForCovenant}
               getDisputeStage={getDisputeStage}

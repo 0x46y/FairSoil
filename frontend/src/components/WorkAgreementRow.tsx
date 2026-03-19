@@ -1,6 +1,6 @@
 "use client";
 
-import type { Dispatch, ReactNode, SetStateAction } from "react";
+import type { ReactNode } from "react";
 import { formatUnits } from "viem";
 import styles from "../app/page.module.css";
 import {
@@ -10,6 +10,7 @@ import {
   emptyTransparencyNote,
   parseArbiterResolutionNote,
 } from "../lib/marketVocabulary";
+import type { DisputeFormState } from "../lib/useDisputeFormState";
 import { WorkAgreementActionPanel } from "./WorkAgreementActionPanel";
 
 export type WorkAgreementTemplateItem = {
@@ -47,8 +48,6 @@ export type WorkAgreementTrailItem = {
   body?: ReactNode;
 };
 
-export type StringMapSetter = Dispatch<SetStateAction<Record<number, string>>>;
-
 export function WorkAgreementRow(props: {
   item: WorkAgreementItem;
   accountAddress?: string;
@@ -66,31 +65,34 @@ export function WorkAgreementRow(props: {
   locale: string;
   disputeSteps: readonly string[];
   isBusy: boolean;
-  issueClaims: Record<number, string>;
-  setIssueClaims: StringMapSetter;
-  issueReasons: Record<number, string>;
-  setIssueReasons: StringMapSetter;
-  issueEvidenceUris: Record<number, string>;
-  setIssueEvidenceUris: StringMapSetter;
-  issueDepositEstimates: Record<number, bigint>;
-  disputeReasons: Record<number, string>;
-  setDisputeReasons: StringMapSetter;
-  disputeEvidenceUris: Record<number, string>;
-  setDisputeEvidenceUris: StringMapSetter;
-  resolveClaims: Record<number, string>;
-  setResolveClaims: StringMapSetter;
-  resolveIntegrity: Record<number, string>;
-  setResolveIntegrity: StringMapSetter;
-  resolveSlashing: Record<number, string>;
-  setResolveSlashing: StringMapSetter;
-  resolveClaimSummaries: Record<number, string>;
-  setResolveClaimSummaries: StringMapSetter;
-  resolveRequesterResponses: Record<number, string>;
-  setResolveRequesterResponses: StringMapSetter;
-  resolveMissingEvidenceNotes: Record<number, string>;
-  setResolveMissingEvidenceNotes: StringMapSetter;
-  resolveEvidenceUris: Record<number, string>;
-  setResolveEvidenceUris: StringMapSetter;
+  disputeState: Pick<
+    DisputeFormState,
+    | "issueClaims"
+    | "setIssueClaims"
+    | "issueReasons"
+    | "setIssueReasons"
+    | "issueEvidenceUris"
+    | "setIssueEvidenceUris"
+    | "issueDepositEstimates"
+    | "disputeReasons"
+    | "setDisputeReasons"
+    | "disputeEvidenceUris"
+    | "setDisputeEvidenceUris"
+    | "resolveClaims"
+    | "setResolveClaims"
+    | "resolveIntegrity"
+    | "setResolveIntegrity"
+    | "resolveSlashing"
+    | "setResolveSlashing"
+    | "resolveClaimSummaries"
+    | "setResolveClaimSummaries"
+    | "resolveRequesterResponses"
+    | "setResolveRequesterResponses"
+    | "resolveMissingEvidenceNotes"
+    | "setResolveMissingEvidenceNotes"
+    | "resolveEvidenceUris"
+    | "setResolveEvidenceUris"
+  >;
   formatPercent: (bps: bigint) => string;
   nextStepForCovenant: (item: WorkAgreementItem, account: string | undefined, isDisputeResolver: boolean) => string;
   getDisputeStage: (status: number) => boolean[];
@@ -133,31 +135,7 @@ export function WorkAgreementRow(props: {
     locale,
     disputeSteps,
     isBusy,
-    issueClaims,
-    setIssueClaims,
-    issueReasons,
-    setIssueReasons,
-    issueEvidenceUris,
-    setIssueEvidenceUris,
-    issueDepositEstimates,
-    disputeReasons,
-    setDisputeReasons,
-    disputeEvidenceUris,
-    setDisputeEvidenceUris,
-    resolveClaims,
-    setResolveClaims,
-    resolveIntegrity,
-    setResolveIntegrity,
-    resolveSlashing,
-    setResolveSlashing,
-    resolveClaimSummaries,
-    setResolveClaimSummaries,
-    resolveRequesterResponses,
-    setResolveRequesterResponses,
-    resolveMissingEvidenceNotes,
-    setResolveMissingEvidenceNotes,
-    resolveEvidenceUris,
-    setResolveEvidenceUris,
+    disputeState,
     formatPercent,
     nextStepForCovenant,
     getDisputeStage,
@@ -464,31 +442,7 @@ export function WorkAgreementRow(props: {
           accountAddress={accountAddress}
           isDisputeResolver={isDisputeResolver}
           isBusy={isBusy}
-          issueClaims={issueClaims}
-          setIssueClaims={setIssueClaims}
-          issueReasons={issueReasons}
-          setIssueReasons={setIssueReasons}
-          issueEvidenceUris={issueEvidenceUris}
-          setIssueEvidenceUris={setIssueEvidenceUris}
-          issueDepositEstimates={issueDepositEstimates}
-          disputeReasons={disputeReasons}
-          setDisputeReasons={setDisputeReasons}
-          disputeEvidenceUris={disputeEvidenceUris}
-          setDisputeEvidenceUris={setDisputeEvidenceUris}
-          resolveClaims={resolveClaims}
-          setResolveClaims={setResolveClaims}
-          resolveIntegrity={resolveIntegrity}
-          setResolveIntegrity={setResolveIntegrity}
-          resolveSlashing={resolveSlashing}
-          setResolveSlashing={setResolveSlashing}
-          resolveClaimSummaries={resolveClaimSummaries}
-          setResolveClaimSummaries={setResolveClaimSummaries}
-          resolveRequesterResponses={resolveRequesterResponses}
-          setResolveRequesterResponses={setResolveRequesterResponses}
-          resolveMissingEvidenceNotes={resolveMissingEvidenceNotes}
-          setResolveMissingEvidenceNotes={setResolveMissingEvidenceNotes}
-          resolveEvidenceUris={resolveEvidenceUris}
-          setResolveEvidenceUris={setResolveEvidenceUris}
+          disputeState={disputeState}
           formatEvidenceLink={formatEvidenceLink}
           renderDepositBreakdown={renderDepositBreakdown}
           isSelf={isSelf}
