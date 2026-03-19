@@ -76,6 +76,30 @@ type TrailLog = {
 };
 
 type DashboardView = "participant" | "operator";
+type QuoteBreakdownInput = {
+  labor: string;
+  materials: string;
+  referral: string;
+  warranty: string;
+  other: string;
+};
+
+type ParsedTemplateMetadata = {
+  sourceUri: string;
+  scopeLabel: string;
+  expectedMin: bigint;
+  expectedMax: bigint;
+  marketNote: string;
+  referralDisclosure: boolean;
+  breakdown: QuoteBreakdownInput;
+};
+
+type CovenantTransparencyNote = {
+  scopeLabel: string;
+  relatedPartyDisclosure: string;
+  marketContext: string;
+  breakdown: QuoteBreakdownInput;
+};
 
 const shortAddress = (value: string) => `${value.slice(0, 6)}…${value.slice(-4)}`;
 const safeAddress = (value?: string) => (value ? shortAddress(value) : "Unknown");
@@ -260,6 +284,132 @@ const safeParseUnits = (value: string, decimals: number) => {
   }
 };
 
+const emptyQuoteBreakdown = (): QuoteBreakdownInput => ({
+  labor: "",
+  materials: "",
+  referral: "",
+  warranty: "",
+  other: "",
+});
+
+const toQuoteTotal = (value: QuoteBreakdownInput) =>
+  safeParseUnits(value.labor, 18) +
+  safeParseUnits(value.materials, 18) +
+  safeParseUnits(value.referral, 18) +
+  safeParseUnits(value.warranty, 18) +
+  safeParseUnits(value.other, 18);
+
+const buildTemplateMetadataValue = (input: {
+  sourceUri: string;
+  scopeLabel: string;
+  expectedMin: string;
+  expectedMax: string;
+  marketNote: string;
+  referralDisclosure: boolean;
+  breakdown: QuoteBreakdownInput;
+}) => {
+  const hasStructuredFields =
+    input.scopeLabel.trim() ||
+    input.marketNote.trim() ||
+    input.expectedMin.trim() ||
+    input.expectedMax.trim() ||
+    Object.values(input.breakdown).some((entry) => entry.trim()) ||
+    input.referralDisclosure;
+
+  if (!hasStructuredFields) {
+    return input.sourceUri.trim();
+  }
+
+  return JSON.stringify({
+    version: 1,
+    sourceUri: input.sourceUri.trim(),
+    scopeLabel: input.scopeLabel.trim(),
+    expectedMin: input.expectedMin.trim(),
+    expectedMax: input.expectedMax.trim(),
+    marketNote: input.marketNote.trim(),
+    referralDisclosure: input.referralDisclosure,
+    breakdown: {
+      labor: input.breakdown.labor.trim(),
+      materials: input.breakdown.materials.trim(),
+      referral: input.breakdown.referral.trim(),
+      warranty: input.breakdown.warranty.trim(),
+      other: input.breakdown.other.trim(),
+    },
+  });
+};
+
+const parseTemplateMetadata = (raw: string): ParsedTemplateMetadata => {
+  const fallback: ParsedTemplateMetadata = {
+    sourceUri: raw,
+    scopeLabel: "",
+    expectedMin: 0n,
+    expectedMax: 0n,
+    marketNote: "",
+    referralDisclosure: false,
+    breakdown: emptyQuoteBreakdown(),
+  };
+
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("{")) return fallback;
+
+  try {
+    const parsed = JSON.parse(trimmed) as {
+      sourceUri?: string;
+      scopeLabel?: string;
+      expectedMin?: string;
+      expectedMax?: string;
+      marketNote?: string;
+      referralDisclosure?: boolean;
+      breakdown?: Partial<QuoteBreakdownInput>;
+    };
+    return {
+      sourceUri: parsed.sourceUri?.trim() || "",
+      scopeLabel: parsed.scopeLabel?.trim() || "",
+      expectedMin: safeParseUnits(parsed.expectedMin || "0", 18),
+      expectedMax: safeParseUnits(parsed.expectedMax || "0", 18),
+      marketNote: parsed.marketNote?.trim() || "",
+      referralDisclosure: Boolean(parsed.referralDisclosure),
+      breakdown: {
+        labor: parsed.breakdown?.labor?.trim() || "",
+        materials: parsed.breakdown?.materials?.trim() || "",
+        referral: parsed.breakdown?.referral?.trim() || "",
+        warranty: parsed.breakdown?.warranty?.trim() || "",
+        other: parsed.breakdown?.other?.trim() || "",
+      },
+    };
+  } catch {
+    return fallback;
+  }
+};
+
+const emptyTransparencyNote = (): CovenantTransparencyNote => ({
+  scopeLabel: "",
+  relatedPartyDisclosure: "",
+  marketContext: "",
+  breakdown: emptyQuoteBreakdown(),
+});
+
+const parseTransparencyNote = (raw: string | null): CovenantTransparencyNote => {
+  if (!raw) return emptyTransparencyNote();
+  try {
+    const parsed = JSON.parse(raw) as Partial<CovenantTransparencyNote>;
+    return {
+      scopeLabel: parsed.scopeLabel?.trim() || "",
+      relatedPartyDisclosure: parsed.relatedPartyDisclosure?.trim() || "",
+      marketContext: parsed.marketContext?.trim() || "",
+      breakdown: {
+        labor: parsed.breakdown?.labor?.trim() || "",
+        materials: parsed.breakdown?.materials?.trim() || "",
+        referral: parsed.breakdown?.referral?.trim() || "",
+        warranty: parsed.breakdown?.warranty?.trim() || "",
+        other: parsed.breakdown?.other?.trim() || "",
+      },
+    };
+  } catch {
+    return emptyTransparencyNote();
+  }
+};
+
 const formatCountdown = (seconds: number) => {
   if (!Number.isFinite(seconds) || seconds <= 0) return "now";
   const days = Math.floor(seconds / 86400);
@@ -341,9 +491,20 @@ export default function Home() {
   const [covenantTagFilter, setCovenantTagFilter] = useState("");
   const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
   const [covenantTagMap, setCovenantTagMap] = useState<Record<string, string>>({});
+  const [covenantTransparencyMap, setCovenantTransparencyMap] = useState<Record<string, CovenantTransparencyNote>>(
+    {}
+  );
   const [covenantTemplateId, setCovenantTemplateId] = useState("0");
   const [covenantTemplateUri, setCovenantTemplateUri] = useState("");
   const [covenantRoyaltyBps, setCovenantRoyaltyBps] = useState("500");
+  const [quoteBreakdown, setQuoteBreakdown] = useState<QuoteBreakdownInput>(() => emptyQuoteBreakdown());
+  const [templateExpectedMin, setTemplateExpectedMin] = useState("");
+  const [templateExpectedMax, setTemplateExpectedMax] = useState("");
+  const [templateScopeLabel, setTemplateScopeLabel] = useState("");
+  const [templateMarketNote, setTemplateMarketNote] = useState("");
+  const [templateReferralDisclosure, setTemplateReferralDisclosure] = useState(false);
+  const [relatedPartyDisclosure, setRelatedPartyDisclosure] = useState("");
+  const [marketContextNote, setMarketContextNote] = useState("");
   const [templateFilter, setTemplateFilter] = useState("");
   const [templateList, setTemplateList] = useState<
     {
@@ -1031,6 +1192,17 @@ export default function Home() {
     () => safeParseUnits(covenantRewardAmount, 18),
     [covenantRewardAmount]
   );
+  const quoteBreakdownTotal = useMemo(() => toQuoteTotal(quoteBreakdown), [quoteBreakdown]);
+  const quoteBreakdownParts = useMemo(
+    () => ({
+      labor: safeParseUnits(quoteBreakdown.labor, 18),
+      materials: safeParseUnits(quoteBreakdown.materials, 18),
+      referral: safeParseUnits(quoteBreakdown.referral, 18),
+      warranty: safeParseUnits(quoteBreakdown.warranty, 18),
+      other: safeParseUnits(quoteBreakdown.other, 18),
+    }),
+    [quoteBreakdown]
+  );
 
   const templateIdValue = useMemo(() => {
     const parsed = Number.parseInt(covenantTemplateId || "0", 10);
@@ -1078,6 +1250,87 @@ export default function Home() {
       createdAt: data[4],
     };
   }, [templateIdValue, selectedTemplateData]);
+
+  const selectedTemplateMeta = useMemo(
+    () => parseTemplateMetadata(selectedTemplate?.metadataUri ?? ""),
+    [selectedTemplate?.metadataUri]
+  );
+
+  const comparableRewards = useMemo(() => {
+    const selectedScope = selectedTemplateMeta.scopeLabel.trim().toLowerCase();
+    const source = covenants
+      .filter((item) => {
+        if (selectedScope) {
+          const template = templateById.get(Number(item.templateId));
+          if (!template) return false;
+          return parseTemplateMetadata(template.metadataUri).scopeLabel.trim().toLowerCase() === selectedScope;
+        }
+        if (templateIdValue !== null) {
+          return item.templateId === templateIdValue;
+        }
+        return true;
+      })
+      .map((item) => item.tokenBReward);
+    return source.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  }, [covenants, selectedTemplateMeta.scopeLabel, templateById, templateIdValue]);
+
+  const comparableRewardStats = useMemo(() => {
+    if (comparableRewards.length === 0) return null;
+    const min = comparableRewards[0];
+    const max = comparableRewards[comparableRewards.length - 1];
+    const median = comparableRewards[Math.floor(comparableRewards.length / 2)];
+    return { min, max, median, count: comparableRewards.length };
+  }, [comparableRewards]);
+
+  const priceIntegrityWarning = useMemo(() => {
+    const warnings: string[] = [];
+    if (quoteBreakdownTotal > 0n && covenantReward !== quoteBreakdownTotal) {
+      warnings.push("The reward amount does not match the visible quote breakdown.");
+    }
+    if (quoteBreakdownParts.referral > 0n && quoteBreakdownTotal > 0n) {
+      const referralShareBps = Number((quoteBreakdownParts.referral * 10_000n) / quoteBreakdownTotal);
+      if (referralShareBps >= 1000) {
+        warnings.push("Referral / intermediary share is above 10% of the quote.");
+      }
+    }
+    if (selectedTemplateMeta.expectedMax > 0n && covenantReward > selectedTemplateMeta.expectedMax) {
+      warnings.push("This reward is above the range suggested by the selected template.");
+    }
+    if (selectedTemplateMeta.expectedMin > 0n && covenantReward < selectedTemplateMeta.expectedMin) {
+      warnings.push("This reward is below the range suggested by the selected template.");
+    }
+    if (
+      comparableRewardStats &&
+      comparableRewardStats.count >= 3 &&
+      covenantReward > comparableRewardStats.median * 2n
+    ) {
+      warnings.push("This reward is more than 2x the median of comparable agreements.");
+    }
+    return warnings;
+  }, [comparableRewardStats, covenantReward, quoteBreakdownParts.referral, quoteBreakdownTotal, selectedTemplateMeta]);
+
+  const treasuryNetB = useMemo(() => {
+    if (lastReservesB === undefined || liabilitiesB === undefined) return null;
+    return (lastReservesB as bigint) - (liabilitiesB as bigint);
+  }, [lastReservesB, liabilitiesB]);
+
+  const treasuryNetA = useMemo(() => {
+    if (lastReservesA === undefined || liabilitiesA === undefined) return null;
+    return (lastReservesA as bigint) - (liabilitiesA as bigint);
+  }, [lastReservesA, liabilitiesA]);
+
+  const resourcePriceWarning = useMemo(() => {
+    if (!resourceInfo) return null;
+    const proposedBuyPrice = safeParseUnits(resourceBuyPriceInput || "0", 18);
+    if (proposedBuyPrice <= 0n || resourceInfo.valuation <= 0n) return null;
+    if (proposedBuyPrice > resourceInfo.valuation * 125n / 100n) {
+      return "Buy price is more than 25% above the current public valuation.";
+    }
+    if (proposedBuyPrice < resourceInfo.valuation) {
+      return "Buy price is below the public valuation and will fail on-chain.";
+    }
+    return null;
+  }, [resourceBuyPriceInput, resourceInfo]);
 
   const { data: crystallizedPreview } = useReadContract({
     address: treasuryAddr,
@@ -1494,6 +1747,7 @@ export default function Home() {
           }
         }
         const nextMap: Record<string, string> = {};
+        const nextTransparencyMap: Record<string, CovenantTransparencyNote> = {};
         for (let i = 0; i < localStorage.length; i += 1) {
           const storageKey = localStorage.key(i);
           if (!storageKey || !storageKey.startsWith("covenant-tags:")) continue;
@@ -1503,7 +1757,17 @@ export default function Home() {
             nextMap[id] = value;
           }
         }
+        for (let i = 0; i < localStorage.length; i += 1) {
+          const storageKey = localStorage.key(i);
+          if (!storageKey || !storageKey.startsWith("covenant-transparency:")) continue;
+          const id = storageKey.replace("covenant-transparency:", "");
+          const value = localStorage.getItem(storageKey);
+          if (value) {
+            nextTransparencyMap[id] = parseTransparencyNote(value);
+          }
+        }
         setCovenantTagMap(nextMap);
+        setCovenantTransparencyMap(nextTransparencyMap);
       }
     } finally {
       setIsLoadingCovenants(false);
@@ -2292,6 +2556,12 @@ export default function Home() {
     if (!paymentTokenAddress) return;
     const reward = covenantReward;
     const points = Number.parseInt(covenantIntegrityPoints || "0", 10);
+    const transparencyValue = JSON.stringify({
+      scopeLabel: templateScopeLabel.trim(),
+      relatedPartyDisclosure: relatedPartyDisclosure.trim(),
+      marketContext: marketContextNote.trim(),
+      breakdown: quoteBreakdown,
+    });
     if (typeof window !== "undefined" && covenantTags.trim()) {
       try {
         const tagKey = `covenant-tags:pending-${Date.now()}`;
@@ -2344,6 +2614,17 @@ export default function Home() {
           })
         );
       }
+      if (typeof window !== "undefined" && createdId !== null) {
+        try {
+          localStorage.setItem(`covenant-transparency:${createdId.toString()}`, transparencyValue);
+          setCovenantTransparencyMap((prev) => ({
+            ...prev,
+            [createdId!.toString()]: parseTransparencyNote(transparencyValue),
+          }));
+        } catch {
+          // ignore localStorage failures
+        }
+      }
       await postTransactionSync();
       setTxError(null);
       showSuccess("Transaction successful!");
@@ -2364,13 +2645,22 @@ export default function Home() {
       setTxError("Invalid royalty BPS.");
       return;
     }
+    const metadataValue = buildTemplateMetadataValue({
+      sourceUri: covenantTemplateUri,
+      scopeLabel: templateScopeLabel,
+      expectedMin: templateExpectedMin,
+      expectedMax: templateExpectedMax,
+      marketNote: templateMarketNote,
+      referralDisclosure: templateReferralDisclosure,
+      breakdown: quoteBreakdown,
+    });
     try {
       await runTransaction("registerTemplate", () =>
         writeContractAsync({
           address: libraryAddr,
           abi: covenantLibraryAbi,
           functionName: "registerTemplate",
-          args: [BigInt(bps), covenantTemplateUri],
+          args: [BigInt(bps), metadataValue],
         })
       );
       await postTransactionSync();
@@ -3416,6 +3706,116 @@ export default function Home() {
                       </span>
                     </label>
                   </div>
+                  <div className={styles.quotePanel}>
+                    <div className={styles.quoteHeader}>
+                      <strong>Visible quote breakdown</strong>
+                      <span>Use this to make labor, materials, and referral costs explicit.</span>
+                    </div>
+                    <div className={styles.taskForm}>
+                      <div className={styles.taskRow}>
+                        <label className={styles.taskField}>
+                          Labor
+                          <input
+                            className={styles.taskInput}
+                            value={quoteBreakdown.labor}
+                            onChange={(event) =>
+                              setQuoteBreakdown((current) => ({ ...current, labor: event.target.value }))
+                            }
+                            placeholder="150"
+                          />
+                        </label>
+                        <label className={styles.taskField}>
+                          Materials
+                          <input
+                            className={styles.taskInput}
+                            value={quoteBreakdown.materials}
+                            onChange={(event) =>
+                              setQuoteBreakdown((current) => ({ ...current, materials: event.target.value }))
+                            }
+                            placeholder="70"
+                          />
+                        </label>
+                      </div>
+                      <div className={styles.taskRow}>
+                        <label className={styles.taskField}>
+                          Referral / intermediary
+                          <input
+                            className={styles.taskInput}
+                            value={quoteBreakdown.referral}
+                            onChange={(event) =>
+                              setQuoteBreakdown((current) => ({ ...current, referral: event.target.value }))
+                            }
+                            placeholder="0"
+                          />
+                        </label>
+                        <label className={styles.taskField}>
+                          Warranty / risk buffer
+                          <input
+                            className={styles.taskInput}
+                            value={quoteBreakdown.warranty}
+                            onChange={(event) =>
+                              setQuoteBreakdown((current) => ({ ...current, warranty: event.target.value }))
+                            }
+                            placeholder="0"
+                          />
+                        </label>
+                      </div>
+                      <label className={styles.taskField}>
+                        Other
+                        <input
+                          className={styles.taskInput}
+                          value={quoteBreakdown.other}
+                          onChange={(event) =>
+                            setQuoteBreakdown((current) => ({ ...current, other: event.target.value }))
+                          }
+                          placeholder="0"
+                        />
+                      </label>
+                    </div>
+                    <div className={styles.metricBreakdown}>
+                      <span>
+                        Visible total: {Number(formatUnits(quoteBreakdownTotal, 18)).toFixed(2)}{" "}
+                        {covenantPayInTokenA ? "SOILA" : "SOILB"}
+                      </span>
+                      <span>
+                        Reward field: {Number(formatUnits(covenantReward, 18)).toFixed(2)}{" "}
+                        {covenantPayInTokenA ? "SOILA" : "SOILB"}
+                      </span>
+                    </div>
+                    <div className={styles.cardActions}>
+                      <button
+                        className={styles.secondaryButton}
+                        type="button"
+                        onClick={() =>
+                          setCovenantRewardAmount(Number(formatUnits(quoteBreakdownTotal, 18)).toString())
+                        }
+                        disabled={quoteBreakdownTotal <= 0n}
+                      >
+                        Use visible total as reward
+                      </button>
+                    </div>
+                    <p className={styles.fieldHint}>
+                      If a referral amount is hidden here or left undocumented, the worker and requester cannot
+                      compare the quote structure later.
+                    </p>
+                    {priceIntegrityWarning.length > 0 ? (
+                      <div className={styles.warningList}>
+                        {priceIntegrityWarning.map((warning) => (
+                          <span key={warning} className={styles.warningPill}>
+                            {warning}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {comparableRewardStats ? (
+                      <p className={styles.fieldHint}>
+                        Comparable agreements: median {Number(formatUnits(comparableRewardStats.median, 18)).toFixed(2)}
+                        , range {Number(formatUnits(comparableRewardStats.min, 18)).toFixed(2)}-
+                        {Number(formatUnits(comparableRewardStats.max, 18)).toFixed(2)} SOILB across{" "}
+                        {comparableRewardStats.count} agreements.
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
                 <div className={styles.stepActions}>
                   <button
@@ -3448,6 +3848,42 @@ export default function Home() {
                     />
                     <span className={styles.fieldHint}>
                       Optional labels for filtering and analytics. These are not part of the on-chain reward logic.
+                    </span>
+                  </label>
+                  <label className={styles.taskField}>
+                    Work scope label
+                    <input
+                      className={styles.taskInput}
+                      value={templateScopeLabel}
+                      onChange={(event) => setTemplateScopeLabel(event.target.value)}
+                      placeholder="e.g. plumbing emergency, tutoring, repair"
+                    />
+                    <span className={styles.fieldHint}>
+                      Short plain-language label used for future price comparisons and template discovery.
+                    </span>
+                  </label>
+                  <label className={styles.taskField}>
+                    Related party disclosure
+                    <input
+                      className={styles.taskInput}
+                      value={relatedPartyDisclosure}
+                      onChange={(event) => setRelatedPartyDisclosure(event.target.value)}
+                      placeholder="e.g. requester and vendor share an operator, none, friend referral"
+                    />
+                    <span className={styles.fieldHint}>
+                      Say if the requester, worker, template author, or intermediary know each other or share a fee.
+                    </span>
+                  </label>
+                  <label className={styles.taskField}>
+                    Market context note
+                    <input
+                      className={styles.taskInput}
+                      value={marketContextNote}
+                      onChange={(event) => setMarketContextNote(event.target.value)}
+                      placeholder="e.g. urgent same-day visit, remote delivery, unusual parts cost"
+                    />
+                    <span className={styles.fieldHint}>
+                      Explain why this price may differ from normal market ranges.
                     </span>
                   </label>
                 </div>
@@ -3609,6 +4045,10 @@ export default function Home() {
                       name="covenantTemplateUri"
                       autoComplete="off"
                     />
+                    <span className={styles.fieldHint}>
+                      You can still save a normal URI. If you add quote metadata below, it will be wrapped into the
+                      template record.
+                    </span>
                   </label>
                   <label className={styles.taskField}>
                     Creator share (bps)
@@ -3618,6 +4058,43 @@ export default function Home() {
                       onChange={(event) => setCovenantRoyaltyBps(event.target.value)}
                       placeholder="500"
                     />
+                  </label>
+                  <div className={styles.taskRow}>
+                    <label className={styles.taskField}>
+                      Expected low end (Token B)
+                      <input
+                        className={styles.taskInput}
+                        value={templateExpectedMin}
+                        onChange={(event) => setTemplateExpectedMin(event.target.value)}
+                        placeholder="180"
+                      />
+                    </label>
+                    <label className={styles.taskField}>
+                      Expected high end (Token B)
+                      <input
+                        className={styles.taskInput}
+                        value={templateExpectedMax}
+                        onChange={(event) => setTemplateExpectedMax(event.target.value)}
+                        placeholder="280"
+                      />
+                    </label>
+                  </div>
+                  <label className={styles.taskField}>
+                    Market note
+                    <input
+                      className={styles.taskInput}
+                      value={templateMarketNote}
+                      onChange={(event) => setTemplateMarketNote(event.target.value)}
+                      placeholder="Price assumes urgent on-site work and same-day parts pickup."
+                    />
+                  </label>
+                  <label className={styles.checkboxRow}>
+                    <input
+                      type="checkbox"
+                      checked={templateReferralDisclosure}
+                      onChange={(event) => setTemplateReferralDisclosure(event.target.checked)}
+                    />
+                    <span>Template includes an explicit intermediary / referral disclosure.</span>
                   </label>
                 </div>
                 <div className={styles.cardActions}>
@@ -3701,20 +4178,46 @@ export default function Home() {
                         item.creator.toLowerCase().includes(q)
                       );
                     })
-                    .map((item) => (
+                    .map((item) => {
+                      const metadata = parseTemplateMetadata(item.metadataUri);
+                      return (
                       <div key={`template-${item.id}`} className={styles.templateRow}>
                         <div>
                           <strong>#{item.id}</strong>{" "}
                           <span>{formatPercent(item.royaltyBps)}% (Original)</span>{" "}
                           <span>{formatPercent(item.effectiveRoyaltyBps)}% (Current)</span>{" "}
                           {!templateActiveMap[item.id] ? <span>(inactive)</span> : null}
+                          {metadata.scopeLabel ? (
+                            <span className={styles.inlinePill}>{metadata.scopeLabel}</span>
+                          ) : null}
                           <div className={styles.templateMeta}>
                             <span>Author: {safeAddress(item.creator)}</span>
                             <span>
                               Created at: {formatDate(item.createdAt, locale)} · Public domain on:{" "}
                               {formatDate(item.createdAt + 730n * 24n * 60n * 60n, locale)}
                             </span>
-                            {item.metadataUri}
+                            {metadata.sourceUri || item.metadataUri}
+                            {metadata.expectedMin > 0n || metadata.expectedMax > 0n ? (
+                              <span>
+                                Expected range:{" "}
+                                {Number(formatUnits(metadata.expectedMin, 18)).toFixed(2)}-
+                                {Number(formatUnits(metadata.expectedMax, 18)).toFixed(2)}{" "}
+                                SOILB
+                              </span>
+                            ) : null}
+                            {toQuoteTotal(metadata.breakdown) > 0n ? (
+                              <span>
+                                Visible quote: labor {metadata.breakdown.labor || "0"}, materials{" "}
+                                {metadata.breakdown.materials || "0"}, referral {metadata.breakdown.referral || "0"},
+                                warranty {metadata.breakdown.warranty || "0"}, other {metadata.breakdown.other || "0"}
+                              </span>
+                            ) : null}
+                            {metadata.referralDisclosure ? (
+                              <span>Referral / intermediary share is explicitly disclosed.</span>
+                            ) : null}
+                            {metadata.marketNote ? (
+                              <span>{metadata.marketNote}</span>
+                            ) : null}
                           </div>
                         </div>
                         <div className={styles.templateActions}>
@@ -3732,7 +4235,7 @@ export default function Home() {
                           </button>
                         </div>
                       </div>
-                    ))}
+                    )})}
                 </div>
               </>
             ) : (
@@ -3778,10 +4281,22 @@ export default function Home() {
                 <span>Liabilities B: {formattedLiabilitiesB}</span>
               </div>
               <div className={styles.metricBreakdown}>
+                <span>
+                  Net A: {treasuryNetA !== null ? Number(formatUnits(treasuryNetA, 18)).toFixed(2) : "--"}
+                </span>
+                <span>
+                  Net B: {treasuryNetB !== null ? Number(formatUnits(treasuryNetB, 18)).toFixed(2) : "--"}
+                </span>
+              </div>
+              <div className={styles.metricBreakdown}>
                 <span>In total: {formattedTreasuryIn}</span>
                 <span>Out A: {formattedTreasuryOutA}</span>
                 <span>Out B: {formattedTreasuryOutB}</span>
               </div>
+              <p className={styles.fieldHint}>
+                This is a compact balance-sheet view: reserves are current assets, liabilities are promised outflows,
+                and net shows how much buffer remains right now.
+              </p>
             </article>
             <article className={`${styles.card} ${styles.cardWide}`}>
               <details className={styles.collapsibleCard}>
@@ -4026,8 +4541,15 @@ export default function Home() {
                   <span>Elapsed: {resourceInfo.elapsed.toString()}s</span>
                 </div>
               ) : null}
+              {resourcePriceWarning ? (
+                <div className={styles.warningList}>
+                  <span className={styles.warningPill}>{resourcePriceWarning}</span>
+                </div>
+              ) : null}
               <p className={styles.taskHint}>
                 The text ID is converted locally before the on-chain call, so you can work with readable names here.
+                Keep the public valuation close to a real exit price, or buyers will not be able to tell whether a
+                markup is fair.
               </p>
               {!account.address || !resourceRegistryAddress || isBusy ? (
                 <p className={styles.helperNote}>
@@ -4314,11 +4836,16 @@ export default function Home() {
                   const tagValue = covenantTagMap[String(item.id)] || "";
                   return tagValue.toLowerCase().includes(covenantTagFilter.trim().toLowerCase());
                 })
-                .map((item) => (
+                .map((item) => {
+                  const transparencyNote = covenantTransparencyMap[String(item.id)] ?? emptyTransparencyNote();
+                  return (
                 <div className={styles.covenantRow} key={`covenant-${item.id}`}>
                   <div className={styles.covenantCell}>
                     <span className={styles.covenantCellLabel}>Agreement</span>
                     <span className={styles.covenantCellValue}>#{item.id}</span>
+                    {transparencyNote.scopeLabel ? (
+                      <span className={styles.covenantTags}>{transparencyNote.scopeLabel}</span>
+                    ) : null}
                   </div>
                   <div className={styles.covenantCell}>
                     <span className={styles.covenantCellLabel}>Worker</span>
@@ -4365,6 +4892,16 @@ export default function Home() {
                     {covenantTagMap[String(item.id)] ? (
                       <span className={styles.covenantTags}>
                         {covenantTagMap[String(item.id)]}
+                      </span>
+                    ) : null}
+                    {transparencyNote.relatedPartyDisclosure ? (
+                      <span className={styles.statusNote}>
+                        Related parties: {transparencyNote.relatedPartyDisclosure}
+                      </span>
+                    ) : null}
+                    {transparencyNote.marketContext ? (
+                      <span className={styles.statusNote}>
+                        Market note: {transparencyNote.marketContext}
                       </span>
                     ) : null}
                     </span>
@@ -4693,7 +5230,7 @@ export default function Home() {
                     ) : null}
                   </div>
                 </div>
-              ))
+                )})
             )}
           </div>
         </section>

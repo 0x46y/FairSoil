@@ -705,6 +705,66 @@
   flex-wrap: wrap;
 }
 
+.quotePanel {
+  display: grid;
+  gap: 12px;
+  margin-top: 6px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--sand-200);
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.quoteHeader {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ink-600);
+  line-height: 1.5;
+}
+
+.warningList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.warningPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(244, 217, 157, 0.22);
+  border: 1px solid rgba(155, 111, 47, 0.2);
+  color: var(--ink-800);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink-700);
+}
+
+.checkboxRow input {
+  margin-top: 3px;
+}
+
+.inlinePill {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-200);
+  background: rgba(238, 228, 209, 0.7);
+  color: var(--ink-700);
+  font-size: 11px;
+}
+
 .warning {
   padding: 18px 22px;
   border-radius: 20px;
