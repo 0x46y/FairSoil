@@ -9,7 +9,8 @@
     "lint": "eslint",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
-    "e2e:wallet:guide": "node ./scripts/manual-wallet-e2e.mjs"
+    "e2e:wallet:guide": "node ./scripts/manual-wallet-e2e.mjs",
+    "identity:mock:guide": "node ./scripts/mock-identity-guide.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.16",

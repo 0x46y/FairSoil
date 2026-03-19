@@ -79,6 +79,14 @@ npm run e2e:wallet:guide
 
 Detailed steps are in `e2e/manual_wallet_runbook.md`.
 
+If you do not yet have a real World ID, use the mock identity guide:
+
+```bash
+npm run identity:mock:guide
+```
+
+Detailed steps are in `e2e/mock_identity_runbook.md`.
+
 For demo prep, use the checklist in `e2e/pre_demo_checklist.md`.
 
 GitHub workflow templates are also available:

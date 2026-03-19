@@ -11,6 +11,9 @@ The full Japanese version of this README is in `README_ja.md`.
 - Phase2 parameter catalog: `docs/phase2_parameter_catalog_en.md`
 - Phase1 identity integration note: `docs/phase1_identity_integration_en.md`
 - Phase1 dispute fairness note: `docs/phase1_dispute_fairness_en.md`
+- Identity nullifier scope note: `docs/identity_nullifier_scope_en.md`
+- Identity registry note: `docs/identity_registry_notes_en.md`
+- Integrity continuity note: `docs/integrity_continuity_notes_en.md`
 - Grants one-pager: `docs/grants_onepager_en.md`
 - 3-minute demo runbook: `docs/demo_runbook_en.md`
 - Grants use of funds: `docs/grants_use_of_funds_en.md`
@@ -103,6 +106,11 @@ NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 - **Nullifier separation:** distinct nullifiers for UBI / voting / analytics
 - **Device binding:** theft resistance with re‑bind on device change
 - **Re‑auth conditions:** only on device change, primary address re‑bind, or high‑risk actions (e.g., expanding advance limits)
+
+## Open identity questions
+- nullifier scope should be separated by UBI / voting / analytics use case. Details: `docs/identity_nullifier_scope_en.md`
+- a future IdentityRegistry-style layer will likely be needed to unify World ID / ZK-NFC / mock routes. Details: `docs/identity_registry_notes_en.md`
+- Integrity is still address-centered today; person-level continuity remains unfinished. Details: `docs/integrity_continuity_notes_en.md`
 
 ## Operational Notes (Draft)
 - Evidence is stored off-chain; on-chain only keeps **evidenceHash**.
