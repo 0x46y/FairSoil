@@ -4,9 +4,6 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import {
   IDKitRequestWidget,
   orbLegacy,
-  type IDKitErrorCodes,
-  type IDKitResult,
-  type RpContext,
 } from "@worldcoin/idkit";
 import {
   formatUnits,
@@ -35,6 +32,29 @@ import {
   tokenBAbi,
   treasuryAbi,
 } from "../lib/abi";
+import {
+  type CovenantTransparencyNote,
+  type DisputeReviewRecord,
+  type QuoteBreakdownInput,
+  buildMarketKey,
+  buildTemplateMetadataValue,
+  emptyDisputeReviewRecord,
+  emptyQuoteBreakdown,
+  emptyTransparencyNote,
+  materialLabelFor,
+  materialVocabulary,
+  normalizeBand,
+  parseArbiterResolutionNote,
+  parseTemplateMetadata,
+  parseTransparencyNote,
+  scopeLabelFor,
+  scopeVocabulary,
+  toQuoteTotal,
+  urgencyLabelFor,
+  urgencyVocabulary,
+} from "../lib/marketVocabulary";
+import { useCovenantReview } from "../lib/useCovenantReview";
+import { useIdentityFlow } from "../lib/useIdentityFlow";
 import {
   covenantAddress,
   missingEnv,
@@ -76,79 +96,6 @@ type TrailLog = {
 };
 
 type DashboardView = "participant" | "operator";
-type QuoteBreakdownInput = {
-  labor: string;
-  materials: string;
-  referral: string;
-  warranty: string;
-  other: string;
-};
-
-type ParsedTemplateMetadata = {
-  sourceUri: string;
-  scopeLabel: string;
-  estimatedHours: number;
-  materialClass: string;
-  urgency: string;
-  expectedMin: bigint;
-  expectedMax: bigint;
-  marketNote: string;
-  referralDisclosure: boolean;
-  breakdown: QuoteBreakdownInput;
-};
-
-type CovenantTransparencyNote = {
-  scopeLabel: string;
-  estimatedHours: number;
-  materialClass: string;
-  urgency: string;
-  relatedPartyDisclosure: string;
-  marketContext: string;
-  breakdown: QuoteBreakdownInput;
-};
-
-type DisputeReviewRecord = {
-  workerReason: string;
-  workerEvidenceUri: string;
-  requesterReason: string;
-  requesterEvidenceUri: string;
-  arbiterNote: string;
-  arbiterEvidenceUri: string;
-};
-
-type ParsedArbiterResolutionNote = {
-  claimSummary: string;
-  requesterResponse: string;
-  missingEvidence: string;
-  recommendedPayoutPct: number | null;
-  legacyText: string;
-};
-
-const scopeVocabulary = [
-  { value: "general", label: "General" },
-  { value: "repair", label: "Repair" },
-  { value: "delivery", label: "Delivery" },
-  { value: "audit", label: "Audit" },
-  { value: "tutoring", label: "Tutoring" },
-  { value: "education-support", label: "Education support" },
-  { value: "care-support", label: "Care support" },
-  { value: "emergency-support", label: "Emergency support" },
-  { value: "field-ops", label: "Field ops" },
-] as const;
-
-const materialVocabulary = [
-  { value: "standard", label: "Standard" },
-  { value: "light", label: "Light materials" },
-  { value: "specialized", label: "Specialized parts" },
-  { value: "scarce", label: "Scarce / regulated" },
-] as const;
-
-const urgencyVocabulary = [
-  { value: "normal", label: "Normal" },
-  { value: "soon", label: "Soon" },
-  { value: "same-day", label: "Same day" },
-  { value: "emergency", label: "Emergency" },
-] as const;
 
 const shortAddress = (value: string) => `${value.slice(0, 6)}…${value.slice(-4)}`;
 const safeAddress = (value?: string) => (value ? shortAddress(value) : "Unknown");
@@ -330,260 +277,6 @@ const safeParseUnits = (value: string, decimals: number) => {
     return parseUnits(value || "0", decimals);
   } catch {
     return 0n;
-  }
-};
-
-const emptyQuoteBreakdown = (): QuoteBreakdownInput => ({
-  labor: "",
-  materials: "",
-  referral: "",
-  warranty: "",
-  other: "",
-});
-
-const emptyDisputeReviewRecord = (): DisputeReviewRecord => ({
-  workerReason: "",
-  workerEvidenceUri: "",
-  requesterReason: "",
-  requesterEvidenceUri: "",
-  arbiterNote: "",
-  arbiterEvidenceUri: "",
-});
-
-const parseArbiterResolutionNote = (raw: string | null): ParsedArbiterResolutionNote => {
-  if (!raw) {
-    return {
-      claimSummary: "",
-      requesterResponse: "",
-      missingEvidence: "",
-      recommendedPayoutPct: null,
-      legacyText: "",
-    };
-  }
-  try {
-    const parsed = JSON.parse(raw) as {
-      claimSummary?: unknown;
-      requesterResponse?: unknown;
-      missingEvidence?: unknown;
-      recommendedPayoutPct?: unknown;
-    };
-    return {
-      claimSummary: typeof parsed.claimSummary === "string" ? parsed.claimSummary : "",
-      requesterResponse: typeof parsed.requesterResponse === "string" ? parsed.requesterResponse : "",
-      missingEvidence: typeof parsed.missingEvidence === "string" ? parsed.missingEvidence : "",
-      recommendedPayoutPct:
-        typeof parsed.recommendedPayoutPct === "number" ? parsed.recommendedPayoutPct : null,
-      legacyText: "",
-    };
-  } catch {
-    return {
-      claimSummary: "",
-      requesterResponse: "",
-      missingEvidence: "",
-      recommendedPayoutPct: null,
-      legacyText: raw,
-    };
-  }
-};
-
-const normalizeBand = (value: number) => {
-  if (!Number.isFinite(value) || value <= 0) return "unspecified";
-  if (value <= 2) return "0-2h";
-  if (value <= 8) return "2-8h";
-  if (value <= 24) return "8-24h";
-  return "24h+";
-};
-
-const normalizeScope = (value: string) => {
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return "";
-  const direct = scopeVocabulary.find((entry) => entry.value === normalized);
-  if (direct) return direct.value;
-  if (normalized.includes("repair") || normalized.includes("plumb") || normalized.includes("fix")) {
-    return "repair";
-  }
-  if (normalized.includes("deliver")) return "delivery";
-  if (normalized.includes("audit")) return "audit";
-  if (normalized.includes("tutor") || normalized.includes("teach")) return "tutoring";
-  if (normalized.includes("education")) return "education-support";
-  if (normalized.includes("care")) return "care-support";
-  if (normalized.includes("emergency") || normalized.includes("urgent")) return "emergency-support";
-  if (normalized.includes("field")) return "field-ops";
-  return "general";
-};
-
-const normalizeMaterialClass = (value: string) => {
-  const normalized = value.trim().toLowerCase();
-  return materialVocabulary.find((entry) => entry.value === normalized)?.value || "standard";
-};
-
-const normalizeUrgency = (value: string) => {
-  const normalized = value.trim().toLowerCase();
-  return urgencyVocabulary.find((entry) => entry.value === normalized)?.value || "normal";
-};
-
-const scopeLabelFor = (value: string) =>
-  scopeVocabulary.find((entry) => entry.value === normalizeScope(value))?.label || "General";
-const materialLabelFor = (value: string) =>
-  materialVocabulary.find((entry) => entry.value === normalizeMaterialClass(value))?.label || "Standard";
-const urgencyLabelFor = (value: string) =>
-  urgencyVocabulary.find((entry) => entry.value === normalizeUrgency(value))?.label || "Normal";
-
-const buildMarketKey = (input: { scopeLabel: string; estimatedHours: number; materialClass: string; urgency: string }) => {
-  const scope = normalizeScope(input.scopeLabel);
-  if (!scope) return "";
-  const urgency = normalizeUrgency(input.urgency);
-  const materialClass = normalizeMaterialClass(input.materialClass);
-  return `${scope} | ${urgency} | ${materialClass} | ${normalizeBand(input.estimatedHours)}`;
-};
-
-const toQuoteTotal = (value: QuoteBreakdownInput) =>
-  safeParseUnits(value.labor, 18) +
-  safeParseUnits(value.materials, 18) +
-  safeParseUnits(value.referral, 18) +
-  safeParseUnits(value.warranty, 18) +
-  safeParseUnits(value.other, 18);
-
-const buildTemplateMetadataValue = (input: {
-  sourceUri: string;
-  scopeLabel: string;
-  estimatedHours: string;
-  materialClass: string;
-  urgency: string;
-  expectedMin: string;
-  expectedMax: string;
-  marketNote: string;
-  referralDisclosure: boolean;
-  breakdown: QuoteBreakdownInput;
-}) => {
-  const hasStructuredFields =
-    input.scopeLabel.trim() ||
-    input.estimatedHours.trim() ||
-    input.materialClass.trim() ||
-    input.urgency.trim() ||
-    input.marketNote.trim() ||
-    input.expectedMin.trim() ||
-    input.expectedMax.trim() ||
-    Object.values(input.breakdown).some((entry) => entry.trim()) ||
-    input.referralDisclosure;
-
-  if (!hasStructuredFields) {
-    return input.sourceUri.trim();
-  }
-
-  return JSON.stringify({
-    version: 1,
-      sourceUri: input.sourceUri.trim(),
-      scopeLabel: input.scopeLabel.trim(),
-      estimatedHours: input.estimatedHours.trim(),
-      materialClass: input.materialClass.trim(),
-      urgency: input.urgency.trim(),
-      expectedMin: input.expectedMin.trim(),
-    expectedMax: input.expectedMax.trim(),
-    marketNote: input.marketNote.trim(),
-    referralDisclosure: input.referralDisclosure,
-    breakdown: {
-      labor: input.breakdown.labor.trim(),
-      materials: input.breakdown.materials.trim(),
-      referral: input.breakdown.referral.trim(),
-      warranty: input.breakdown.warranty.trim(),
-      other: input.breakdown.other.trim(),
-    },
-  });
-};
-
-const parseTemplateMetadata = (raw: string): ParsedTemplateMetadata => {
-  const fallback: ParsedTemplateMetadata = {
-    sourceUri: raw,
-    scopeLabel: "",
-    estimatedHours: 0,
-    materialClass: "",
-    urgency: "",
-    expectedMin: 0n,
-    expectedMax: 0n,
-    marketNote: "",
-    referralDisclosure: false,
-    breakdown: emptyQuoteBreakdown(),
-  };
-
-  const trimmed = raw.trim();
-  if (!trimmed.startsWith("{")) return fallback;
-
-  try {
-    const parsed = JSON.parse(trimmed) as {
-      sourceUri?: string;
-      scopeLabel?: string;
-      estimatedHours?: string | number;
-      materialClass?: string;
-      urgency?: string;
-      expectedMin?: string;
-      expectedMax?: string;
-      marketNote?: string;
-      referralDisclosure?: boolean;
-      breakdown?: Partial<QuoteBreakdownInput>;
-    };
-    return {
-      sourceUri: parsed.sourceUri?.trim() || "",
-      scopeLabel: normalizeScope(parsed.scopeLabel?.trim() || ""),
-      estimatedHours:
-        typeof parsed.estimatedHours === "number"
-          ? parsed.estimatedHours
-          : Number.parseFloat(parsed.estimatedHours || "0") || 0,
-      materialClass: normalizeMaterialClass(parsed.materialClass?.trim() || ""),
-      urgency: normalizeUrgency(parsed.urgency?.trim() || ""),
-      expectedMin: safeParseUnits(parsed.expectedMin || "0", 18),
-      expectedMax: safeParseUnits(parsed.expectedMax || "0", 18),
-      marketNote: parsed.marketNote?.trim() || "",
-      referralDisclosure: Boolean(parsed.referralDisclosure),
-      breakdown: {
-        labor: parsed.breakdown?.labor?.trim() || "",
-        materials: parsed.breakdown?.materials?.trim() || "",
-        referral: parsed.breakdown?.referral?.trim() || "",
-        warranty: parsed.breakdown?.warranty?.trim() || "",
-        other: parsed.breakdown?.other?.trim() || "",
-      },
-    };
-  } catch {
-    return fallback;
-  }
-};
-
-const emptyTransparencyNote = (): CovenantTransparencyNote => ({
-  scopeLabel: "",
-  estimatedHours: 0,
-  materialClass: "",
-  urgency: "",
-  relatedPartyDisclosure: "",
-  marketContext: "",
-  breakdown: emptyQuoteBreakdown(),
-});
-
-const parseTransparencyNote = (raw: string | null): CovenantTransparencyNote => {
-  if (!raw) return emptyTransparencyNote();
-  try {
-    const parsed = JSON.parse(raw) as Partial<CovenantTransparencyNote>;
-    return {
-      scopeLabel: normalizeScope(parsed.scopeLabel?.trim() || ""),
-      estimatedHours:
-        typeof (parsed as { estimatedHours?: string | number }).estimatedHours === "number"
-          ? ((parsed as { estimatedHours?: number }).estimatedHours ?? 0)
-          : Number.parseFloat((parsed as { estimatedHours?: string }).estimatedHours || "0") || 0,
-      materialClass: normalizeMaterialClass(
-        (parsed as { materialClass?: string }).materialClass?.trim() || ""
-      ),
-      urgency: normalizeUrgency((parsed as { urgency?: string }).urgency?.trim() || ""),
-      relatedPartyDisclosure: parsed.relatedPartyDisclosure?.trim() || "",
-      marketContext: parsed.marketContext?.trim() || "",
-      breakdown: {
-        labor: parsed.breakdown?.labor?.trim() || "",
-        materials: parsed.breakdown?.materials?.trim() || "",
-        referral: parsed.breakdown?.referral?.trim() || "",
-        warranty: parsed.breakdown?.warranty?.trim() || "",
-        other: parsed.breakdown?.other?.trim() || "",
-      },
-    };
-  } catch {
-    return emptyTransparencyNote();
   }
 };
 
@@ -797,8 +490,6 @@ export default function Home() {
   const [txAction, setTxAction] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
   const [txSuccess, setTxSuccess] = useState<string | null>(null);
-  const [worldIdOpen, setWorldIdOpen] = useState(false);
-  const [worldIdRpContext, setWorldIdRpContext] = useState<RpContext | null>(null);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tokenAAddr = tokenAAddress ?? zeroAddress;
@@ -1249,87 +940,22 @@ export default function Home() {
     return { total: covenants.length, active, disputed, awaitingAction };
   }, [covenants]);
 
-  const templateById = useMemo(() => {
-    const map = new Map<number, (typeof templateList)[number]>();
-    templateList.forEach((item) => {
-      map.set(item.id, item);
-    });
-    return map;
-  }, [templateList]);
-
-  const reputationRingSignals = useMemo(() => {
-    const pairCounts = new Map<string, number>();
-    const templateAuthorUsage = new Map<string, number>();
-    const notesByCovenant: Record<number, string[]> = {};
-
-    const addNote = (id: number, note: string) => {
-      if (!notesByCovenant[id]) notesByCovenant[id] = [];
-      if (!notesByCovenant[id].includes(note)) notesByCovenant[id].push(note);
-    };
-
-    covenants.forEach((item) => {
-      const creator = item.creator.toLowerCase();
-      const worker = item.worker.toLowerCase();
-      const pairKey = `${creator}->${worker}`;
-      pairCounts.set(pairKey, (pairCounts.get(pairKey) ?? 0) + 1);
-
-      const template = templateById.get(Number(item.templateId));
-      if (template) {
-        const templateAuthor = template.creator.toLowerCase();
-        const usageKey = `${creator}|${templateAuthor}`;
-        templateAuthorUsage.set(usageKey, (templateAuthorUsage.get(usageKey) ?? 0) + 1);
-      }
-    });
-
-    covenants.forEach((item) => {
-      const creator = item.creator.toLowerCase();
-      const worker = item.worker.toLowerCase();
-      const pairKey = `${creator}->${worker}`;
-      const reverseKey = `${worker}->${creator}`;
-      const pairCount = pairCounts.get(pairKey) ?? 0;
-      const reverseCount = pairCounts.get(reverseKey) ?? 0;
-
-      if (pairCount >= 3) {
-        addNote(item.id, "Repeated creator-worker pair appears 3+ times.");
-      }
-      if (reverseCount >= 1) {
-        addNote(item.id, "Creator and worker also appear in reversed roles.");
-      }
-
-      const template = templateById.get(Number(item.templateId));
-      if (template) {
-        const templateAuthor = template.creator.toLowerCase();
-        const usageKey = `${creator}|${templateAuthor}`;
-        const authorUsage = templateAuthorUsage.get(usageKey) ?? 0;
-        if (authorUsage >= 3) {
-          addNote(item.id, "Requester repeatedly uses templates from the same author.");
-        }
-        if (templateAuthor === creator) {
-          addNote(item.id, "Requester is also the template author for this agreement.");
-        }
-      }
-    });
-
-    const repeatedPairs = Array.from(pairCounts.values()).filter((count) => count >= 3).length;
-    const reciprocalPairs = Array.from(pairCounts.keys()).filter((key) => {
-      const [creator, worker] = key.split("->");
-      return Boolean(pairCounts.get(`${worker}->${creator}`));
-    }).length;
-    const concentratedTemplateLinks = Array.from(templateAuthorUsage.values()).filter((count) => count >= 3).length;
-
-    const summary: string[] = [];
-    if (repeatedPairs > 0) {
-      summary.push(`${repeatedPairs} creator-worker pairs repeat 3+ times.`);
-    }
-    if (reciprocalPairs > 0) {
-      summary.push(`${reciprocalPairs} address pairs appear in both directions.`);
-    }
-    if (concentratedTemplateLinks > 0) {
-      summary.push(`${concentratedTemplateLinks} requester-template-author links look concentrated.`);
-    }
-
-    return { notesByCovenant, summary };
-  }, [covenants, templateById]);
+  const {
+    templateById,
+    reputationRingSignals,
+    scopeBaselines,
+    reviewPrioritySignals,
+    visibleCovenants,
+  } = useCovenantReview({
+    covenants,
+    templateList,
+    covenantTagFilter,
+    covenantTagMap,
+    dashboardView,
+    onlyFlaggedAgreements,
+    covenantTransparencyMap,
+    disputeReviewRecords,
+  });
 
   const handleExportAudit = () => {
     const rows = filteredTrailItems.map((item) => {
@@ -1534,220 +1160,11 @@ export default function Home() {
     [selectedTemplate?.metadataUri]
   );
 
-  const scopeBaselines = useMemo(() => {
-    const buckets = new Map<
-      string,
-      {
-        rewards: bigint[];
-        templateMins: bigint[];
-        templateMaxes: bigint[];
-        templateCount: number;
-        agreementCount: number;
-        scope: string;
-        urgency: string;
-        materialClass: string;
-        hoursBand: string;
-      }
-    >();
-
-    const ensureBucket = (input: {
-      scopeLabel: string;
-      estimatedHours: number;
-      materialClass: string;
-      urgency: string;
-    }) => {
-      const normalized = buildMarketKey(input);
-      if (!normalized) return null;
-      const existing = buckets.get(normalized);
-      if (existing) return existing;
-      const created = {
-        rewards: [],
-        templateMins: [],
-        templateMaxes: [],
-        templateCount: 0,
-        agreementCount: 0,
-        scope: input.scopeLabel.trim().toLowerCase(),
-        urgency: input.urgency.trim().toLowerCase() || "normal",
-        materialClass: input.materialClass.trim().toLowerCase() || "standard",
-        hoursBand: normalizeBand(input.estimatedHours),
-      };
-      buckets.set(normalized, created);
-      return created;
-    };
-
-    templateList.forEach((template) => {
-      const meta = parseTemplateMetadata(template.metadataUri);
-      const bucket = ensureBucket(meta);
-      if (!bucket) return;
-      bucket.templateCount += 1;
-      if (meta.expectedMin > 0n) bucket.templateMins.push(meta.expectedMin);
-      if (meta.expectedMax > 0n) bucket.templateMaxes.push(meta.expectedMax);
-    });
-
-    covenants.forEach((item) => {
-      const template = templateById.get(Number(item.templateId));
-      const meta = template ? parseTemplateMetadata(template.metadataUri) : null;
-      const bucket = ensureBucket(
-        meta ?? {
-          scopeLabel: "",
-          estimatedHours: 0,
-          materialClass: "",
-          urgency: "",
-        }
-      );
-      if (!bucket) return;
-      bucket.rewards.push(item.tokenBReward);
-      bucket.agreementCount += 1;
-    });
-
-    const sortedEntries = Array.from(buckets.entries()).map(([scope, bucket]) => {
-      bucket.rewards.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-      bucket.templateMins.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-      bucket.templateMaxes.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-      const pickMedian = (values: bigint[]) =>
-        values.length > 0 ? values[Math.floor(values.length / 2)] : 0n;
-      return {
-        scopeKey: scope,
-        scope: bucket.scope,
-        urgency: bucket.urgency,
-        materialClass: bucket.materialClass,
-        hoursBand: bucket.hoursBand,
-        templateCount: bucket.templateCount,
-        agreementCount: bucket.agreementCount,
-        observedMedian: pickMedian(bucket.rewards),
-        observedMin: bucket.rewards[0] ?? 0n,
-        observedMax: bucket.rewards[bucket.rewards.length - 1] ?? 0n,
-        templateMedianMin: pickMedian(bucket.templateMins),
-        templateMedianMax: pickMedian(bucket.templateMaxes),
-      };
-    });
-
-    return sortedEntries.sort((a, b) => b.agreementCount - a.agreementCount);
-  }, [covenants, templateById, templateList]);
-
   const selectedScopeBaseline = useMemo(() => {
     const selectedKey = buildMarketKey(selectedTemplateMeta);
     if (!selectedKey) return null;
     return scopeBaselines.find((entry) => entry.scopeKey === selectedKey) ?? null;
   }, [scopeBaselines, selectedTemplateMeta]);
-
-  const reviewPrioritySignals = useMemo(() => {
-    const notesByCovenant: Record<number, string[]> = {};
-
-    const addNote = (id: number, note: string) => {
-      if (!notesByCovenant[id]) notesByCovenant[id] = [];
-      if (!notesByCovenant[id].includes(note)) notesByCovenant[id].push(note);
-    };
-
-    covenants.forEach((item) => {
-      const transparencyNote =
-        covenantTransparencyMap[String(item.id)] ?? emptyTransparencyNote();
-      const reviewRecord = disputeReviewRecords[item.id] ?? emptyDisputeReviewRecord();
-      const parsedArbiter = parseArbiterResolutionNote(reviewRecord.arbiterNote);
-
-      if (item.status >= 5) {
-        if (parsedArbiter.missingEvidence.trim()) {
-          addNote(item.id, "Insufficient evidence noted by arbiter.");
-        }
-        if (item.status >= STATUS_PROPOSED && !parsedArbiter.claimSummary.trim()) {
-          addNote(item.id, "Resolver plan has no claim summary.");
-        }
-        if (item.status >= STATUS_PROPOSED && !parsedArbiter.requesterResponse.trim()) {
-          addNote(item.id, "Resolver plan has no requester response summary.");
-        }
-      }
-
-      const visibleTotal = toQuoteTotal(transparencyNote.breakdown);
-      if (visibleTotal > 0n) {
-        const reward = item.tokenBReward;
-        const larger = visibleTotal > reward ? visibleTotal : reward;
-        const smaller = visibleTotal > reward ? reward : visibleTotal;
-        if (smaller * 100n < larger * 85n) {
-          addNote(item.id, "Visible quote total is far from the locked reward.");
-        }
-      }
-
-      if (transparencyNote.scopeLabel) {
-        const key = buildMarketKey(
-          transparencyNote.scopeLabel,
-          transparencyNote.urgency || "normal",
-          transparencyNote.materialClass || "standard",
-          transparencyNote.estimatedHours || 0
-        );
-        const baseline = scopeBaselines.find((entry) => entry.scopeKey === key);
-        if (baseline && baseline.observedMedian > 0n) {
-          if (item.tokenBReward > (baseline.observedMedian * 3n) / 2n) {
-            addNote(item.id, "Reward is well above the observed median for this work profile.");
-          } else if (item.tokenBReward * 2n < baseline.observedMedian) {
-            addNote(item.id, "Reward is well below the observed median for this work profile.");
-          }
-        }
-      }
-    });
-
-    const allNotes = Object.values(notesByCovenant).flat();
-    const summary = [
-      {
-        label: "Insufficient evidence",
-        count: allNotes.filter((note) => note.includes("Insufficient evidence")).length,
-      },
-      {
-        label: "Missing resolver summary",
-        count: allNotes.filter((note) => note.includes("Resolver plan has no")).length,
-      },
-      {
-        label: "Quote mismatch",
-        count: allNotes.filter((note) => note.includes("Visible quote total")).length,
-      },
-      {
-        label: "Median outlier",
-        count: allNotes.filter((note) => note.includes("observed median")).length,
-      },
-    ].filter((entry) => entry.count > 0);
-
-    return { notesByCovenant, summary };
-  }, [covenants, covenantTransparencyMap, disputeReviewRecords, scopeBaselines]);
-
-  const visibleCovenants = useMemo(() => {
-    const filtered = covenants.filter((item) => {
-      if (!covenantTagFilter.trim()) return true;
-      const tagValue = covenantTagMap[String(item.id)] || "";
-      return tagValue.toLowerCase().includes(covenantTagFilter.trim().toLowerCase());
-    });
-
-    const flaggedOnly = onlyFlaggedAgreements
-      ? filtered.filter((item) => {
-          const reviewCount = (reviewPrioritySignals.notesByCovenant[item.id] ?? []).length;
-          const relationCount = (reputationRingSignals.notesByCovenant[item.id] ?? []).length;
-          return reviewCount + relationCount > 0;
-        })
-      : filtered;
-
-    const priorityScore = (item: (typeof covenants)[number]) => {
-      const reviewCount = (reviewPrioritySignals.notesByCovenant[item.id] ?? []).length;
-      const relationCount = (reputationRingSignals.notesByCovenant[item.id] ?? []).length;
-      let score = reviewCount * 10 + relationCount * 4;
-      if (item.status >= 5 && item.status < STATUS_RESOLVED) score += 6;
-      if (item.status === STATUS_PROPOSED) score += 3;
-      return score;
-    };
-
-    return flaggedOnly.sort((a, b) => {
-      if (dashboardView === "operator") {
-        const diff = priorityScore(b) - priorityScore(a);
-        if (diff !== 0) return diff;
-      }
-      return b.id - a.id;
-    });
-  }, [
-    covenants,
-    covenantTagFilter,
-    covenantTagMap,
-    dashboardView,
-    onlyFlaggedAgreements,
-    reviewPrioritySignals.notesByCovenant,
-    reputationRingSignals.notesByCovenant,
-  ]);
 
   const handleExportReviewCsv = () => {
     const rows = visibleCovenants.map((item) => {
@@ -2939,139 +2356,30 @@ export default function Home() {
     showSuccess,
   ]);
 
-  const handleWorldIdHostVerify = useCallback(async (result: IDKitResult) => {
-    if (!account.address || !worldIdAppId || !worldIdActionId) {
-      throw new Error("World ID config missing.");
-    }
-    const proofPayload = result as {
-      proof?: unknown;
-      signal?: string;
-      nullifier_hash?: string;
-      merkle_root?: string;
-      verification_level?: string;
-      credential_type?: string;
-    };
-    const response = await fetch("/api/worldid/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        address: account.address,
-        appId: worldIdAppId,
-        actionId: worldIdActionId,
-        proof: proofPayload.proof,
-        signal: proofPayload.signal ?? account.address,
-        nullifierHash: proofPayload.nullifier_hash,
-        merkleRoot: proofPayload.merkle_root,
-        verificationLevel: proofPayload.verification_level,
-        credentialType: proofPayload.credential_type,
-        rpContext: worldIdRpContext,
-      }),
-    });
-    if (!response.ok) {
-      const result = (await response.json().catch(() => null)) as { message?: string } | null;
-      throw new Error(result?.message || `Network error from verifier (${response.status})`);
-    }
-    const verifyResult = (await response.json()) as { verified?: boolean; message?: string };
-    if (!verifyResult.verified) {
-      throw new Error(verifyResult.message || "Verification failed.");
-    }
-  }, [account.address, worldIdRpContext]);
-
-  const handleWorldIdWidgetSuccess = useCallback(async () => {
-    await handleSetPrimary();
-    setWorldIdOpen(false);
-  }, [handleSetPrimary]);
-
-  const handleWorldIdWidgetError = useCallback((errorCode: IDKitErrorCodes) => {
-    setTxError(`World ID widget failed (${errorCode}).`);
-    setTxSuccess(null);
-    setWorldIdOpen(false);
-  }, []);
-
-  const handleWorldIdVerify = async () => {
-    if (!account.address) return;
-    if (!worldIdAppId || !worldIdActionId) {
-      setTxError("World ID config missing.");
-      setTxSuccess(null);
-      return;
-    }
-    if (worldIdMock) {
-      await handleSetPrimary();
-      return;
-    }
-    try {
-      setTxError(null);
-      setTxSuccess(null);
-      setTxStatus("signing");
-      setTxAction("worldIdVerify");
-      const response = await fetch("/api/worldid/rp-signature", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: worldIdActionId,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error(`Network error from verifier (${response.status})`);
-      }
-      const rpContext = (await response.json()) as RpContext;
-      setWorldIdRpContext(rpContext);
-      setWorldIdOpen(true);
-    } catch (error) {
-      const message = normalizeErrorMessage(error);
-      if (message.toLowerCase().includes("network error")) {
-        setTxError(`Verifier unreachable. ${message}`);
-      } else {
-        setTxError(`Verification failed. ${message}`);
-      }
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
-
-  const handleZkNfcVerify = async () => {
-    if (!account.address) return;
-    if (!zknfcVerifierUrl && !zknfcMock) {
-      setTxError("ZK-NFC verifier URL missing.");
-      setTxSuccess(null);
-      return;
-    }
-    if (zknfcMock) {
-      await handleSetPrimary();
-      return;
-    }
-    setTxError(null);
-    setTxSuccess(null);
-    setTxStatus("signing");
-    setTxAction("zknfcVerify");
-    try {
-      const response = await fetch("/api/zknfc/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: account.address }),
-      });
-      if (!response.ok) {
-        throw new Error(`Network error from verifier (${response.status})`);
-      }
-      const result = (await response.json()) as { verified?: boolean; message?: string };
-      if (!result.verified) {
-        throw new Error(result.message || "Verification failed. Please re-check your NFC proof.");
-      }
-      await handleSetPrimary();
-      showSuccess("ZK-NFC verification accepted.");
-    } catch (error) {
-      const message = normalizeErrorMessage(error);
-      if (message.toLowerCase().includes("network error")) {
-        setTxError(`Verifier unreachable. ${message}`);
-      } else {
-        setTxError(`Verification failed. ${message}`);
-      }
-    } finally {
-      setTxStatus("idle");
-      setTxAction(null);
-    }
-  };
+  const {
+    worldIdOpen,
+    setWorldIdOpen,
+    worldIdRpContext,
+    handleWorldIdHostVerify,
+    handleWorldIdWidgetSuccess,
+    handleWorldIdWidgetError,
+    handleWorldIdVerify,
+    handleZkNfcVerify,
+  } = useIdentityFlow({
+    accountAddress: account.address,
+    worldIdAppId,
+    worldIdActionId,
+    worldIdMock,
+    zknfcMock,
+    zknfcVerifierUrl,
+    handleSetPrimary,
+    showSuccess,
+    setTxError,
+    setTxSuccess,
+    setTxStatus,
+    setTxAction,
+    normalizeErrorMessage,
+  });
 
   const handleAccrueUnclaimed = async () => {
     if (!treasuryAddress) return;
