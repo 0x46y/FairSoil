@@ -54,16 +54,24 @@ npm run e2e:wallet:guide
 
 ## 3. Participant flow
 
-### A. Bonus claim
+### A. Verify wallet
 
 | Check | Result | Notes |
 | --- | --- | --- |
 | requester wallet connects successfully | ☐ Pass / ☐ Fail |  |
+| verification action succeeds | ☐ Pass / ☐ Fail |  |
+| `Action completed` appears after verification | ☐ Pass / ☐ Fail |  |
+| verification status changes to `Verified` | ☐ Pass / ☐ Fail |  |
+
+### B. Bonus claim
+
+| Check | Result | Notes |
+| --- | --- | --- |
 | `Claim today's bonus` succeeds | ☐ Pass / ☐ Fail |  |
 | `Action completed` appears | ☐ Pass / ☐ Fail |  |
 | Token A view refreshes after claim | ☐ Pass / ☐ Fail |  |
 
-### B. Create agreement
+### C. Create agreement
 
 | Check | Result | Notes |
 | --- | --- | --- |
@@ -73,7 +81,7 @@ npm run e2e:wallet:guide
 | agreement row appears in `Work agreements` | ☐ Pass / ☐ Fail |  |
 | row shows worker should submit next | ☐ Pass / ☐ Fail |  |
 
-### C. Worker submit
+### D. Worker submit
 
 | Check | Result | Notes |
 | --- | --- | --- |
@@ -81,7 +89,7 @@ npm run e2e:wallet:guide
 | `Submit work` succeeds | ☐ Pass / ☐ Fail |  |
 | row changes to requester review state | ☐ Pass / ☐ Fail |  |
 
-### D. Requester approve
+### E. Requester approve
 
 | Check | Result | Notes |
 | --- | --- | --- |

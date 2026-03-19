@@ -26,6 +26,20 @@ NEXT_PUBLIC_COVENANT_LIBRARY_ADDRESS=0x...
 NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545
 ```
 
+For local Phase1 identity testing, you can enable the mock verification routes:
+
+```env
+NEXT_PUBLIC_WORLD_ID_MOCK=true
+NEXT_PUBLIC_ZKNFC_MOCK=true
+```
+
+If you already have verifier endpoints, point the app to them instead:
+
+```env
+NEXT_PUBLIC_WORLD_ID_VERIFY_URL=https://...
+NEXT_PUBLIC_ZKNFC_VERIFIER_URL=https://...
+```
+
 Run the development server:
 
 ```bash

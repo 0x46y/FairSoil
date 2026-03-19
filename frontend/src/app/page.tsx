@@ -2099,7 +2099,7 @@ export default function Home() {
 
   const handleZkNfcVerify = async () => {
     if (!account.address) return;
-    if (!zknfcVerifierUrl) {
+    if (!zknfcVerifierUrl && !zknfcMock) {
       setTxError("ZK-NFC verifier URL missing.");
       setTxSuccess(null);
       return;
@@ -2113,7 +2113,7 @@ export default function Home() {
     setTxStatus("signing");
     setTxAction("zknfcVerify");
     try {
-      const response = await fetch(zknfcVerifierUrl, {
+      const response = await fetch("/api/zknfc/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: account.address }),
@@ -3099,6 +3099,28 @@ export default function Home() {
                     ? "Use World ID to verify this wallet and unlock the full daily bonus flow."
                     : "This wallet is not verified yet. For MVP testing, the temporary operator can verify it manually."}
                 </p>
+                <div className={styles.metricBreakdown}>
+                  <span>
+                    Verification status:{" "}
+                    {isPrimaryAddress === undefined
+                      ? "Checking…"
+                      : isPrimaryAddress
+                      ? "Verified"
+                      : "Not verified yet"}
+                  </span>
+                  <span>
+                    Verification route:{" "}
+                    {worldIdAppId && worldIdActionId
+                      ? worldIdMock
+                        ? "World ID (mock)"
+                        : "World ID"
+                      : zknfcVerifierUrl || zknfcMock
+                      ? zknfcMock
+                        ? "ZK-NFC (mock)"
+                        : "ZK-NFC"
+                      : "Temporary operator mock"}
+                  </span>
+                </div>
                 <div className={styles.cardFooter}>
                   <span>Verification is needed for the full bonus flow</span>
                   <span>

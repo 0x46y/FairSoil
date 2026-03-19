@@ -18,6 +18,8 @@ The full Japanese version of this README is in `README_ja.md`.
 - Phase2+ ideas: `docs/spec_future_en.md`
 - Phase2 migration map: `docs/phase2_migration_map_en.md`
 - Phase2 parameter catalog: `docs/phase2_parameter_catalog_en.md`
+- Phase1 identity integration note: `docs/phase1_identity_integration_en.md`
+- Phase1 dispute fairness note: `docs/phase1_dispute_fairness_en.md`
 - Grants one-pager: `docs/grants_onepager_en.md`
 - 3-minute demo runbook: `docs/demo_runbook_en.md`
 - Grants use of funds: `docs/grants_use_of_funds_en.md`
@@ -72,6 +74,12 @@ NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 - tracks Treasury reserves, liabilities, and treasury in/out events
 - exposes MVP modules such as APPI, Resource Registry, and Template Library
 
+## Phase1 identity integration (minimum)
+- `Verify this wallet` currently supports World ID, ZK-NFC, and mock verification routes.
+- The minimum current model is: the route returns success, then the frontend sends `setPrimaryAddress`.
+- In local development, `NEXT_PUBLIC_WORLD_ID_MOCK=true` and `NEXT_PUBLIC_ZKNFC_MOCK=true` are enough to test the flow.
+- Details: `docs/phase1_identity_integration_en.md`
+
 ## What Phase1 Does Not Yet Do
 - full DAO governance
 - production-grade external adjudication
@@ -90,6 +98,12 @@ NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 - Lowering deposits alone does not seem sufficient; adjudication independence and external adjudication paths appear more promising.
 - Phase1 therefore treats the dispute arbiter as a temporary manual role that should prioritize evidence and context over wallet size, with Phase2 expected to move toward external arbiter / jury models.
 - These findings are still simulation-level and should continue to be updated with tests and real usage.
+
+## Phase1 dispute fairness policy
+- rulings should be driven by evidence, timeline, and procedure, not wallet size
+- integrity is a supporting signal, not stronger than direct evidence
+- defense quota improves access to dispute, not automatic winning odds
+- Details: `docs/phase1_dispute_fairness_en.md`
 
 ## Identity (experimental core, adoption-friendly entry)
 - **Tier 1:** Email / social login for read‑only onboarding

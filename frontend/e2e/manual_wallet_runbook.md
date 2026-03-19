@@ -39,17 +39,33 @@ If you redeployed and addresses changed, use the current `frontend/.env.local` v
 
 ## Participant flow
 
-### A. Claim bonus
+### A. Verify wallet
 
 1. Click `Connect wallet`.
 2. In MetaMask, connect the requester wallet.
+3. Open `Step 1: Verify this wallet`.
+4. Check `Verification status` and `Verification route`.
+5. Use one of these:
+   - `Verify (mock)` for the local Phase1 mock route
+   - `Verify with World ID` when a World ID verifier is configured
+   - `Verify with ZK-NFC` when a ZK-NFC verifier is configured
+6. Approve the wallet transaction if the flow reaches `setPrimaryAddress`.
+
+Expected result:
+- `Action completed` appears.
+- `Verification status` changes to `Verified`.
+- The card text changes from `not verified yet` to `verified`.
+
+### B. Claim bonus
+
+1. Keep the requester wallet connected.
 3. Click `Claim today's bonus`.
 
 Expected result:
 - `Action completed` appears.
 - `Daily bonus (Token A)` increases or refreshes.
 
-### B. Create agreement
+### C. Create agreement
 
 1. In `Step 3: Create a work agreement`, enter worker wallet `0x70997970C51812dc3A010C7d01b50e0d17dc79C8`.
 2. Keep `Reward type = Token B`.
@@ -63,7 +79,7 @@ Expected result:
 - A new row appears in `Work agreements`.
 - The new row says the worker should submit the work next.
 
-### C. Worker submits
+### D. Worker submits
 
 1. Switch MetaMask to the worker wallet.
 2. Refresh the page.
@@ -75,7 +91,7 @@ Expected result:
 - Agreement status changes to owner review.
 - The next-step note says the requester should review.
 
-### D. Requester approves
+### E. Requester approves
 
 1. Switch MetaMask back to the requester wallet.
 2. Refresh the page.

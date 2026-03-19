@@ -2,11 +2,6 @@ import { NextResponse } from "next/server";
 
 type VerifyPayload = {
   address?: string;
-  appId?: string;
-  actionId?: string;
-  proof?: unknown;
-  signal?: unknown;
-  nullifierHash?: string;
 };
 
 type VerifierResponse = {
@@ -14,48 +9,42 @@ type VerifierResponse = {
   message?: string;
 };
 
+const jsonHeaders = { "Content-Type": "application/json" };
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as VerifyPayload;
-    if (!body.address || !body.appId || !body.actionId) {
+    if (!body.address) {
       return NextResponse.json(
-        { verified: false, message: "Missing address/appId/actionId." },
+        { verified: false, message: "Missing wallet address." },
         { status: 400 }
       );
     }
 
-    const mockEnabled = process.env.NEXT_PUBLIC_WORLD_ID_MOCK === "true";
+    const mockEnabled = process.env.NEXT_PUBLIC_ZKNFC_MOCK === "true";
     if (mockEnabled) {
       return NextResponse.json(
         {
           verified: true,
-          message: "World ID mock verification accepted.",
+          message: "ZK-NFC mock verification accepted.",
           mode: "mock",
         },
         { status: 200 }
       );
     }
 
-    const verifierUrl =
-      process.env.WORLD_ID_VERIFY_URL || process.env.NEXT_PUBLIC_WORLD_ID_VERIFY_URL;
+    const verifierUrl = process.env.NEXT_PUBLIC_ZKNFC_VERIFIER_URL;
     if (!verifierUrl) {
       return NextResponse.json(
-        { verified: false, message: "World ID verifier not configured." },
+        { verified: false, message: "ZK-NFC verifier URL missing." },
         { status: 501 }
       );
     }
 
     const response = await fetch(verifierUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        address: body.address,
-        app_id: body.appId,
-        action: body.actionId,
-        proof: body.proof,
-        signal: body.signal,
-        nullifier_hash: body.nullifierHash,
-      }),
+      headers: jsonHeaders,
+      body: JSON.stringify({ address: body.address }),
       cache: "no-store",
     });
 
@@ -73,7 +62,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         verified: Boolean(result?.verified),
-        message: result?.message || "World ID verification completed.",
+        message: result?.message || "ZK-NFC verification completed.",
         mode: "remote",
       },
       { status: 200 }

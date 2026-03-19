@@ -36,6 +36,8 @@ assignees: []
 
 ## 3. Participant flow
 
+- [ ] wallet verification succeeds
+- [ ] verification status changes to `Verified`
 - [ ] requester wallet connects successfully
 - [ ] `Claim today's bonus` succeeds
 - [ ] agreement creation succeeds
