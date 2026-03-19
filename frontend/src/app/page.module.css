@@ -352,6 +352,50 @@
   background: rgba(255, 255, 255, 0.9);
 }
 
+.startStrip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.startCard {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(122, 92, 43, 0.1);
+  box-shadow: 0 10px 20px rgba(70, 55, 30, 0.05);
+}
+
+.startCard strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.35;
+  margin-bottom: 4px;
+}
+
+.startCard p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-600);
+}
+
+.startNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--soil-500), var(--soil-300));
+  color: #1c1408;
+  font-size: 13px;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+
 .participantGrid {
   display: grid;
   grid-template-columns: minmax(320px, 0.95fr) minmax(480px, 1.35fr);
@@ -378,6 +422,23 @@
   background: rgba(255, 252, 247, 0.78);
   border-color: rgba(122, 92, 43, 0.14);
   box-shadow: 0 12px 26px rgba(70, 55, 30, 0.06);
+}
+
+.operatorScope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.operatorScope span {
+  display: inline-flex;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(126, 168, 186, 0.12);
+  border: 1px solid rgba(126, 168, 186, 0.18);
+  color: var(--ink-700);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .taskForm {
@@ -410,9 +471,9 @@
   border-radius: 999px;
   background: rgba(244, 217, 157, 0.28);
   color: var(--soil-600);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  font-weight: 600;
 }
 
 .collapsibleCard {
@@ -473,10 +534,10 @@
 .taskField {
   display: grid;
   gap: 6px;
-  font-size: 11px;
-  color: var(--ink-500);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-size: 12px;
+  color: var(--ink-700);
+  text-transform: none;
+  letter-spacing: 0.01em;
   font-weight: 700;
 }
 
@@ -509,6 +570,30 @@
   color: var(--ink-500);
   overflow-wrap: anywhere;
   line-height: 1.5;
+}
+
+.taskHint strong {
+  color: var(--ink-700);
+}
+
+.helperNote {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-600);
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(244, 217, 157, 0.18);
+  border: 1px solid rgba(122, 92, 43, 0.08);
+}
+
+.emptyState {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-600);
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px dashed var(--sand-200);
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .templateForm {
@@ -602,6 +687,13 @@
   color: #21512a;
   box-shadow: var(--shadow-soft);
   font-size: 14px;
+}
+
+.messageError strong,
+.messageSuccess strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
 }
 
 .timeline {
@@ -911,6 +1003,16 @@
   font-weight: 700;
 }
 
+.statusNote {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ink-600);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .covenantCell {
   display: grid;
   gap: 6px;
@@ -1160,6 +1262,18 @@
 
   .main {
     padding: 40px 0 72px;
+  }
+
+  .startStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .participantGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .participantStack {
+    grid-template-columns: 1fr;
   }
 
   .timelineItem {
