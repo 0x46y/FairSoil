@@ -50,6 +50,21 @@ Run it headed for manual debugging:
 npm run e2e:headed
 ```
 
+For the real MetaMask-backed flow, use the manual wallet runbook:
+
+```bash
+npm run e2e:wallet:guide
+```
+
+Detailed steps are in `e2e/manual_wallet_runbook.md`.
+
+For demo prep, use the checklist in `e2e/pre_demo_checklist.md`.
+
+GitHub workflow templates are also available:
+
+- `.github/ISSUE_TEMPLATE/demo-readiness.md`
+- `.github/pull_request_template.md`
+
 ### Local chain setup
 
 In another terminal, run Anvil and deploy contracts from the `contracts` directory:
