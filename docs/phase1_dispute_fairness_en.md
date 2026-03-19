@@ -45,6 +45,21 @@ They are not meant to auto-bias the final ruling in favor of one side.
 - higher-value disputes should route externally when possible
 - the UI should keep stating that the review is based on evidence and timeline, not wallet size
 
+### Minimum arbiter review record
+
+Before proposing an outcome, the Phase1 arbiter should leave at least these four fields:
+
+1. `Claim summary`
+   What the worker is asking for, including the core payout claim.
+2. `Requester response`
+   The requester's main counterpoint or procedural response.
+3. `Missing evidence / gaps`
+   What is still unclear, contradictory, or unsupported.
+4. `Recommended payout`
+   The proposed worker payout percentage.
+
+This is not meant to be a vague free-text opinion. It is the minimum record needed so that a later reviewer can understand why the proposal was made.
+
 ## Phase2 direction
 
 The Phase1 manual arbiter is temporary.  

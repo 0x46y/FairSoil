@@ -107,6 +107,23 @@ type CovenantTransparencyNote = {
   breakdown: QuoteBreakdownInput;
 };
 
+type DisputeReviewRecord = {
+  workerReason: string;
+  workerEvidenceUri: string;
+  requesterReason: string;
+  requesterEvidenceUri: string;
+  arbiterNote: string;
+  arbiterEvidenceUri: string;
+};
+
+type ParsedArbiterResolutionNote = {
+  claimSummary: string;
+  requesterResponse: string;
+  missingEvidence: string;
+  recommendedPayoutPct: number | null;
+  legacyText: string;
+};
+
 const scopeVocabulary = [
   { value: "general", label: "General" },
   { value: "repair", label: "Repair" },
@@ -323,6 +340,51 @@ const emptyQuoteBreakdown = (): QuoteBreakdownInput => ({
   warranty: "",
   other: "",
 });
+
+const emptyDisputeReviewRecord = (): DisputeReviewRecord => ({
+  workerReason: "",
+  workerEvidenceUri: "",
+  requesterReason: "",
+  requesterEvidenceUri: "",
+  arbiterNote: "",
+  arbiterEvidenceUri: "",
+});
+
+const parseArbiterResolutionNote = (raw: string | null): ParsedArbiterResolutionNote => {
+  if (!raw) {
+    return {
+      claimSummary: "",
+      requesterResponse: "",
+      missingEvidence: "",
+      recommendedPayoutPct: null,
+      legacyText: "",
+    };
+  }
+  try {
+    const parsed = JSON.parse(raw) as {
+      claimSummary?: unknown;
+      requesterResponse?: unknown;
+      missingEvidence?: unknown;
+      recommendedPayoutPct?: unknown;
+    };
+    return {
+      claimSummary: typeof parsed.claimSummary === "string" ? parsed.claimSummary : "",
+      requesterResponse: typeof parsed.requesterResponse === "string" ? parsed.requesterResponse : "",
+      missingEvidence: typeof parsed.missingEvidence === "string" ? parsed.missingEvidence : "",
+      recommendedPayoutPct:
+        typeof parsed.recommendedPayoutPct === "number" ? parsed.recommendedPayoutPct : null,
+      legacyText: "",
+    };
+  } catch {
+    return {
+      claimSummary: "",
+      requesterResponse: "",
+      missingEvidence: "",
+      recommendedPayoutPct: null,
+      legacyText: raw,
+    };
+  }
+};
 
 const normalizeBand = (value: number) => {
   if (!Number.isFinite(value) || value <= 0) return "unspecified";
@@ -589,6 +651,21 @@ const getDisputeStage = (status: number) => {
   return [isReported, isDisputed, isProposed, isResolved];
 };
 
+const trailMatchesCovenant = (item: TrailItem, covenantId: number) => {
+  const needle = `agreement #${covenantId}`;
+  const body = typeof item.body === "string" ? item.body : "";
+  return item.title.toLowerCase().includes(needle) || body.toLowerCase().includes(needle);
+};
+
+const disputeReviewLabel = (title: string) => {
+  if (title.startsWith("Support requested for agreement #")) return "Worker request";
+  if (title.startsWith("Support accepted on agreement #")) return "Requester accepted";
+  if (title.startsWith("Support disputed on agreement #")) return "Requester challenge";
+  if (title.startsWith("Support proposal for agreement #")) return "Arbiter proposal";
+  if (title.startsWith("Support resolved: agreement #")) return "Final outcome";
+  return "Record";
+};
+
 export default function Home() {
   const account = useAccount();
   const { connect } = useConnect();
@@ -673,6 +750,11 @@ export default function Home() {
   const [resolveClaims, setResolveClaims] = useState<Record<number, string>>({});
   const [resolveIntegrity, setResolveIntegrity] = useState<Record<number, string>>({});
   const [resolveSlashing, setResolveSlashing] = useState<Record<number, string>>({});
+  const [resolveClaimSummaries, setResolveClaimSummaries] = useState<Record<number, string>>({});
+  const [resolveRequesterResponses, setResolveRequesterResponses] = useState<Record<number, string>>({});
+  const [resolveMissingEvidenceNotes, setResolveMissingEvidenceNotes] = useState<Record<number, string>>({});
+  const [resolveEvidenceUris, setResolveEvidenceUris] = useState<Record<number, string>>({});
+  const [disputeReviewRecords, setDisputeReviewRecords] = useState<Record<number, DisputeReviewRecord>>({});
   const [appiOracleInput, setAppiOracleInput] = useState("");
   const [appiCategoryInput, setAppiCategoryInput] = useState("");
   const [appiPriceInput, setAppiPriceInput] = useState("");
@@ -1239,6 +1321,71 @@ export default function Home() {
 
     return { notesByCovenant, summary };
   }, [covenants, templateById]);
+
+  const reviewPrioritySignals = useMemo(() => {
+    const notesByCovenant: Record<number, string[]> = {};
+
+    const addNote = (id: number, note: string) => {
+      if (!notesByCovenant[id]) notesByCovenant[id] = [];
+      if (!notesByCovenant[id].includes(note)) notesByCovenant[id].push(note);
+    };
+
+    covenants.forEach((item) => {
+      const transparencyNote =
+        covenantTransparencyMap[String(item.id)] ?? emptyTransparencyNote();
+      const reviewRecord = disputeReviewRecords[item.id] ?? emptyDisputeReviewRecord();
+      const parsedArbiter = parseArbiterResolutionNote(reviewRecord.arbiterNote);
+
+      if (item.status >= 5) {
+        if (parsedArbiter.missingEvidence.trim()) {
+          addNote(item.id, "Insufficient evidence noted by arbiter.");
+        }
+        if (item.status >= STATUS_PROPOSED && !parsedArbiter.claimSummary.trim()) {
+          addNote(item.id, "Resolver plan has no claim summary.");
+        }
+        if (item.status >= STATUS_PROPOSED && !parsedArbiter.requesterResponse.trim()) {
+          addNote(item.id, "Resolver plan has no requester response summary.");
+        }
+      }
+
+      const visibleTotal = toQuoteTotal(transparencyNote.breakdown);
+      if (visibleTotal > 0n) {
+        const reward = item.tokenBReward;
+        const larger = visibleTotal > reward ? visibleTotal : reward;
+        const smaller = visibleTotal > reward ? reward : visibleTotal;
+        if (smaller * 100n < larger * 85n) {
+          addNote(item.id, "Visible quote total is far from the locked reward.");
+        }
+      }
+
+      if (transparencyNote.scopeLabel) {
+        const key = buildMarketKey(
+          transparencyNote.scopeLabel,
+          transparencyNote.urgency || "normal",
+          transparencyNote.materialClass || "standard",
+          transparencyNote.estimatedHours || 0
+        );
+        const baseline = scopeBaselines.find((entry) => entry.key === key);
+        if (baseline && baseline.observedMedian > 0n) {
+          if (item.tokenBReward > baseline.observedMedian * 3n / 2n) {
+            addNote(item.id, "Reward is well above the observed median for this work profile.");
+          } else if (item.tokenBReward * 2n < baseline.observedMedian) {
+            addNote(item.id, "Reward is well below the observed median for this work profile.");
+          }
+        }
+      }
+    });
+
+    const allNotes = Object.values(notesByCovenant).flat();
+    const summary = [
+      { label: "Insufficient evidence", count: allNotes.filter((note) => note.includes("Insufficient evidence")).length },
+      { label: "Missing resolver summary", count: allNotes.filter((note) => note.includes("Resolver plan has no")).length },
+      { label: "Quote mismatch", count: allNotes.filter((note) => note.includes("Visible quote total")).length },
+      { label: "Median outlier", count: allNotes.filter((note) => note.includes("observed median")).length },
+    ].filter((entry) => entry.count > 0);
+
+    return { notesByCovenant, summary };
+  }, [covenants, covenantTransparencyMap, disputeReviewRecords, scopeBaselines]);
 
   const handleExportAudit = () => {
     const rows = filteredTrailItems.map((item) => {
@@ -2037,6 +2184,67 @@ export default function Home() {
         })
       );
       setCovenants(items);
+      const reviewEntries = await Promise.all(
+        items.map(async (item) => {
+          const [
+            workerReason,
+            workerEvidenceUri,
+            requesterReason,
+            requesterEvidenceUri,
+            arbiterNote,
+            arbiterEvidenceUri,
+          ] = await Promise.all([
+            publicClient.readContract({
+              address: covenantAddr,
+              abi: covenantAbi,
+              functionName: "workerIssueReason",
+              args: [BigInt(item.id)],
+            }) as Promise<string>,
+            publicClient.readContract({
+              address: covenantAddr,
+              abi: covenantAbi,
+              functionName: "workerIssueEvidenceUri",
+              args: [BigInt(item.id)],
+            }) as Promise<string>,
+            publicClient.readContract({
+              address: covenantAddr,
+              abi: covenantAbi,
+              functionName: "requesterDisputeReason",
+              args: [BigInt(item.id)],
+            }) as Promise<string>,
+            publicClient.readContract({
+              address: covenantAddr,
+              abi: covenantAbi,
+              functionName: "requesterDisputeEvidenceUri",
+              args: [BigInt(item.id)],
+            }) as Promise<string>,
+            publicClient.readContract({
+              address: covenantAddr,
+              abi: covenantAbi,
+              functionName: "arbiterResolutionNote",
+              args: [BigInt(item.id)],
+            }) as Promise<string>,
+            publicClient.readContract({
+              address: covenantAddr,
+              abi: covenantAbi,
+              functionName: "arbiterResolutionEvidenceUri",
+              args: [BigInt(item.id)],
+            }) as Promise<string>,
+          ]);
+          return [
+            item.id,
+            {
+              workerReason,
+              workerEvidenceUri,
+              requesterReason,
+              requesterEvidenceUri,
+              arbiterNote,
+              arbiterEvidenceUri,
+            } satisfies DisputeReviewRecord,
+          ] as const;
+        })
+      );
+      setDisputeReviewRecords(Object.fromEntries(reviewEntries));
       if (typeof window !== "undefined") {
         for (const item of items) {
           const key = `covenant-tags:pending-${item.id}`;
@@ -3324,9 +3532,26 @@ export default function Home() {
     const payoutPct = Math.min(100, Math.max(0, Number(payout)));
     const integrity = Number.parseInt(resolveIntegrity[covenantId] ?? "0", 10);
     const slashingAmount = resolveSlashing[covenantId] ?? "0";
+    const note = JSON.stringify({
+      claimSummary: resolveClaimSummaries[covenantId] ?? "",
+      requesterResponse: resolveRequesterResponses[covenantId] ?? "",
+      missingEvidence: resolveMissingEvidenceNotes[covenantId] ?? "",
+      recommendedPayoutPct: payoutPct,
+    });
+    const evidenceUri = resolveEvidenceUris[covenantId] ?? "";
     const slashingPenalty = parseUnits(slashingAmount, 18);
     const actionKey = `resolve-${covenantId}`;
     try {
+      if (note.trim() || evidenceUri.trim()) {
+        await runTransaction(`resolve-record-${covenantId}`, () =>
+          writeContractAsync({
+            address: covenantAddress,
+            abi: covenantAbi,
+            functionName: "setResolutionRecord",
+            args: [BigInt(covenantId), note, evidenceUri],
+          })
+        );
+      }
       await runTransaction(actionKey, () =>
         writeContractAsync({
           address: covenantAddress,
@@ -4804,6 +5029,26 @@ export default function Home() {
                 These are heuristics, not proof. They help operators review possible collusion or reputation farming.
               </p>
             </article>
+            <article className={`${styles.card} ${styles.cardCompact}`}>
+              <h3>Review priority tags</h3>
+              <p>Auto-tags from arbiter notes, quote mismatch, and market outlier checks.</p>
+              {reviewPrioritySignals.summary.length > 0 ? (
+                <div className={styles.warningList}>
+                  {reviewPrioritySignals.summary.map((entry) => (
+                    <span key={`${entry.label}-${entry.count}`} className={styles.warningPill}>
+                      {entry.label}: {entry.count}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className={styles.emptyState}>
+                  No review-priority tags yet from the current dispute notes and quote checks.
+                </p>
+              )}
+              <p className={styles.fieldHint}>
+                These are operator review tags, not automatic rulings. Use them to find records that need human attention first.
+              </p>
+            </article>
             <article className={`${styles.card} ${styles.cardWide}`}>
               <details className={styles.collapsibleCard}>
                 <summary>
@@ -5381,7 +5626,33 @@ export default function Home() {
                 })
                 .map((item) => {
                   const transparencyNote = covenantTransparencyMap[String(item.id)] ?? emptyTransparencyNote();
+                  const disputeReviewRecord =
+                    disputeReviewRecords[item.id] ?? emptyDisputeReviewRecord();
+                  const parsedArbiterNote = parseArbiterResolutionNote(disputeReviewRecord.arbiterNote);
                   const relationWarnings = reputationRingSignals.notesByCovenant[item.id] ?? [];
+                  const reviewPriorityWarnings = reviewPrioritySignals.notesByCovenant[item.id] ?? [];
+                  const disputeReviewTimeline = trailItems
+                    .filter((trailItem) => trailMatchesCovenant(trailItem, item.id))
+                    .filter((trailItem) => {
+                      const category = auditCategoryForTitle(trailItem.title);
+                      return category === "dispute" || category === "covenant";
+                    })
+                    .sort((a, b) => a.timestamp - b.timestamp)
+                    .slice(-5);
+                  const reviewChecklist = [
+                    item.status >= 5
+                      ? "Check what the worker originally asked for, including payout % and the reason given."
+                      : "Confirm the work scope and expected payout before taking action.",
+                    item.status >= STATUS_DISPUTED
+                      ? "Compare the requester response against the worker evidence. Look for missing dates or gaps."
+                      : "Ask whether the requester has answered the help request yet.",
+                    relationWarnings.length > 0
+                      ? "Review repeated-pair or related-party warnings before trusting reputation at face value."
+                      : "Use integrity only as a supporting signal after reading the evidence.",
+                    transparencyNote.marketContext
+                      ? "Check whether the market note actually explains the quoted price difference."
+                      : "If the quote looks unusual, ask for market context and a visible cost breakdown.",
+                  ];
                   return (
                 <div className={styles.covenantRow} key={`covenant-${item.id}`}>
                   <div className={styles.covenantCell}>
@@ -5508,6 +5779,150 @@ export default function Home() {
                             </span>
                           ) : null}
                         </p>
+                        <div className={styles.disputeReviewGrid}>
+                              <div className={styles.disputeReviewCard}>
+                            <p className={styles.disputeReviewKicker}>Recent dispute record</p>
+                            <div className={styles.disputeEvidenceGrid}>
+                              <div className={styles.disputeEvidenceCard}>
+                                <span className={styles.inlinePill}>Worker</span>
+                                <p className={styles.disputeEvidenceText}>
+                                  {disputeReviewRecord.workerReason || "No worker note saved yet."}
+                                </p>
+                                {formatEvidenceLink(disputeReviewRecord.workerEvidenceUri) ? (
+                                  <div className={styles.issuePreview}>
+                                    {formatEvidenceLink(disputeReviewRecord.workerEvidenceUri)}
+                                  </div>
+                                ) : null}
+                              </div>
+                              <div className={styles.disputeEvidenceCard}>
+                                <span className={styles.inlinePill}>Requester</span>
+                                <p className={styles.disputeEvidenceText}>
+                                  {disputeReviewRecord.requesterReason || "No requester challenge saved yet."}
+                                </p>
+                                {formatEvidenceLink(disputeReviewRecord.requesterEvidenceUri) ? (
+                                  <div className={styles.issuePreview}>
+                                    {formatEvidenceLink(disputeReviewRecord.requesterEvidenceUri)}
+                                  </div>
+                                ) : null}
+                              </div>
+                              <div className={styles.disputeEvidenceCard}>
+                                <span className={styles.inlinePill}>Arbiter</span>
+                                {parsedArbiterNote.legacyText ? (
+                                  <p className={styles.disputeEvidenceText}>
+                                    {parsedArbiterNote.legacyText}
+                                  </p>
+                                ) : (
+                                  <div className={styles.disputeStructuredNote}>
+                                    <p className={styles.disputeEvidenceText}>
+                                      <strong>Claim summary:</strong>{" "}
+                                      {parsedArbiterNote.claimSummary || "Not filled yet."}
+                                    </p>
+                                    <p className={styles.disputeEvidenceText}>
+                                      <strong>Requester response:</strong>{" "}
+                                      {parsedArbiterNote.requesterResponse || "Not filled yet."}
+                                    </p>
+                                    <p className={styles.disputeEvidenceText}>
+                                      <strong>Missing evidence:</strong>{" "}
+                                      {parsedArbiterNote.missingEvidence || "Not filled yet."}
+                                    </p>
+                                    <p className={styles.disputeEvidenceText}>
+                                      <strong>Recommended payout:</strong>{" "}
+                                      {parsedArbiterNote.recommendedPayoutPct ?? "Not set yet"}%
+                                    </p>
+                                  </div>
+                                )}
+                                {formatEvidenceLink(disputeReviewRecord.arbiterEvidenceUri) ? (
+                                  <div className={styles.issuePreview}>
+                                    {formatEvidenceLink(disputeReviewRecord.arbiterEvidenceUri)}
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
+                            <div className={styles.disputeReviewList}>
+                              {disputeReviewTimeline.length === 0 ? (
+                                <div className={styles.disputeReviewItem}>
+                                  <div>
+                                    <p className={styles.disputeReviewTitle}>No dispute record yet</p>
+                                    <p className={styles.disputeReviewBody}>
+                                      Once a help request, challenge, or proposal is logged, it will appear here in plain order.
+                                    </p>
+                                  </div>
+                                </div>
+                              ) : (
+                                disputeReviewTimeline.map((trailItem) => (
+                                  <div
+                                    key={`review-${item.id}-${trailItem.id}`}
+                                    className={styles.disputeReviewItem}
+                                  >
+                                    <span className={styles.disputeReviewTime}>
+                                      {formatRelativeTime(trailItem.timestamp, trailNow, locale)}
+                                    </span>
+                                    <div>
+                                      <p className={styles.disputeReviewTitle}>
+                                        {disputeReviewLabel(trailItem.title)}
+                                      </p>
+                                      <p className={styles.disputeReviewBody}>
+                                        {trailItem.body || simplifyAuditTitle(trailItem.title)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                          <div className={styles.disputeReviewCard}>
+                            <p className={styles.disputeReviewKicker}>What to review next</p>
+                            <div className={styles.disputeChecklist}>
+                              {reviewChecklist.map((note) => (
+                                <p key={`${item.id}-${note}`} className={styles.disputeChecklistItem}>
+                                  {note}
+                                </p>
+                              ))}
+                            </div>
+                            {(item.status === 7 || item.status === 8) && (
+                              <div className={styles.disputeOutcomeCard}>
+                                <span className={styles.inlinePill}>Latest arbiter plan</span>
+                                <p className={styles.disputeOutcomeText}>
+                                  Worker payout: {Number(item.proposedWorkerPayoutBps) / 100}% · Integrity:{" "}
+                                  {item.proposedIntegrityPoints.toString()} · Penalty:{" "}
+                                  {Number(formatUnits(item.proposedSlashingPenalty, 18)).toFixed(2)} SOILB
+                                </p>
+                              </div>
+                            )}
+                            {transparencyNote.relatedPartyDisclosure || transparencyNote.marketContext ? (
+                              <div className={styles.disputeMetaBlock}>
+                                {transparencyNote.relatedPartyDisclosure ? (
+                                  <p className={styles.disputeMetaLine}>
+                                    <strong>Related parties:</strong> {transparencyNote.relatedPartyDisclosure}
+                                  </p>
+                                ) : null}
+                                {transparencyNote.marketContext ? (
+                                  <p className={styles.disputeMetaLine}>
+                                    <strong>Market context:</strong> {transparencyNote.marketContext}
+                                  </p>
+                                ) : null}
+                              </div>
+                            ) : null}
+                            {relationWarnings.length > 0 ? (
+                              <div className={styles.warningInlineGroup}>
+                                {relationWarnings.map((warning) => (
+                                  <span key={`review-warning-${item.id}-${warning}`} className={styles.warningPill}>
+                                    {warning}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+                            {reviewPriorityWarnings.length > 0 ? (
+                              <div className={styles.warningInlineGroup}>
+                                {reviewPriorityWarnings.map((warning) => (
+                                  <span key={`priority-warning-${item.id}-${warning}`} className={styles.warningPill}>
+                                    {warning}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
                       </div>
                     ) : null}
                     {item.status === 0 &&
@@ -5759,6 +6174,70 @@ export default function Home() {
                             }
                             placeholder="0"
                           />
+                        </label>
+                        <label className={styles.issueField}>
+                          <span className={styles.issueLabel}>Claim summary</span>
+                          <textarea
+                            className={styles.issueTextarea}
+                            value={resolveClaimSummaries[item.id] ?? ""}
+                            onChange={(event) =>
+                              setResolveClaimSummaries((prev) => ({
+                                ...prev,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Summarize what the worker is asking for"
+                          />
+                          <span className={styles.issueHelp}>
+                            This becomes part of the on-chain arbiter note.
+                          </span>
+                        </label>
+                        <label className={styles.issueField}>
+                          <span className={styles.issueLabel}>Requester response</span>
+                          <textarea
+                            className={styles.issueTextarea}
+                            value={resolveRequesterResponses[item.id] ?? ""}
+                            onChange={(event) =>
+                              setResolveRequesterResponses((prev) => ({
+                                ...prev,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Summarize the requester response and strongest counterpoint"
+                          />
+                        </label>
+                        <label className={styles.issueField}>
+                          <span className={styles.issueLabel}>Missing evidence / gaps</span>
+                          <textarea
+                            className={styles.issueTextarea}
+                            value={resolveMissingEvidenceNotes[item.id] ?? ""}
+                            onChange={(event) =>
+                              setResolveMissingEvidenceNotes((prev) => ({
+                                ...prev,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="What is still missing, unclear, or contradictory?"
+                          />
+                        </label>
+                        <label className={styles.issueField}>
+                          <span className={styles.issueLabel}>Arbiter evidence URL</span>
+                          <input
+                            className={`${styles.issueInput} ${styles.issueInputWide}`}
+                            value={resolveEvidenceUris[item.id] ?? ""}
+                            onChange={(event) =>
+                              setResolveEvidenceUris((prev) => ({
+                                ...prev,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="https://…"
+                          />
+                          {formatEvidenceLink(resolveEvidenceUris[item.id]) ? (
+                            <div className={styles.issuePreview}>
+                              {formatEvidenceLink(resolveEvidenceUris[item.id])}
+                            </div>
+                          ) : null}
                         </label>
                         <button
                           className={`${styles.primaryButton} ${styles.covenantActionPrimary}`}

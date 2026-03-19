@@ -141,6 +141,30 @@ contract CovenantTest is Test {
         assertEq(tokenB.balanceOf(worker), workerBefore + 60e18);
         assertEq(tokenB.balanceOf(creator), creatorBefore + 240e18);
         assertEq(treasury.integrityScore(worker), 20);
+        assertEq(covenant.workerIssueReason(covenantId), "Scope change");
+        assertEq(covenant.workerIssueEvidenceUri(covenantId), "ipfs://evidence");
+    }
+
+    function testDisputeRecordsRequesterEvidence() public {
+        vm.prank(creator);
+        tokenB.approve(address(covenant), 300e18);
+
+        vm.prank(creator);
+        uint256 covenantId = covenant.createCovenant(worker, 300e18, 0, false);
+
+        uint256 deposit = _deposit(300e18);
+        vm.prank(worker);
+        tokenB.approve(address(covenant), deposit);
+        vm.prank(worker);
+        covenant.reportIssue(covenantId, 3000, "Worker note", "ipfs://worker");
+
+        vm.prank(creator);
+        tokenB.approve(address(covenant), deposit);
+        vm.prank(creator);
+        covenant.disputeIssue(covenantId, "Requester note", "ipfs://requester");
+
+        assertEq(covenant.requesterDisputeReason(covenantId), "Requester note");
+        assertEq(covenant.requesterDisputeEvidenceUri(covenantId), "ipfs://requester");
     }
 
     function testDisputeResolutionRequiresFinalize() public {
@@ -183,6 +207,30 @@ contract CovenantTest is Test {
         assertEq(tokenB.balanceOf(worker), workerBefore + 200e18);
         assertEq(tokenB.balanceOf(creator), creatorBefore + 200e18);
         assertEq(treasury.integrityScore(worker), 10);
+    }
+
+    function testResolverCanPersistResolutionRecord() public {
+        vm.prank(creator);
+        tokenB.approve(address(covenant), 200e18);
+
+        vm.prank(creator);
+        uint256 covenantId = covenant.createCovenant(worker, 200e18, 0, false);
+
+        uint256 deposit = _deposit(200e18);
+        vm.prank(worker);
+        tokenB.approve(address(covenant), deposit);
+        vm.prank(worker);
+        covenant.reportIssue(covenantId, 5000, "Worker note", "ipfs://worker");
+
+        vm.prank(creator);
+        tokenB.approve(address(covenant), deposit);
+        vm.prank(creator);
+        covenant.disputeIssue(covenantId, "Requester note", "ipfs://requester");
+
+        covenant.setResolutionRecord(covenantId, "Arbiter note", "ipfs://arbiter");
+
+        assertEq(covenant.arbiterResolutionNote(covenantId), "Arbiter note");
+        assertEq(covenant.arbiterResolutionEvidenceUri(covenantId), "ipfs://arbiter");
     }
 
     function testMaliceSlashesDepositAndCooldown() public {

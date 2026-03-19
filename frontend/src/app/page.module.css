@@ -1283,6 +1283,139 @@
   font-weight: 600;
 }
 
+.disputeReviewGrid {
+  flex-basis: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.disputeReviewCard {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(155, 111, 47, 0.14);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.disputeReviewKicker {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+  font-weight: 700;
+}
+
+.disputeReviewList {
+  display: grid;
+  gap: 8px;
+}
+
+.disputeEvidenceGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.disputeEvidenceCard {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid var(--sand-200);
+  background: rgba(248, 244, 237, 0.82);
+}
+
+.disputeEvidenceText {
+  font-size: 11px;
+  color: var(--ink-700);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.disputeStructuredNote {
+  display: grid;
+  gap: 4px;
+}
+
+.disputeReviewItem {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.disputeReviewTime {
+  font-size: 10px;
+  color: var(--ink-500);
+}
+
+.disputeReviewTitle {
+  font-size: 12px;
+  color: var(--ink-900);
+  font-weight: 700;
+}
+
+.disputeReviewBody {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--ink-600);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.disputeChecklist {
+  display: grid;
+  gap: 8px;
+}
+
+.disputeChecklistItem {
+  position: relative;
+  padding-left: 14px;
+  font-size: 11px;
+  color: var(--ink-700);
+  line-height: 1.5;
+}
+
+.disputeChecklistItem::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--soil-400);
+}
+
+.disputeOutcomeCard {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(116, 140, 102, 0.18);
+  background: rgba(245, 249, 241, 0.9);
+}
+
+.disputeOutcomeText {
+  font-size: 11px;
+  color: var(--ink-700);
+  line-height: 1.5;
+}
+
+.disputeMetaBlock {
+  display: grid;
+  gap: 6px;
+}
+
+.disputeMetaLine {
+  font-size: 11px;
+  color: var(--ink-600);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .issueActions {
   display: grid;
   gap: 8px;

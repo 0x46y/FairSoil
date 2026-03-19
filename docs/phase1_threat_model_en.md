@@ -144,6 +144,23 @@ The Phase1 operator UI now surfaces **review warnings** for the following concen
 These are not proof of collusion. They are heuristics for review priority only.
 Legitimate repeat work and small communities can trigger them, so they must be read together with evidence, price ranges, and related-party disclosures.
 
+### 5-5. Review priority tags already implemented in Phase1
+
+The operator UI also auto-generates review-priority tags from arbiter notes and market checks:
+
+- `Insufficient evidence noted by arbiter.`
+- `Resolver plan has no claim summary.`
+- `Resolver plan has no requester response summary.`
+- `Visible quote total is far from the locked reward.`
+- `Reward is well above / below the observed median for this work profile.`
+
+These are not automatic rulings. They are **triage tags** for which records should be reviewed first.
+Operationally, the intended review order is:
+
+1. check whether evidence or summaries are missing
+2. compare the worker / requester / arbiter records for contradiction
+3. see whether price mismatch or market outlier signals are explained by related-party disclosure or market context
+
 ## 6. Next design tasks
 
 - add price-range references to the Resource Registry

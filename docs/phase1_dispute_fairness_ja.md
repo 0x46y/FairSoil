@@ -46,6 +46,21 @@ defense quota や virtual stake は「低資産層でも dispute を始められ
 - 高額案件は可能なら外部裁定へ回す
 - UI でも「wallet size ではなく evidence と timeline を見る」と明示する
 
+### Arbiter の最小レビュー記録
+
+Phase1 の arbiter は、proposal 前に少なくとも次の 4 項目を残す。
+
+1. `Claim summary`
+   worker が何を求めているか。支払割合や争点を短く要約する。
+2. `Requester response`
+   requester の反論・反証・手続上の主張を短く要約する。
+3. `Missing evidence / gaps`
+   まだ不足している証拠、時系列の欠落、矛盾点を書く。
+4. `Recommended payout`
+   最終的に worker に何 % 支払う提案かを明示する。
+
+これは free text の感想ではなく、後から第三者が「何を見てその proposal に至ったか」を追跡できる最小記録である。
+
 ## Phase2 への接続
 
 Phase1 の manual arbiter は暫定運用であり、将来は次へ移行する。

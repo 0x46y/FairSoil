@@ -115,6 +115,9 @@ npm run e2e:wallet:guide
 | requester can `Challenge claim` | ☐ Pass / ☐ Fail |  |
 | dispute status track advances | ☐ Pass / ☐ Fail |  |
 | evidence-first guidance is visible | ☐ Pass / ☐ Fail |  |
+| arbiter fields `Claim summary / Requester response / Missing evidence / gaps` can be filled | ☐ Pass / ☐ Fail |  |
+| review card shows separate `Worker / Requester / Arbiter` records | ☐ Pass / ☐ Fail |  |
+| review-priority tags appear when evidence is missing or price looks unusual | ☐ Pass / ☐ Fail |  |
 
 ## 6. Demo-ready summary
 

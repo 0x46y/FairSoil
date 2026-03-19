@@ -146,6 +146,23 @@ Phase1 の operator UI では、次の集中パターンを **要レビュー警
 これらは **談合の証明** ではなく、review の優先順位を上げるための heuristic に過ぎない。
 正当な継続取引や小規模コミュニティでも発火し得るため、必ず evidence・price range・related-party disclosure と合わせて読む。
 
+### 5-5. Phase1 で実装済みの review priority tags
+
+operator UI では、arbiter note と価格比較から次の review priority tag も自動表示する。
+
+- `Insufficient evidence noted by arbiter.`
+- `Resolver plan has no claim summary.`
+- `Resolver plan has no requester response summary.`
+- `Visible quote total is far from the locked reward.`
+- `Reward is well above / below the observed median for this work profile.`
+
+これらも自動判決ではなく、**先に確認すべき案件を前に出すための tag** である。
+運用上は次の順で見る。
+
+1. `Insufficient evidence` や summary 欠落があるか
+2. worker / requester / arbiter の記録が食い違っていないか
+3. price mismatch や median outlier が related-party disclosure や market context で説明されているか
+
 ## 6. 次段階の設計課題
 
 - Resource Registry に価格レンジ参照を持たせる

@@ -122,8 +122,17 @@ Expected result:
 1. Create another agreement.
 2. Switch to the worker wallet and use `Ask for help`.
 3. Switch back to the requester wallet and use `Challenge claim`.
-4. If you are using the resolver wallet, propose and finalize a resolution.
+4. If you are using the resolver wallet, fill:
+   - `Claim summary`
+   - `Requester response`
+   - `Missing evidence / gaps`
+   - `Payout %`
+5. Optionally add `Arbiter evidence URL`.
+6. Propose and finalize a resolution.
 
 Expected result:
 - The dispute track moves from `Help asked` to `Challenged` to `Resolver plan` to `Finished`.
 - Guidance text keeps referring to evidence and timeline, not wallet size.
+- The arbiter card shows separate `Worker / Requester / Arbiter` records.
+- The arbiter record shows the structured fields instead of a single vague note.
+- If evidence is still missing or the quote looks unusual, review-priority tags appear before a human ruling is trusted.

@@ -114,11 +114,13 @@ NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 - Another major risk area is **hidden markup, market opacity, and collusive reputation farming**. Details: `docs/phase1_threat_model_en.md`
 - To keep price comparisons stable, Phase1 now uses fixed vocabulary for scope / material / urgency / hours band. Details: `docs/market_vocabulary_en.md`
 - The operator UI now shows **reputation-ring heuristic warnings** such as repeated creator-worker pairs, reciprocal role pairs, and concentrated template-author usage. These are review signals only, not proof.
+- The operator UI also shows **review-priority tags** for missing evidence, missing arbiter summaries, and major quote / market mismatches.
 
 ## Phase1 dispute fairness policy
 - rulings should be driven by evidence, timeline, and procedure, not wallet size
 - integrity is a supporting signal, not stronger than direct evidence
 - defense quota improves access to dispute, not automatic winning odds
+- before proposing an outcome, the arbiter should leave `Claim summary / Requester response / Missing evidence / gaps / Recommended payout`
 - Details: `docs/phase1_dispute_fairness_en.md`
 
 ## Identity (experimental core, adoption-friendly entry)

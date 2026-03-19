@@ -119,6 +119,12 @@ contract Covenant is Ownable {
     mapping(uint256 => uint256) public disputeLockedIntegrity;
     mapping(uint256 => string) public transparencyNotes;
     mapping(uint256 => bytes32) public transparencyDigests;
+    mapping(uint256 => string) public workerIssueReason;
+    mapping(uint256 => string) public workerIssueEvidenceUri;
+    mapping(uint256 => string) public requesterDisputeReason;
+    mapping(uint256 => string) public requesterDisputeEvidenceUri;
+    mapping(uint256 => string) public arbiterResolutionNote;
+    mapping(uint256 => string) public arbiterResolutionEvidenceUri;
     mapping(address => uint256) public cooldownUntil;
     mapping(address => uint256) public defenseQuotaMonth;
     mapping(address => uint256) public defenseQuotaUsed;
@@ -202,6 +208,7 @@ contract Covenant is Ownable {
     );
     event LiabilityTagged(uint256 indexed covenantId, int256 deltaA, int256 deltaB, bytes32 reason);
     event TransparencyNoteSet(uint256 indexed covenantId, bytes32 indexed digest, string note);
+    event ResolutionRecordSet(uint256 indexed covenantId, string note, string evidenceUri);
 
     constructor(address tokenBAddress, address tokenAAddress, address treasuryAddress)
         Ownable(msg.sender)
@@ -438,6 +445,24 @@ contract Covenant is Ownable {
         emit TransparencyNoteSet(covenantId, digest, note);
     }
 
+    function setResolutionRecord(
+        uint256 covenantId,
+        string calldata note,
+        string calldata evidenceUri
+    ) external onlyDisputeResolver {
+        CovenantData storage data = covenants[covenantId];
+        require(data.creator != address(0), "Unknown covenant");
+        require(
+            data.status == Status.Disputed ||
+                data.status == Status.ResolutionProposed ||
+                data.status == Status.IssueResolved,
+            "Not reviewable"
+        );
+        arbiterResolutionNote[covenantId] = note;
+        arbiterResolutionEvidenceUri[covenantId] = evidenceUri;
+        emit ResolutionRecordSet(covenantId, note, evidenceUri);
+    }
+
     function rejectWork(uint256 covenantId) external {
         CovenantData storage data = covenants[covenantId];
         require(data.creator != address(0), "Unknown covenant");
@@ -536,6 +561,8 @@ contract Covenant is Ownable {
 
         data.status = Status.IssueReported;
         data.issueClaimBps = claimBps;
+        workerIssueReason[covenantId] = reason;
+        workerIssueEvidenceUri[covenantId] = evidenceUri;
         _lockIssueDeposit(covenantId, data);
         emit IssueReported(covenantId, msg.sender, claimBps, reason, evidenceUri);
     }
@@ -573,6 +600,8 @@ contract Covenant is Ownable {
         );
 
         data.status = Status.Disputed;
+        requesterDisputeReason[covenantId] = reason;
+        requesterDisputeEvidenceUri[covenantId] = evidenceUri;
         _lockDisputeDeposit(covenantId, data);
         _selectJury(covenantId);
         emit IssueDisputed(covenantId, msg.sender, reason, evidenceUri);
