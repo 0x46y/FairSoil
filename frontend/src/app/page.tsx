@@ -1166,6 +1166,80 @@ export default function Home() {
     return { total: covenants.length, active, disputed, awaitingAction };
   }, [covenants]);
 
+  const reputationRingSignals = useMemo(() => {
+    const pairCounts = new Map<string, number>();
+    const templateAuthorUsage = new Map<string, number>();
+    const notesByCovenant: Record<number, string[]> = {};
+
+    const addNote = (id: number, note: string) => {
+      if (!notesByCovenant[id]) notesByCovenant[id] = [];
+      if (!notesByCovenant[id].includes(note)) notesByCovenant[id].push(note);
+    };
+
+    covenants.forEach((item) => {
+      const creator = item.creator.toLowerCase();
+      const worker = item.worker.toLowerCase();
+      const pairKey = `${creator}->${worker}`;
+      pairCounts.set(pairKey, (pairCounts.get(pairKey) ?? 0) + 1);
+
+      const template = templateById.get(Number(item.templateId));
+      if (template) {
+        const templateAuthor = template.creator.toLowerCase();
+        const usageKey = `${creator}|${templateAuthor}`;
+        templateAuthorUsage.set(usageKey, (templateAuthorUsage.get(usageKey) ?? 0) + 1);
+      }
+    });
+
+    covenants.forEach((item) => {
+      const creator = item.creator.toLowerCase();
+      const worker = item.worker.toLowerCase();
+      const pairKey = `${creator}->${worker}`;
+      const reverseKey = `${worker}->${creator}`;
+      const pairCount = pairCounts.get(pairKey) ?? 0;
+      const reverseCount = pairCounts.get(reverseKey) ?? 0;
+
+      if (pairCount >= 3) {
+        addNote(item.id, "Repeated creator-worker pair appears 3+ times.");
+      }
+      if (reverseCount >= 1) {
+        addNote(item.id, "Creator and worker also appear in reversed roles.");
+      }
+
+      const template = templateById.get(Number(item.templateId));
+      if (template) {
+        const templateAuthor = template.creator.toLowerCase();
+        const usageKey = `${creator}|${templateAuthor}`;
+        const authorUsage = templateAuthorUsage.get(usageKey) ?? 0;
+        if (authorUsage >= 3) {
+          addNote(item.id, "Requester repeatedly uses templates from the same author.");
+        }
+        if (templateAuthor === creator) {
+          addNote(item.id, "Requester is also the template author for this agreement.");
+        }
+      }
+    });
+
+    const repeatedPairs = Array.from(pairCounts.values()).filter((count) => count >= 3).length;
+    const reciprocalPairs = Array.from(pairCounts.keys()).filter((key) => {
+      const [creator, worker] = key.split("->");
+      return Boolean(pairCounts.get(`${worker}->${creator}`));
+    }).length;
+    const concentratedTemplateLinks = Array.from(templateAuthorUsage.values()).filter((count) => count >= 3).length;
+
+    const summary: string[] = [];
+    if (repeatedPairs > 0) {
+      summary.push(`${repeatedPairs} creator-worker pairs repeat 3+ times.`);
+    }
+    if (reciprocalPairs > 0) {
+      summary.push(`${reciprocalPairs} address pairs appear in both directions.`);
+    }
+    if (concentratedTemplateLinks > 0) {
+      summary.push(`${concentratedTemplateLinks} requester-template-author links look concentrated.`);
+    }
+
+    return { notesByCovenant, summary };
+  }, [covenants, templateById]);
+
   const handleExportAudit = () => {
     const rows = filteredTrailItems.map((item) => {
       const bodyText = typeof item.body === "string" ? item.body : "";
@@ -4710,6 +4784,26 @@ export default function Home() {
                 </p>
               )}
             </article>
+            <article className={`${styles.card} ${styles.cardCompact}`}>
+              <h3>Relationship warnings</h3>
+              <p>Heuristics for repeated pairs, reciprocal roles, and concentrated template reuse.</p>
+              {reputationRingSignals.summary.length > 0 ? (
+                <div className={styles.warningList}>
+                  {reputationRingSignals.summary.map((entry) => (
+                    <span key={entry} className={styles.warningPill}>
+                      {entry}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className={styles.emptyState}>
+                  No obvious ring-style concentration detected from the current agreement graph.
+                </p>
+              )}
+              <p className={styles.fieldHint}>
+                These are heuristics, not proof. They help operators review possible collusion or reputation farming.
+              </p>
+            </article>
             <article className={`${styles.card} ${styles.cardWide}`}>
               <details className={styles.collapsibleCard}>
                 <summary>
@@ -5287,6 +5381,7 @@ export default function Home() {
                 })
                 .map((item) => {
                   const transparencyNote = covenantTransparencyMap[String(item.id)] ?? emptyTransparencyNote();
+                  const relationWarnings = reputationRingSignals.notesByCovenant[item.id] ?? [];
                   return (
                 <div className={styles.covenantRow} key={`covenant-${item.id}`}>
                   <div className={styles.covenantCell}>
@@ -5351,6 +5446,15 @@ export default function Home() {
                     {transparencyNote.marketContext ? (
                       <span className={styles.statusNote}>
                         Market note: {transparencyNote.marketContext}
+                      </span>
+                    ) : null}
+                    {relationWarnings.length > 0 ? (
+                      <span className={styles.warningInlineGroup}>
+                        {relationWarnings.map((warning) => (
+                          <span key={`${item.id}-${warning}`} className={styles.warningPill}>
+                            {warning}
+                          </span>
+                        ))}
                       </span>
                     ) : null}
                     </span>

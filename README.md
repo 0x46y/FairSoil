@@ -104,6 +104,7 @@ NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 - These findings are still simulation-level and should continue to be updated with tests and real usage.
 - Another major risk area is **hidden markup, market opacity, and collusive reputation farming**. Details: `docs/phase1_threat_model_en.md`
 - To keep price comparisons stable, Phase1 now uses fixed vocabulary for scope / material / urgency / hours band. Details: `docs/market_vocabulary_en.md`
+- The operator UI now shows **reputation-ring heuristic warnings** such as repeated creator-worker pairs, reciprocal role pairs, and concentrated template-author usage. These are review signals only, not proof.
 
 ## Phase1 dispute fairness policy
 - rulings should be driven by evidence, timeline, and procedure, not wallet size

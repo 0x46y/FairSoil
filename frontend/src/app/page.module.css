@@ -741,6 +741,13 @@
   line-height: 1.4;
 }
 
+.warningInlineGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
 .checkboxRow {
   display: flex;
   align-items: flex-start;

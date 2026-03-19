@@ -130,14 +130,26 @@ Future UI / protocol work should prioritize:
 
 - Integrity should remain a supporting signal
 - it should never outrank evidence and timeline
-- reputation-ring detection remains a future requirement
+- reputation-ring warnings should never be treated as proof on their own
+
+### 5-4. Heuristic warnings already implemented in Phase1
+
+The Phase1 operator UI now surfaces **review warnings** for the following concentration patterns:
+
+- the same `creator -> worker` pair appears 3 or more times
+- the same two addresses appear repeatedly with reversed `creator / worker` roles
+- the same requester repeatedly uses templates from the same template author
+- the requester is also the template author
+
+These are not proof of collusion. They are heuristics for review priority only.
+Legitimate repeat work and small communities can trigger them, so they must be read together with evidence, price ranges, and related-party disclosures.
 
 ## 6. Next design tasks
 
 - add price-range references to the Resource Registry
 - add expected effort / breakdown / useful-life metadata to Templates
 - show warnings for abnormal profit margins or referral rates
-- add related-party disclosure and reputation-ring detection
+- make related-party disclosure and reputation-ring warnings more structured
 - build dispute flows that help arbiters focus on evidence instead of wallet size
 
 ## 7. Bottom line
