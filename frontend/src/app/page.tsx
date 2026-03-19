@@ -681,6 +681,7 @@ export default function Home() {
   const [covenantTemplate, setCovenantTemplate] = useState("general");
   const [covenantTags, setCovenantTags] = useState("general");
   const [covenantTagFilter, setCovenantTagFilter] = useState("");
+  const [onlyFlaggedAgreements, setOnlyFlaggedAgreements] = useState(false);
   const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
   const [covenantTagMap, setCovenantTagMap] = useState<Record<string, string>>({});
   const [covenantTransparencyMap, setCovenantTransparencyMap] = useState<Record<string, CovenantTransparencyNote>>(
@@ -1248,6 +1249,14 @@ export default function Home() {
     return { total: covenants.length, active, disputed, awaitingAction };
   }, [covenants]);
 
+  const templateById = useMemo(() => {
+    const map = new Map<number, (typeof templateList)[number]>();
+    templateList.forEach((item) => {
+      map.set(item.id, item);
+    });
+    return map;
+  }, [templateList]);
+
   const reputationRingSignals = useMemo(() => {
     const pairCounts = new Map<string, number>();
     const templateAuthorUsage = new Map<string, number>();
@@ -1321,71 +1330,6 @@ export default function Home() {
 
     return { notesByCovenant, summary };
   }, [covenants, templateById]);
-
-  const reviewPrioritySignals = useMemo(() => {
-    const notesByCovenant: Record<number, string[]> = {};
-
-    const addNote = (id: number, note: string) => {
-      if (!notesByCovenant[id]) notesByCovenant[id] = [];
-      if (!notesByCovenant[id].includes(note)) notesByCovenant[id].push(note);
-    };
-
-    covenants.forEach((item) => {
-      const transparencyNote =
-        covenantTransparencyMap[String(item.id)] ?? emptyTransparencyNote();
-      const reviewRecord = disputeReviewRecords[item.id] ?? emptyDisputeReviewRecord();
-      const parsedArbiter = parseArbiterResolutionNote(reviewRecord.arbiterNote);
-
-      if (item.status >= 5) {
-        if (parsedArbiter.missingEvidence.trim()) {
-          addNote(item.id, "Insufficient evidence noted by arbiter.");
-        }
-        if (item.status >= STATUS_PROPOSED && !parsedArbiter.claimSummary.trim()) {
-          addNote(item.id, "Resolver plan has no claim summary.");
-        }
-        if (item.status >= STATUS_PROPOSED && !parsedArbiter.requesterResponse.trim()) {
-          addNote(item.id, "Resolver plan has no requester response summary.");
-        }
-      }
-
-      const visibleTotal = toQuoteTotal(transparencyNote.breakdown);
-      if (visibleTotal > 0n) {
-        const reward = item.tokenBReward;
-        const larger = visibleTotal > reward ? visibleTotal : reward;
-        const smaller = visibleTotal > reward ? reward : visibleTotal;
-        if (smaller * 100n < larger * 85n) {
-          addNote(item.id, "Visible quote total is far from the locked reward.");
-        }
-      }
-
-      if (transparencyNote.scopeLabel) {
-        const key = buildMarketKey(
-          transparencyNote.scopeLabel,
-          transparencyNote.urgency || "normal",
-          transparencyNote.materialClass || "standard",
-          transparencyNote.estimatedHours || 0
-        );
-        const baseline = scopeBaselines.find((entry) => entry.key === key);
-        if (baseline && baseline.observedMedian > 0n) {
-          if (item.tokenBReward > baseline.observedMedian * 3n / 2n) {
-            addNote(item.id, "Reward is well above the observed median for this work profile.");
-          } else if (item.tokenBReward * 2n < baseline.observedMedian) {
-            addNote(item.id, "Reward is well below the observed median for this work profile.");
-          }
-        }
-      }
-    });
-
-    const allNotes = Object.values(notesByCovenant).flat();
-    const summary = [
-      { label: "Insufficient evidence", count: allNotes.filter((note) => note.includes("Insufficient evidence")).length },
-      { label: "Missing resolver summary", count: allNotes.filter((note) => note.includes("Resolver plan has no")).length },
-      { label: "Quote mismatch", count: allNotes.filter((note) => note.includes("Visible quote total")).length },
-      { label: "Median outlier", count: allNotes.filter((note) => note.includes("observed median")).length },
-    ].filter((entry) => entry.count > 0);
-
-    return { notesByCovenant, summary };
-  }, [covenants, covenantTransparencyMap, disputeReviewRecords, scopeBaselines]);
 
   const handleExportAudit = () => {
     const rows = filteredTrailItems.map((item) => {
@@ -1552,14 +1496,6 @@ export default function Home() {
     return BigInt(parsed);
   }, [covenantTemplateId]);
 
-  const templateById = useMemo(() => {
-    const map = new Map<number, (typeof templateList)[number]>();
-    templateList.forEach((item) => {
-      map.set(item.id, item);
-    });
-    return map;
-  }, [templateList]);
-
   const { data: selectedTemplateData } = useReadContract({
     address: libraryAddr,
     abi: covenantLibraryAbi,
@@ -1694,6 +1630,170 @@ export default function Home() {
     if (!selectedKey) return null;
     return scopeBaselines.find((entry) => entry.scopeKey === selectedKey) ?? null;
   }, [scopeBaselines, selectedTemplateMeta]);
+
+  const reviewPrioritySignals = useMemo(() => {
+    const notesByCovenant: Record<number, string[]> = {};
+
+    const addNote = (id: number, note: string) => {
+      if (!notesByCovenant[id]) notesByCovenant[id] = [];
+      if (!notesByCovenant[id].includes(note)) notesByCovenant[id].push(note);
+    };
+
+    covenants.forEach((item) => {
+      const transparencyNote =
+        covenantTransparencyMap[String(item.id)] ?? emptyTransparencyNote();
+      const reviewRecord = disputeReviewRecords[item.id] ?? emptyDisputeReviewRecord();
+      const parsedArbiter = parseArbiterResolutionNote(reviewRecord.arbiterNote);
+
+      if (item.status >= 5) {
+        if (parsedArbiter.missingEvidence.trim()) {
+          addNote(item.id, "Insufficient evidence noted by arbiter.");
+        }
+        if (item.status >= STATUS_PROPOSED && !parsedArbiter.claimSummary.trim()) {
+          addNote(item.id, "Resolver plan has no claim summary.");
+        }
+        if (item.status >= STATUS_PROPOSED && !parsedArbiter.requesterResponse.trim()) {
+          addNote(item.id, "Resolver plan has no requester response summary.");
+        }
+      }
+
+      const visibleTotal = toQuoteTotal(transparencyNote.breakdown);
+      if (visibleTotal > 0n) {
+        const reward = item.tokenBReward;
+        const larger = visibleTotal > reward ? visibleTotal : reward;
+        const smaller = visibleTotal > reward ? reward : visibleTotal;
+        if (smaller * 100n < larger * 85n) {
+          addNote(item.id, "Visible quote total is far from the locked reward.");
+        }
+      }
+
+      if (transparencyNote.scopeLabel) {
+        const key = buildMarketKey(
+          transparencyNote.scopeLabel,
+          transparencyNote.urgency || "normal",
+          transparencyNote.materialClass || "standard",
+          transparencyNote.estimatedHours || 0
+        );
+        const baseline = scopeBaselines.find((entry) => entry.scopeKey === key);
+        if (baseline && baseline.observedMedian > 0n) {
+          if (item.tokenBReward > (baseline.observedMedian * 3n) / 2n) {
+            addNote(item.id, "Reward is well above the observed median for this work profile.");
+          } else if (item.tokenBReward * 2n < baseline.observedMedian) {
+            addNote(item.id, "Reward is well below the observed median for this work profile.");
+          }
+        }
+      }
+    });
+
+    const allNotes = Object.values(notesByCovenant).flat();
+    const summary = [
+      {
+        label: "Insufficient evidence",
+        count: allNotes.filter((note) => note.includes("Insufficient evidence")).length,
+      },
+      {
+        label: "Missing resolver summary",
+        count: allNotes.filter((note) => note.includes("Resolver plan has no")).length,
+      },
+      {
+        label: "Quote mismatch",
+        count: allNotes.filter((note) => note.includes("Visible quote total")).length,
+      },
+      {
+        label: "Median outlier",
+        count: allNotes.filter((note) => note.includes("observed median")).length,
+      },
+    ].filter((entry) => entry.count > 0);
+
+    return { notesByCovenant, summary };
+  }, [covenants, covenantTransparencyMap, disputeReviewRecords, scopeBaselines]);
+
+  const visibleCovenants = useMemo(() => {
+    const filtered = covenants.filter((item) => {
+      if (!covenantTagFilter.trim()) return true;
+      const tagValue = covenantTagMap[String(item.id)] || "";
+      return tagValue.toLowerCase().includes(covenantTagFilter.trim().toLowerCase());
+    });
+
+    const flaggedOnly = onlyFlaggedAgreements
+      ? filtered.filter((item) => {
+          const reviewCount = (reviewPrioritySignals.notesByCovenant[item.id] ?? []).length;
+          const relationCount = (reputationRingSignals.notesByCovenant[item.id] ?? []).length;
+          return reviewCount + relationCount > 0;
+        })
+      : filtered;
+
+    const priorityScore = (item: (typeof covenants)[number]) => {
+      const reviewCount = (reviewPrioritySignals.notesByCovenant[item.id] ?? []).length;
+      const relationCount = (reputationRingSignals.notesByCovenant[item.id] ?? []).length;
+      let score = reviewCount * 10 + relationCount * 4;
+      if (item.status >= 5 && item.status < STATUS_RESOLVED) score += 6;
+      if (item.status === STATUS_PROPOSED) score += 3;
+      return score;
+    };
+
+    return flaggedOnly.sort((a, b) => {
+      if (dashboardView === "operator") {
+        const diff = priorityScore(b) - priorityScore(a);
+        if (diff !== 0) return diff;
+      }
+      return b.id - a.id;
+    });
+  }, [
+    covenants,
+    covenantTagFilter,
+    covenantTagMap,
+    dashboardView,
+    onlyFlaggedAgreements,
+    reviewPrioritySignals.notesByCovenant,
+    reputationRingSignals.notesByCovenant,
+  ]);
+
+  const handleExportReviewCsv = () => {
+    const rows = visibleCovenants.map((item) => {
+      const reviewTags = (reviewPrioritySignals.notesByCovenant[item.id] ?? []).join(" | ");
+      const relationTags = (reputationRingSignals.notesByCovenant[item.id] ?? []).join(" | ");
+      const transparencyNote =
+        covenantTransparencyMap[String(item.id)] ?? emptyTransparencyNote();
+      return [
+        item.id,
+        item.creator,
+        item.worker,
+        covenantStatusLabels[item.status] ?? "Unknown",
+        Number(formatUnits(item.tokenBReward, 18)).toFixed(2),
+        transparencyNote.scopeLabel,
+        reviewTags,
+        relationTags,
+      ];
+    });
+    const header = [
+      "agreement_id",
+      "creator",
+      "worker",
+      "status",
+      "reward",
+      "scope",
+      "review_tags",
+      "relationship_warnings",
+    ];
+    const csv = [header, ...rows]
+      .map((row) =>
+        row
+          .map((cell) => {
+            const safe = String(cell ?? "").replace(/"/g, '""');
+            return `"${safe}"`;
+          })
+          .join(",")
+      )
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `agreement-review-${Date.now()}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const comparableRewards = useMemo(() => {
     const selectedKey = buildMarketKey(selectedTemplateMeta);
@@ -5580,8 +5680,31 @@ export default function Home() {
                 >
                   Refresh agreements
                 </button>
+                {dashboardView === "operator" ? (
+                  <button
+                    className={styles.secondaryButton}
+                    onClick={() => setOnlyFlaggedAgreements((current) => !current)}
+                  >
+                    {onlyFlaggedAgreements ? "Show all agreements" : "Only flagged agreements"}
+                  </button>
+                ) : null}
+                {dashboardView === "operator" ? (
+                  <button
+                    className={styles.secondaryButton}
+                    onClick={handleExportReviewCsv}
+                    disabled={visibleCovenants.length === 0}
+                  >
+                    Export review CSV
+                  </button>
+                ) : null}
               </div>
             </div>
+          {dashboardView === "operator" ? (
+            <p className={styles.fieldHint}>
+              Operator view sorts agreements by review-priority tags first, then by newest agreement.
+              {onlyFlaggedAgreements ? " Only agreements with review or relationship warnings are shown." : ""}
+            </p>
+          ) : null}
           <div className={styles.covenantStats}>
             <div className={styles.covenantStatCard}>
               <span className={styles.auditLabel}>All agreements</span>
@@ -5611,20 +5734,14 @@ export default function Home() {
               <span>Status</span>
               <span>Actions</span>
             </div>
-            {covenants.length === 0 ? (
+            {visibleCovenants.length === 0 ? (
               <div className={styles.covenantRowEmpty}>
                 {isLoadingCovenants
                   ? "Loading agreements…"
                   : "No agreements yet. Create one above to start the work flow."}
               </div>
             ) : (
-              covenants
-                .filter((item) => {
-                  if (!covenantTagFilter.trim()) return true;
-                  const tagValue = covenantTagMap[String(item.id)] || "";
-                  return tagValue.toLowerCase().includes(covenantTagFilter.trim().toLowerCase());
-                })
-                .map((item) => {
+              visibleCovenants.map((item) => {
                   const transparencyNote = covenantTransparencyMap[String(item.id)] ?? emptyTransparencyNote();
                   const disputeReviewRecord =
                     disputeReviewRecords[item.id] ?? emptyDisputeReviewRecord();
