@@ -147,13 +147,13 @@ const simplifyAuditTitle = (title: string) => {
     return title.replace("Support requested for agreement #", "Worker asked for help on agreement #");
   }
   if (title.startsWith("Support accepted on agreement #")) {
-    return title.replace("Support accepted on agreement #", "Owner accepted the worker claim on agreement #");
+    return title.replace("Support accepted on agreement #", "Requester accepted the worker claim on agreement #");
   }
   if (title.startsWith("Support disputed on agreement #")) {
-    return title.replace("Support disputed on agreement #", "Owner challenged the worker claim on agreement #");
+    return title.replace("Support disputed on agreement #", "Requester challenged the worker claim on agreement #");
   }
   if (title.startsWith("Support proposal for agreement #")) {
-    return title.replace("Support proposal for agreement #", "Resolver proposed an outcome for agreement #");
+    return title.replace("Support proposal for agreement #", "Dispute arbiter proposed an outcome for agreement #");
   }
   if (title.startsWith("Support resolved: agreement #")) {
     return title.replace("Support resolved: agreement #", "Dispute finished for agreement #");
@@ -2903,13 +2903,20 @@ export default function Home() {
 
         <section className={styles.hero}>
           <div className={styles.heroCopy}>
-            <p className={styles.badge}>Start here</p>
+            <p className={styles.badge}>Phase 1 MVP</p>
             <h1>Connect your wallet, verify it, and begin using FairSoil.</h1>
             <p className={styles.heroText}>
               This page is a working prototype. In plain terms: Token A is your
               daily bonus, Token B is your work reward, and Integrity is your
               trust score.
             </p>
+            <div className={styles.phaseNote}>
+              <strong>What this MVP already does:</strong> daily bonus, reward escrow,
+              approval, dispute flow, manual operator review, and basic treasury checks.
+              <br />
+              <strong>What is still not finished:</strong> full DAO governance,
+              production identity flow, and external dispute arbitration.
+            </div>
             <div className={styles.heroActions}>
               <button
                 className={styles.primaryButton}
