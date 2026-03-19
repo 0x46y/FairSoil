@@ -36,9 +36,16 @@ NEXT_PUBLIC_ZKNFC_MOCK=true
 If you already have verifier endpoints, point the app to them instead:
 
 ```env
+WORLD_ID_RP_ID=rp_...
+RP_SIGNING_KEY=0x...
 NEXT_PUBLIC_WORLD_ID_VERIFY_URL=https://...
 NEXT_PUBLIC_ZKNFC_VERIFIER_URL=https://...
 ```
+
+For World ID v4 widget flow, the frontend now requests an RP signature from
+`/api/worldid/rp-signature`, then sends the proof to `/api/worldid/verify`.
+That means `WORLD_ID_RP_ID` and `RP_SIGNING_KEY` should be set on the Next.js server
+when you want the real World ID widget instead of the mock route.
 
 Run the development server:
 

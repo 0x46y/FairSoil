@@ -7,6 +7,16 @@ type VerifyPayload = {
   proof?: unknown;
   signal?: unknown;
   nullifierHash?: string;
+  merkleRoot?: string;
+  verificationLevel?: string;
+  credentialType?: string;
+  rpContext?: {
+    rp_id?: string;
+    nonce?: string;
+    created_at?: number;
+    expires_at?: number;
+    signature?: string;
+  };
 };
 
 type VerifierResponse = {
@@ -36,8 +46,11 @@ export async function POST(request: Request) {
       );
     }
 
+    const rpId = body.rpContext?.rp_id || process.env.WORLD_ID_RP_ID;
     const verifierUrl =
-      process.env.WORLD_ID_VERIFY_URL || process.env.NEXT_PUBLIC_WORLD_ID_VERIFY_URL;
+      process.env.WORLD_ID_VERIFY_URL ||
+      process.env.NEXT_PUBLIC_WORLD_ID_VERIFY_URL ||
+      (rpId ? `https://developer.world.org/api/v4/verify/${rpId}` : undefined);
     if (!verifierUrl) {
       return NextResponse.json(
         { verified: false, message: "World ID verifier not configured." },
@@ -55,6 +68,9 @@ export async function POST(request: Request) {
         proof: body.proof,
         signal: body.signal,
         nullifier_hash: body.nullifierHash,
+        merkle_root: body.merkleRoot,
+        verification_level: body.verificationLevel,
+        credential_type: body.credentialType,
       }),
       cache: "no-store",
     });

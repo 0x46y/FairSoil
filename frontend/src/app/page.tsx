@@ -2,6 +2,13 @@
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  IDKitRequestWidget,
+  orbLegacy,
+  type IDKitErrorCodes,
+  type IDKitResult,
+  type RpContext,
+} from "@worldcoin/idkit";
+import {
   formatUnits,
   parseUnits,
   zeroAddress,
@@ -425,6 +432,8 @@ export default function Home() {
   const [txAction, setTxAction] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
   const [txSuccess, setTxSuccess] = useState<string | null>(null);
+  const [worldIdOpen, setWorldIdOpen] = useState(false);
+  const [worldIdRpContext, setWorldIdRpContext] = useState<RpContext | null>(null);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tokenAAddr = tokenAAddress ?? zeroAddress;
@@ -2026,7 +2035,7 @@ export default function Home() {
     }
   };
 
-  const handleSetPrimary = async () => {
+  const handleSetPrimary = useCallback(async () => {
     if (!tokenAAddress || !account.address) return;
     try {
       await runTransaction("setPrimary", () =>
@@ -2048,7 +2057,64 @@ export default function Home() {
       setTxStatus("idle");
       setTxAction(null);
     }
-  };
+  }, [
+    account.address,
+    tokenAAddr,
+    writeContractAsync,
+    postTransactionSync,
+    refetchPrimary,
+    runTransaction,
+    showSuccess,
+  ]);
+
+  const handleWorldIdHostVerify = useCallback(async (result: IDKitResult) => {
+    if (!account.address || !worldIdAppId || !worldIdActionId) {
+      throw new Error("World ID config missing.");
+    }
+    const proofPayload = result as {
+      proof?: unknown;
+      signal?: string;
+      nullifier_hash?: string;
+      merkle_root?: string;
+      verification_level?: string;
+      credential_type?: string;
+    };
+    const response = await fetch("/api/worldid/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        address: account.address,
+        appId: worldIdAppId,
+        actionId: worldIdActionId,
+        proof: proofPayload.proof,
+        signal: proofPayload.signal ?? account.address,
+        nullifierHash: proofPayload.nullifier_hash,
+        merkleRoot: proofPayload.merkle_root,
+        verificationLevel: proofPayload.verification_level,
+        credentialType: proofPayload.credential_type,
+        rpContext: worldIdRpContext,
+      }),
+    });
+    if (!response.ok) {
+      const result = (await response.json().catch(() => null)) as { message?: string } | null;
+      throw new Error(result?.message || `Network error from verifier (${response.status})`);
+    }
+    const verifyResult = (await response.json()) as { verified?: boolean; message?: string };
+    if (!verifyResult.verified) {
+      throw new Error(verifyResult.message || "Verification failed.");
+    }
+  }, [account.address, worldIdRpContext]);
+
+  const handleWorldIdWidgetSuccess = useCallback(async () => {
+    await handleSetPrimary();
+    setWorldIdOpen(false);
+  }, [handleSetPrimary]);
+
+  const handleWorldIdWidgetError = useCallback((errorCode: IDKitErrorCodes) => {
+    setTxError(`World ID widget failed (${errorCode}).`);
+    setTxSuccess(null);
+    setWorldIdOpen(false);
+  }, []);
 
   const handleWorldIdVerify = async () => {
     if (!account.address) return;
@@ -2061,29 +2127,24 @@ export default function Home() {
       await handleSetPrimary();
       return;
     }
-    setTxError(null);
-    setTxSuccess(null);
-    setTxStatus("signing");
-    setTxAction("worldIdVerify");
     try {
-      const response = await fetch("/api/worldid/verify", {
+      setTxError(null);
+      setTxSuccess(null);
+      setTxStatus("signing");
+      setTxAction("worldIdVerify");
+      const response = await fetch("/api/worldid/rp-signature", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          address: account.address,
-          appId: worldIdAppId,
-          actionId: worldIdActionId,
+          action: worldIdActionId,
         }),
       });
       if (!response.ok) {
         throw new Error(`Network error from verifier (${response.status})`);
       }
-      const result = (await response.json()) as { verified?: boolean; message?: string };
-      if (!result.verified) {
-        throw new Error(result.message || "Verification failed.");
-      }
-      await handleSetPrimary();
-      showSuccess("World ID verification accepted.");
+      const rpContext = (await response.json()) as RpContext;
+      setWorldIdRpContext(rpContext);
+      setWorldIdOpen(true);
     } catch (error) {
       const message = normalizeErrorMessage(error);
       if (message.toLowerCase().includes("network error")) {
@@ -3131,13 +3192,29 @@ export default function Home() {
                 </div>
                 <div className={styles.cardActions}>
                   {worldIdAppId && worldIdActionId ? (
-                    <button
-                      className={styles.secondaryButton}
-                      onClick={handleWorldIdVerify}
-                      disabled={!account.address || isBusy}
-                    >
-                      {actionLabel("worldIdVerify", worldIdMock ? "Verify (mock)" : "Verify with World ID")}
-                    </button>
+                    <>
+                      <button
+                        className={styles.secondaryButton}
+                        onClick={handleWorldIdVerify}
+                        disabled={!account.address || isBusy}
+                      >
+                        {actionLabel("worldIdVerify", worldIdMock ? "Verify (mock)" : "Verify with World ID")}
+                      </button>
+                      {!worldIdMock && worldIdRpContext ? (
+                        <IDKitRequestWidget
+                          open={worldIdOpen}
+                          onOpenChange={setWorldIdOpen}
+                          app_id={worldIdAppId as `app_${string}`}
+                          action={worldIdActionId}
+                          rp_context={worldIdRpContext}
+                          allow_legacy_proofs={true}
+                          preset={orbLegacy({ signal: account.address ?? "" })}
+                          handleVerify={handleWorldIdHostVerify}
+                          onSuccess={handleWorldIdWidgetSuccess}
+                          onError={handleWorldIdWidgetError}
+                        />
+                      ) : null}
+                    </>
                   ) : null}
                   {zknfcVerifierUrl ? (
                     <button
