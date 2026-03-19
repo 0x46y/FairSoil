@@ -18,6 +18,8 @@ The full Japanese version of this README is in `README_ja.md`.
 - Phase2+ ideas: `docs/spec_future_en.md`
 - Phase2 migration map: `docs/phase2_migration_map_en.md`
 - Phase2 parameter catalog: `docs/phase2_parameter_catalog_en.md`
+- Token A calibration note: `docs/token_a_calibration_notes_en.md`
+- Phase1 threat model: `docs/phase1_threat_model_en.md`
 - Phase1 identity integration note: `docs/phase1_identity_integration_en.md`
 - Phase1 dispute fairness note: `docs/phase1_dispute_fairness_en.md`
 - Identity nullifier scope note: `docs/identity_nullifier_scope_en.md`
@@ -77,6 +79,13 @@ NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 - tracks Treasury reserves, liabilities, and treasury in/out events
 - exposes MVP modules such as APPI, Resource Registry, and Template Library
 
+## What Token A Means Right Now
+- The current initial value is `100 Token A / day`, with issuance happening on a daily basis.
+- This is **a Phase1 starting parameter for validating system behavior**, not a production value already calibrated to real-world subsistence costs.
+- Claiming does not have to happen every day; weekly or monthly batching is still valid.
+- Over time, `APPI` and `Survival Buffer` are expected to move this closer to real living-cost intuition.
+- Details: `docs/token_a_calibration_notes_en.md`
+
 ## Phase1 identity integration (minimum)
 - `Verify this wallet` currently supports World ID, ZK-NFC, and mock verification routes.
 - The minimum current model is: the route returns success, then the frontend sends `setPrimaryAddress`.
@@ -101,6 +110,7 @@ NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 - Lowering deposits alone does not seem sufficient; adjudication independence and external adjudication paths appear more promising.
 - Phase1 therefore treats the dispute arbiter as a temporary manual role that should prioritize evidence and context over wallet size, with Phase2 expected to move toward external arbiter / jury models.
 - These findings are still simulation-level and should continue to be updated with tests and real usage.
+- Another major risk area is **hidden markup, market opacity, and collusive reputation farming**. Details: `docs/phase1_threat_model_en.md`
 
 ## Phase1 dispute fairness policy
 - rulings should be driven by evidence, timeline, and procedure, not wallet size
