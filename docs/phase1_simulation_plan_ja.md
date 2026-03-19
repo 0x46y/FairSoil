@@ -236,6 +236,41 @@ Phase1 では、以下を「危険信号」として扱う。
 
 Phase1 では、いきなり精密な経済モデルを作らず、次の3段階で進める。
 
+### 実行用の最小スクリプト
+
+最初の実行形として、`scripts/run_phase1_simulation.py` を用意する。  
+これは**厳密なオンチェーン再現ではなく、危険信号を早めに見るための近似シミュレーター**である。
+
+例:
+
+```bash
+python scripts/run_phase1_simulation.py --scenario A
+python scripts/run_phase1_simulation.py --scenario D --days 365 --seed 7
+python scripts/run_phase1_simulation_batch.py --days 180 --seed 42 --scenarios A B D E
+python scripts/run_phase1_parameter_sweep.py --scenario D --days 180 --seed 42
+```
+
+出力:
+
+- `tmp/phase1_simulations/<scenario>_daily.csv`
+- `tmp/phase1_simulations/<scenario>_summary.json`
+- `tmp/phase1_simulations/phase1_summary_comparison.csv`
+- `tmp/phase1_simulations/phase1_summary_comparison.json`
+- `tmp/phase1_simulations/<scenario>_parameter_sweep.csv`
+- `tmp/phase1_simulations/<scenario>_parameter_sweep.json`
+
+この段階では次を優先する。
+
+- メトリクスの傾向を見る
+- 危険シナリオを再現する
+- Stop/Go 基準に触れる条件を把握する
+
+逆に、この段階ではまだ次は保証しない。
+
+- 実コントラクト状態との完全一致
+- 現実市場価格との一致
+- 法制度・人間行動の精密再現
+
 ### Step 1: オフチェーン集計
 
 - Foundry テストかローカル script で日次イベントを擬似生成

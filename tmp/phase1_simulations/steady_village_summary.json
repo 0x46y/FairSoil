@@ -1,0 +1,25 @@
+{
+  "scenario": "steady_village",
+  "days": 180,
+  "participants_final": 115,
+  "final_daily_ubi_amount": 99.7795,
+  "final_reserve_coverage_ratio": 88.6009,
+  "final_top10_b_share": 0.2935,
+  "final_gini_b": 0.4648,
+  "final_gini_integrity": 0.2122,
+  "newcomer_time_to_1B_proxy": 3,
+  "newcomer_time_to_governance_proxy": 3,
+  "recovery_rate_30d_proxy": 1.0,
+  "inactive_reentry_rate": 1.0,
+  "zero_B_but_active_ratio": 0.0,
+  "covenant_success_rate_newcomer": 4.0,
+  "dispute_win_rate_by_balance_bucket": {
+    "gte_10": 0.6667,
+    "1_to_10": 0.4375,
+    "lt_1": 0.0
+  },
+  "virtual_stake_usage_rate": 0.122,
+  "defense_quota_usage_rate": 0.0,
+  "defense_quota_eligible_total": 0,
+  "warning_flags": []
+}
