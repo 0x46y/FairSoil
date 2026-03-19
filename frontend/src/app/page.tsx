@@ -55,6 +55,7 @@ import {
 } from "../lib/marketVocabulary";
 import { useCovenantReview } from "../lib/useCovenantReview";
 import { useIdentityFlow } from "../lib/useIdentityFlow";
+import { WorkAgreementsSection } from "../components/WorkAgreementsSection";
 import {
   covenantAddress,
   missingEnv,
@@ -4964,92 +4965,26 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={styles.covenantSection}>
-            <div className={styles.covenantHeader}>
-              <div>
-                <span className={styles.sectionEyebrow}>Main work flow</span>
-                <h2>Work agreements</h2>
-                <p>See what each agreement is waiting for and who needs to act next.</p>
-              </div>
-              <div className={styles.covenantHeaderActions}>
-                <input
-                  className={styles.covenantSearch}
-                  value={covenantTagFilter}
-                  onChange={(event) => setCovenantTagFilter(event.target.value)}
-                  placeholder="Filter by tag…"
-                  aria-label="Filter agreements by tag"
-                  name="covenantTagFilter"
-                  autoComplete="off"
-                />
-                <button
-                  className={styles.secondaryButton}
-                  onClick={refreshCovenants}
-                  disabled={missingEnv || isLoadingCovenants}
-                >
-                  Refresh agreements
-                </button>
-                {dashboardView === "operator" ? (
-                  <button
-                    className={styles.secondaryButton}
-                    onClick={() => setOnlyFlaggedAgreements((current) => !current)}
-                  >
-                    {onlyFlaggedAgreements ? "Show all agreements" : "Only flagged agreements"}
-                  </button>
-                ) : null}
-                {dashboardView === "operator" ? (
-                  <button
-                    className={styles.secondaryButton}
-                    onClick={handleExportReviewCsv}
-                    disabled={visibleCovenants.length === 0}
-                  >
-                    Export review CSV
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          {dashboardView === "operator" ? (
-            <p className={styles.fieldHint}>
-              Operator view sorts agreements by review-priority tags first, then by newest agreement.
-              {onlyFlaggedAgreements ? " Only agreements with review or relationship warnings are shown." : ""}
-            </p>
-          ) : null}
-          <div className={styles.covenantStats}>
-            <div className={styles.covenantStatCard}>
-              <span className={styles.auditLabel}>All agreements</span>
-              <span className={styles.auditValue}>{covenantOverview.total}</span>
-            </div>
-            <div className={styles.covenantStatCard}>
-              <span className={styles.auditLabel}>Still in progress</span>
-              <span className={styles.auditValue}>{covenantOverview.active}</span>
-            </div>
-            <div className={styles.covenantStatCard}>
-              <span className={styles.auditLabel}>In dispute</span>
-              <span className={styles.auditValue}>{covenantOverview.disputed}</span>
-            </div>
-            <div className={styles.covenantStatCard}>
-              <span className={styles.auditLabel}>Need action now</span>
-              <span className={styles.auditValue}>{covenantOverview.awaitingAction}</span>
-            </div>
-          </div>
-          <div className={styles.covenantTable}>
-            <div className={styles.covenantRowHeader}>
-              <span>#</span>
-              <span>Worker</span>
-              <span>Reward</span>
-              <span>Creator share</span>
-              <span>Trust score</span>
-              <span>Worker claim</span>
-              <span>Status</span>
-              <span>Actions</span>
-            </div>
-            {visibleCovenants.length === 0 ? (
-              <div className={styles.covenantRowEmpty}>
-                {isLoadingCovenants
-                  ? "Loading agreements…"
-                  : "No agreements yet. Create one above to start the work flow."}
-              </div>
-            ) : (
-              visibleCovenants.map((item) => {
+        <WorkAgreementsSection
+          covenantTagFilter={covenantTagFilter}
+          onCovenantTagFilterChange={setCovenantTagFilter}
+          onRefresh={refreshCovenants}
+          missingEnv={missingEnv}
+          isLoadingCovenants={isLoadingCovenants}
+          dashboardView={dashboardView}
+          onlyFlaggedAgreements={onlyFlaggedAgreements}
+          onToggleOnlyFlagged={() => setOnlyFlaggedAgreements((current) => !current)}
+          onExportReviewCsv={handleExportReviewCsv}
+          visibleCount={visibleCovenants.length}
+          covenantOverview={covenantOverview}
+          isEmpty={visibleCovenants.length === 0}
+          emptyMessage={
+            isLoadingCovenants
+              ? "Loading agreements…"
+              : "No agreements yet. Create one above to start the work flow."
+          }
+        >
+          {visibleCovenants.map((item) => {
                   const transparencyNote = covenantTransparencyMap[String(item.id)] ?? emptyTransparencyNote();
                   const disputeReviewRecord =
                     disputeReviewRecords[item.id] ?? emptyDisputeReviewRecord();
@@ -5687,10 +5622,8 @@ export default function Home() {
                     ) : null}
                   </div>
                 </div>
-                )})
-            )}
-          </div>
-        </section>
+                )})}
+        </WorkAgreementsSection>
       </main>
     </div>
   );
