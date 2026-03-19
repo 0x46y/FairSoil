@@ -38,13 +38,11 @@ import {
   type QuoteBreakdownInput,
   buildMarketKey,
   buildTemplateMetadataValue,
-  emptyDisputeReviewRecord,
   emptyQuoteBreakdown,
   emptyTransparencyNote,
   materialLabelFor,
   materialVocabulary,
   normalizeBand,
-  parseArbiterResolutionNote,
   parseTemplateMetadata,
   parseTransparencyNote,
   scopeLabelFor,
@@ -56,6 +54,7 @@ import {
 import { useCovenantReview } from "../lib/useCovenantReview";
 import { useIdentityFlow } from "../lib/useIdentityFlow";
 import { WorkAgreementsSection } from "../components/WorkAgreementsSection";
+import { WorkAgreementRow } from "../components/WorkAgreementRow";
 import {
   covenantAddress,
   missingEnv,
@@ -4984,645 +4983,76 @@ export default function Home() {
               : "No agreements yet. Create one above to start the work flow."
           }
         >
-          {visibleCovenants.map((item) => {
-                  const transparencyNote = covenantTransparencyMap[String(item.id)] ?? emptyTransparencyNote();
-                  const disputeReviewRecord =
-                    disputeReviewRecords[item.id] ?? emptyDisputeReviewRecord();
-                  const parsedArbiterNote = parseArbiterResolutionNote(disputeReviewRecord.arbiterNote);
-                  const relationWarnings = reputationRingSignals.notesByCovenant[item.id] ?? [];
-                  const reviewPriorityWarnings = reviewPrioritySignals.notesByCovenant[item.id] ?? [];
-                  const disputeReviewTimeline = trailItems
-                    .filter((trailItem) => trailMatchesCovenant(trailItem, item.id))
-                    .filter((trailItem) => {
-                      const category = auditCategoryForTitle(trailItem.title);
-                      return category === "dispute" || category === "covenant";
-                    })
-                    .sort((a, b) => a.timestamp - b.timestamp)
-                    .slice(-5);
-                  const reviewChecklist = [
-                    item.status >= 5
-                      ? "Check what the worker originally asked for, including payout % and the reason given."
-                      : "Confirm the work scope and expected payout before taking action.",
-                    item.status >= STATUS_DISPUTED
-                      ? "Compare the requester response against the worker evidence. Look for missing dates or gaps."
-                      : "Ask whether the requester has answered the help request yet.",
-                    relationWarnings.length > 0
-                      ? "Review repeated-pair or related-party warnings before trusting reputation at face value."
-                      : "Use integrity only as a supporting signal after reading the evidence.",
-                    transparencyNote.marketContext
-                      ? "Check whether the market note actually explains the quoted price difference."
-                      : "If the quote looks unusual, ask for market context and a visible cost breakdown.",
-                  ];
-                  return (
-                <div className={styles.covenantRow} key={`covenant-${item.id}`}>
-                  <div className={styles.covenantCell}>
-                    <span className={styles.covenantCellLabel}>Agreement</span>
-                    <span className={styles.covenantCellValue}>#{item.id}</span>
-                    {transparencyNote.scopeLabel ? (
-                      <span className={styles.covenantTags}>{transparencyNote.scopeLabel}</span>
-                    ) : null}
-                  </div>
-                  <div className={styles.covenantCell}>
-                    <span className={styles.covenantCellLabel}>Worker</span>
-                    <span className={`${styles.covenantCellValue} ${styles.covenantWorkerValue}`}>
-                      {item.worker.slice(0, 10)}…
-                    </span>
-                  </div>
-                  <div className={styles.covenantCell}>
-                    <span className={styles.covenantCellLabel}>Reward</span>
-                    <span className={styles.covenantCellValue}>
-                      {Number(formatUnits(item.tokenBReward, 18)).toFixed(2)}{" "}
-                      {item.paymentToken === 1 ? "SOILA" : "SOILB"}
-                    </span>
-                  </div>
-                  <div className={styles.covenantCell}>
-                    <span className={styles.covenantCellLabel}>Royalty</span>
-                    <span className={styles.covenantCellValue}>
-                      {item.templateId > 0n ? (() => {
-                        const template = templateById.get(Number(item.templateId));
-                        if (!template) return "--";
-                        return `${formatPercent(template.royaltyBps)}% → ${formatPercent(
-                          template.effectiveRoyaltyBps
-                        )}%`;
-                      })() : "--"}
-                    </span>
-                  </div>
-                  <div className={styles.covenantCell}>
-                    <span className={styles.covenantCellLabel}>Integrity</span>
-                    <span className={styles.covenantCellValue}>{item.integrityPoints.toString()}</span>
-                  </div>
-                  <div className={styles.covenantCell}>
-                    <span className={styles.covenantCellLabel}>Claim</span>
-                    <span className={styles.covenantCellValue}>{Number(item.issueClaimBps) / 100}%</span>
-                  </div>
-                  <div className={styles.covenantCell}>
-                    <span className={styles.covenantCellLabel}>Status</span>
-                    <span>
-                    <span className={styles.statusBadge}>
-                      {covenantStatusLabels[item.status] ?? "Unknown"}
-                    </span>
-                    <span className={styles.statusNote}>
-                      {nextStepForCovenant(item, account.address, isDisputeResolver)}
-                    </span>
-                    {covenantTagMap[String(item.id)] ? (
-                      <span className={styles.covenantTags}>
-                        {covenantTagMap[String(item.id)]}
-                      </span>
-                    ) : null}
-                    {transparencyNote.relatedPartyDisclosure ? (
-                      <span className={styles.statusNote}>
-                        Related parties: {transparencyNote.relatedPartyDisclosure}
-                      </span>
-                    ) : null}
-                    {transparencyNote.marketContext ? (
-                      <span className={styles.statusNote}>
-                        Market note: {transparencyNote.marketContext}
-                      </span>
-                    ) : null}
-                    {relationWarnings.length > 0 ? (
-                      <span className={styles.warningInlineGroup}>
-                        {relationWarnings.map((warning) => (
-                          <span key={`${item.id}-${warning}`} className={styles.warningPill}>
-                            {warning}
-                          </span>
-                        ))}
-                      </span>
-                    ) : null}
-                    </span>
-                  </div>
-                  <div className={styles.covenantActions}>
-                    {item.status >= 5 ? (
-                      <div className={styles.disputeTrack}>
-                        {disputeSteps.map((label, index) => {
-                          const stage = getDisputeStage(item.status);
-                          const active = stage[index];
-                          return (
-                            <span
-                              key={`${item.id}-${label}`}
-                              className={`${styles.disputeStep} ${
-                                active ? styles.disputeStepActive : ""
-                              }`}
-                            >
-                              {label}
-                            </span>
-                          );
-                        })}
-                        <p className={styles.disputeHint}>
-                          {disputeStatusLabel(item.status)}
-                          <span className={styles.disputeSubhint}>
-                            The dispute arbiter first proposes an outcome, then finalizes it. High-value
-                            cases can still route to outside adjudication.
-                          </span>
-                          <span className={styles.disputeSubhintStrong}>
-                            The arbiter should review the evidence and timeline, not the wallet size.
-                          </span>
-                          {externalAdjudicationUrl ? (
-                            <span className={styles.disputeSubhint}>
-                              <a
-                                className={styles.timelineLink}
-                                href={
-                                  buildExternalAdjudicationLink(
-                                    externalAdjudicationUrl,
-                                    item.id
-                                  ) ?? undefined
-                                }
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                Open external adjudication
-                              </a>
-                            </span>
-                          ) : null}
-                          {!isDisputeResolver ? (
-                            <span className={styles.disputeSubhint}>
-                              If this is a high-value case, the final answer may wait for the outside review.
-                            </span>
-                          ) : null}
-                        </p>
-                        <div className={styles.disputeReviewGrid}>
-                              <div className={styles.disputeReviewCard}>
-                            <p className={styles.disputeReviewKicker}>Recent dispute record</p>
-                            <div className={styles.disputeEvidenceGrid}>
-                              <div className={styles.disputeEvidenceCard}>
-                                <span className={styles.inlinePill}>Worker</span>
-                                <p className={styles.disputeEvidenceText}>
-                                  {disputeReviewRecord.workerReason || "No worker note saved yet."}
-                                </p>
-                                {formatEvidenceLink(disputeReviewRecord.workerEvidenceUri) ? (
-                                  <div className={styles.issuePreview}>
-                                    {formatEvidenceLink(disputeReviewRecord.workerEvidenceUri)}
-                                  </div>
-                                ) : null}
-                              </div>
-                              <div className={styles.disputeEvidenceCard}>
-                                <span className={styles.inlinePill}>Requester</span>
-                                <p className={styles.disputeEvidenceText}>
-                                  {disputeReviewRecord.requesterReason || "No requester challenge saved yet."}
-                                </p>
-                                {formatEvidenceLink(disputeReviewRecord.requesterEvidenceUri) ? (
-                                  <div className={styles.issuePreview}>
-                                    {formatEvidenceLink(disputeReviewRecord.requesterEvidenceUri)}
-                                  </div>
-                                ) : null}
-                              </div>
-                              <div className={styles.disputeEvidenceCard}>
-                                <span className={styles.inlinePill}>Arbiter</span>
-                                {parsedArbiterNote.legacyText ? (
-                                  <p className={styles.disputeEvidenceText}>
-                                    {parsedArbiterNote.legacyText}
-                                  </p>
-                                ) : (
-                                  <div className={styles.disputeStructuredNote}>
-                                    <p className={styles.disputeEvidenceText}>
-                                      <strong>Claim summary:</strong>{" "}
-                                      {parsedArbiterNote.claimSummary || "Not filled yet."}
-                                    </p>
-                                    <p className={styles.disputeEvidenceText}>
-                                      <strong>Requester response:</strong>{" "}
-                                      {parsedArbiterNote.requesterResponse || "Not filled yet."}
-                                    </p>
-                                    <p className={styles.disputeEvidenceText}>
-                                      <strong>Missing evidence:</strong>{" "}
-                                      {parsedArbiterNote.missingEvidence || "Not filled yet."}
-                                    </p>
-                                    <p className={styles.disputeEvidenceText}>
-                                      <strong>Recommended payout:</strong>{" "}
-                                      {parsedArbiterNote.recommendedPayoutPct ?? "Not set yet"}%
-                                    </p>
-                                  </div>
-                                )}
-                                {formatEvidenceLink(disputeReviewRecord.arbiterEvidenceUri) ? (
-                                  <div className={styles.issuePreview}>
-                                    {formatEvidenceLink(disputeReviewRecord.arbiterEvidenceUri)}
-                                  </div>
-                                ) : null}
-                              </div>
-                            </div>
-                            <div className={styles.disputeReviewList}>
-                              {disputeReviewTimeline.length === 0 ? (
-                                <div className={styles.disputeReviewItem}>
-                                  <div>
-                                    <p className={styles.disputeReviewTitle}>No dispute record yet</p>
-                                    <p className={styles.disputeReviewBody}>
-                                      Once a help request, challenge, or proposal is logged, it will appear here in plain order.
-                                    </p>
-                                  </div>
-                                </div>
-                              ) : (
-                                disputeReviewTimeline.map((trailItem) => (
-                                  <div
-                                    key={`review-${item.id}-${trailItem.id}`}
-                                    className={styles.disputeReviewItem}
-                                  >
-                                    <span className={styles.disputeReviewTime}>
-                                      {formatRelativeTime(trailItem.timestamp, trailNow, locale)}
-                                    </span>
-                                    <div>
-                                      <p className={styles.disputeReviewTitle}>
-                                        {disputeReviewLabel(trailItem.title)}
-                                      </p>
-                                      <p className={styles.disputeReviewBody}>
-                                        {trailItem.body || simplifyAuditTitle(trailItem.title)}
-                                      </p>
-                                    </div>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          </div>
-                          <div className={styles.disputeReviewCard}>
-                            <p className={styles.disputeReviewKicker}>What to review next</p>
-                            <div className={styles.disputeChecklist}>
-                              {reviewChecklist.map((note) => (
-                                <p key={`${item.id}-${note}`} className={styles.disputeChecklistItem}>
-                                  {note}
-                                </p>
-                              ))}
-                            </div>
-                            {(item.status === 7 || item.status === 8) && (
-                              <div className={styles.disputeOutcomeCard}>
-                                <span className={styles.inlinePill}>Latest arbiter plan</span>
-                                <p className={styles.disputeOutcomeText}>
-                                  Worker payout: {Number(item.proposedWorkerPayoutBps) / 100}% · Integrity:{" "}
-                                  {item.proposedIntegrityPoints.toString()} · Penalty:{" "}
-                                  {Number(formatUnits(item.proposedSlashingPenalty, 18)).toFixed(2)} SOILB
-                                </p>
-                              </div>
-                            )}
-                            {transparencyNote.relatedPartyDisclosure || transparencyNote.marketContext ? (
-                              <div className={styles.disputeMetaBlock}>
-                                {transparencyNote.relatedPartyDisclosure ? (
-                                  <p className={styles.disputeMetaLine}>
-                                    <strong>Related parties:</strong> {transparencyNote.relatedPartyDisclosure}
-                                  </p>
-                                ) : null}
-                                {transparencyNote.marketContext ? (
-                                  <p className={styles.disputeMetaLine}>
-                                    <strong>Market context:</strong> {transparencyNote.marketContext}
-                                  </p>
-                                ) : null}
-                              </div>
-                            ) : null}
-                            {relationWarnings.length > 0 ? (
-                              <div className={styles.warningInlineGroup}>
-                                {relationWarnings.map((warning) => (
-                                  <span key={`review-warning-${item.id}-${warning}`} className={styles.warningPill}>
-                                    {warning}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : null}
-                            {reviewPriorityWarnings.length > 0 ? (
-                              <div className={styles.warningInlineGroup}>
-                                {reviewPriorityWarnings.map((warning) => (
-                                  <span key={`priority-warning-${item.id}-${warning}`} className={styles.warningPill}>
-                                    {warning}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
-                    {item.status === 0 &&
-                    account.address &&
-                    item.creator.toLowerCase() === account.address.toLowerCase() ? (
-                      <button
-                        className={`${styles.secondaryButton} ${styles.covenantActionPrimary}`}
-                        onClick={() => handleCancelCovenant(item.id)}
-                        disabled={isBusy}
-                        >
-                          {actionLabel(`cancel-${item.id}`, "Cancel and refund")}
-                        </button>
-                    ) : null}
-                    {item.status === 0 &&
-                    account.address &&
-                    item.worker.toLowerCase() === account.address.toLowerCase() ? (
-                      <button
-                        className={`${styles.ghostButton} ${styles.covenantActionPrimary}`}
-                        onClick={() => handleSubmitWork(item.id)}
-                        disabled={isBusy}
-                        >
-                          {actionLabel(`submit-${item.id}`, "Submit work")}
-                        </button>
-                    ) : null}
-                    {(item.status === 0 || item.status === 1 || item.status === 5) &&
-                    account.address &&
-                    item.worker.toLowerCase() === account.address.toLowerCase() ? (
-                      <div className={styles.issueActions}>
-                        <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Claim %</span>
-                          <input
-                            className={styles.issueInput}
-                            value={issueClaims[item.id] ?? ""}
-                            onChange={(event) =>
-                              setIssueClaims((prev) => ({
-                                ...prev,
-                                [item.id]: event.target.value,
-                              }))
-                            }
-                            placeholder="0"
-                          />
-                          <span className={styles.issueHelp}>
-                            Percent of the reward the worker says should still be paid.
-                          </span>
-                          {issueDepositEstimates[item.id] ? (
-                            <>
-                              <span className={styles.issueHelp}>
-                                Issue deposit: {formatTokenB(issueDepositEstimates[item.id])} (5%)
-                              </span>
-                              {renderDepositBreakdown(
-                                issueDepositEstimates[item.id],
-                                isSelf(item.worker)
-                              )}
-                            </>
-                          ) : null}
-                        </label>
-                        <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Support reason</span>
-                          
-                          <textarea
-                            className={styles.issueTextarea}
-                            value={issueReasons[item.id] ?? ""}
-                            onChange={(event) =>
-                              setIssueReasons((prev) => ({
-                                ...prev,
-                                [item.id]: event.target.value,
-                              }))
-                            }
-                            placeholder="Explain what problem happened"
-                          />
-                        </label>
-                        <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Evidence URL</span>
-                          <input
-                            className={`${styles.issueInput} ${styles.issueInputWide}`}
-                            value={issueEvidenceUris[item.id] ?? ""}
-                            onChange={(event) =>
-                              setIssueEvidenceUris((prev) => ({
-                                ...prev,
-                                [item.id]: event.target.value,
-                              }))
-                            }
-                            placeholder="https://…"
-                          />
-                          {formatEvidenceLink(issueEvidenceUris[item.id]) ? (
-                            <div className={styles.issuePreview}>
-                              {formatEvidenceLink(issueEvidenceUris[item.id])}
-                            </div>
-                          ) : null}
-                        </label>
-                        <button
-                          className={styles.secondaryButton}
-                          onClick={() => handleReportIssue(item.id)}
-                          disabled={isBusy || (issueClaims[item.id] ?? "").trim() === ""}
-                        >
-                          {actionLabel(
-                            `report-issue-${item.id}`,
-                            item.status === 5 ? "Update help request" : "Ask for help"
-                          )}
-                        </button>
-                      </div>
-                    ) : null}
-                    {item.status === 1 &&
-                    account.address &&
-                    item.creator.toLowerCase() === account.address.toLowerCase() ? (
-                      <>
-                        <button
-                          className={`${styles.primaryButton} ${styles.covenantActionPrimary}`}
-                          onClick={() => handleApproveWork(item.id)}
-                          disabled={isBusy}
-                        >
-                          {actionLabel(`approve-${item.id}`, "Approve work")}
-                        </button>
-                        <button
-                          className={styles.secondaryButton}
-                          onClick={() => handleRejectWork(item.id)}
-                          disabled={isBusy}
-                        >
-                          {actionLabel(`reject-${item.id}`, "Reject work")}
-                        </button>
-                      </>
-                    ) : null}
-                    {(item.status === 5 || item.status === 6) &&
-                    account.address &&
-                    item.creator.toLowerCase() === account.address.toLowerCase() ? (
-                      <>
-                        <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Support reason</span>
-                          <textarea
-                            className={styles.issueTextarea}
-                            value={disputeReasons[item.id] ?? ""}
-                            onChange={(event) =>
-                              setDisputeReasons((prev) => ({
-                                ...prev,
-                                [item.id]: event.target.value,
-                              }))
-                            }
-                            placeholder="Explain why you disagree with the worker claim"
-                          />
-                          <span className={styles.issueHelp}>
-                            Opening a dispute temporarily holds part of the payout. Missing details may fail after 48h.
-                          </span>
-                          <span className={styles.issueHelp}>
-                            The goal is to review the evidence fairly. A larger wallet should not decide the outcome.
-                          </span>
-                          {issueDepositEstimates[item.id] ? (
-                            <>
-                              <span className={styles.issueHelp}>
-                                Dispute deposit: {formatTokenB(issueDepositEstimates[item.id])} (5%)
-                              </span>
-                              {renderDepositBreakdown(
-                                issueDepositEstimates[item.id],
-                                isSelf(item.creator)
-                              )}
-                            </>
-                          ) : null}
-                        </label>
-                        <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Evidence URL</span>
-                          <input
-                            className={`${styles.issueInput} ${styles.issueInputWide}`}
-                            value={disputeEvidenceUris[item.id] ?? ""}
-                            onChange={(event) =>
-                              setDisputeEvidenceUris((prev) => ({
-                                ...prev,
-                                [item.id]: event.target.value,
-                              }))
-                            }
-                            placeholder="https://…"
-                          />
-                          {formatEvidenceLink(disputeEvidenceUris[item.id]) ? (
-                            <div className={styles.issuePreview}>
-                              {formatEvidenceLink(disputeEvidenceUris[item.id])}
-                            </div>
-                          ) : null}
-                          <span className={styles.issueHelp}>
-                            Evidence is optional, but it can increase the maximum refundable amount.
-                          </span>
-                          <span className={styles.issueHelp}>
-                            Add the clearest evidence you have. The dispute arbiter is expected to judge the record, not the wallet size.
-                          </span>
-                        </label>
-                        {item.status === 5 ? (
-                          <button
-                            className={`${styles.primaryButton} ${styles.covenantActionPrimary}`}
-                            onClick={() => handleAcceptIssue(item.id)}
-                            disabled={isBusy}
-                          >
-                          {actionLabel(`accept-issue-${item.id}`, "Accept worker claim")}
-                          </button>
-                        ) : null}
-                        <button
-                          className={styles.secondaryButton}
-                          onClick={() => handleDisputeIssue(item.id)}
-                          disabled={isBusy}
-                        >
-                          {actionLabel(
-                            `dispute-${item.id}`,
-                            item.status === 6 ? "Update dispute" : "Challenge claim"
-                          )}
-                        </button>
-                      </>
-                    ) : null}
-                    {(item.status === 6 || item.status === 7) &&
-                    account.address &&
-                    isDisputeResolver ? (
-                      <div className={styles.resolveActions}>
-                        <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Payout %</span>
-                          <input
-                            className={styles.issueInput}
-                            value={resolveClaims[item.id] ?? ""}
-                            onChange={(event) =>
-                              setResolveClaims((prev) => ({
-                                ...prev,
-                                [item.id]: event.target.value,
-                              }))
-                            }
-                            placeholder="50"
-                          />
-                          <span className={styles.issueHelp}>
-                            Percent of the reward that should go to the worker.
-                          </span>
-                        </label>
-                        <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Trust score</span>
-                          <input
-                            className={styles.issueInput}
-                            value={resolveIntegrity[item.id] ?? ""}
-                            onChange={(event) =>
-                              setResolveIntegrity((prev) => ({
-                                ...prev,
-                                [item.id]: event.target.value,
-                              }))
-                            }
-                            placeholder="10"
-                          />
-                        </label>
-                        <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Penalty in Token B</span>
-                          <input
-                            className={styles.issueInput}
-                            value={resolveSlashing[item.id] ?? ""}
-                            onChange={(event) =>
-                              setResolveSlashing((prev) => ({
-                                ...prev,
-                                [item.id]: event.target.value,
-                              }))
-                            }
-                            placeholder="0"
-                          />
-                        </label>
-                        <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Claim summary</span>
-                          <textarea
-                            className={styles.issueTextarea}
-                            value={resolveClaimSummaries[item.id] ?? ""}
-                            onChange={(event) =>
-                              setResolveClaimSummaries((prev) => ({
-                                ...prev,
-                                [item.id]: event.target.value,
-                              }))
-                            }
-                            placeholder="Summarize what the worker is asking for"
-                          />
-                          <span className={styles.issueHelp}>
-                            This becomes part of the on-chain arbiter note.
-                          </span>
-                        </label>
-                        <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Requester response</span>
-                          <textarea
-                            className={styles.issueTextarea}
-                            value={resolveRequesterResponses[item.id] ?? ""}
-                            onChange={(event) =>
-                              setResolveRequesterResponses((prev) => ({
-                                ...prev,
-                                [item.id]: event.target.value,
-                              }))
-                            }
-                            placeholder="Summarize the requester response and strongest counterpoint"
-                          />
-                        </label>
-                        <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Missing evidence / gaps</span>
-                          <textarea
-                            className={styles.issueTextarea}
-                            value={resolveMissingEvidenceNotes[item.id] ?? ""}
-                            onChange={(event) =>
-                              setResolveMissingEvidenceNotes((prev) => ({
-                                ...prev,
-                                [item.id]: event.target.value,
-                              }))
-                            }
-                            placeholder="What is still missing, unclear, or contradictory?"
-                          />
-                        </label>
-                        <label className={styles.issueField}>
-                          <span className={styles.issueLabel}>Arbiter evidence URL</span>
-                          <input
-                            className={`${styles.issueInput} ${styles.issueInputWide}`}
-                            value={resolveEvidenceUris[item.id] ?? ""}
-                            onChange={(event) =>
-                              setResolveEvidenceUris((prev) => ({
-                                ...prev,
-                                [item.id]: event.target.value,
-                              }))
-                            }
-                            placeholder="https://…"
-                          />
-                          {formatEvidenceLink(resolveEvidenceUris[item.id]) ? (
-                            <div className={styles.issuePreview}>
-                              {formatEvidenceLink(resolveEvidenceUris[item.id])}
-                            </div>
-                          ) : null}
-                        </label>
-                        <button
-                          className={`${styles.primaryButton} ${styles.covenantActionPrimary}`}
-                          onClick={() => handleResolveDispute(item.id)}
-                          disabled={isBusy}
-                        >
-                          {actionLabel(
-                            `resolve-${item.id}`,
-                            item.status === 7 ? "Update proposal" : "Propose outcome"
-                          )}
-                        </button>
-                        {item.status === 7 ? (
-                          <button
-                            className={styles.secondaryButton}
-                            onClick={() => handleFinalizeResolution(item.id)}
-                            disabled={isBusy}
-                          >
-                            {actionLabel(`finalize-${item.id}`, "Finalize outcome")}
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-                )})}
+          {visibleCovenants.map((item) => (
+            <WorkAgreementRow
+              key={`covenant-${item.id}`}
+              item={item}
+              accountAddress={account.address}
+              isDisputeResolver={isDisputeResolver}
+              externalAdjudicationUrl={externalAdjudicationUrl}
+              templateById={templateById}
+              covenantStatusLabels={covenantStatusLabels}
+              covenantTagMap={covenantTagMap}
+              covenantTransparencyMap={covenantTransparencyMap}
+              disputeReviewRecords={disputeReviewRecords}
+              reputationRingNotes={reputationRingSignals.notesByCovenant}
+              reviewPriorityNotes={reviewPrioritySignals.notesByCovenant}
+              trailItems={trailItems}
+              trailNow={trailNow}
+              locale={locale}
+              disputeSteps={disputeSteps}
+              isBusy={isBusy}
+              issueClaims={issueClaims}
+              setIssueClaims={setIssueClaims}
+              issueReasons={issueReasons}
+              setIssueReasons={setIssueReasons}
+              issueEvidenceUris={issueEvidenceUris}
+              setIssueEvidenceUris={setIssueEvidenceUris}
+              issueDepositEstimates={issueDepositEstimates}
+              disputeReasons={disputeReasons}
+              setDisputeReasons={setDisputeReasons}
+              disputeEvidenceUris={disputeEvidenceUris}
+              setDisputeEvidenceUris={setDisputeEvidenceUris}
+              resolveClaims={resolveClaims}
+              setResolveClaims={setResolveClaims}
+              resolveIntegrity={resolveIntegrity}
+              setResolveIntegrity={setResolveIntegrity}
+              resolveSlashing={resolveSlashing}
+              setResolveSlashing={setResolveSlashing}
+              resolveClaimSummaries={resolveClaimSummaries}
+              setResolveClaimSummaries={setResolveClaimSummaries}
+              resolveRequesterResponses={resolveRequesterResponses}
+              setResolveRequesterResponses={setResolveRequesterResponses}
+              resolveMissingEvidenceNotes={resolveMissingEvidenceNotes}
+              setResolveMissingEvidenceNotes={setResolveMissingEvidenceNotes}
+              resolveEvidenceUris={resolveEvidenceUris}
+              setResolveEvidenceUris={setResolveEvidenceUris}
+              formatPercent={formatPercent}
+              nextStepForCovenant={nextStepForCovenant}
+              getDisputeStage={getDisputeStage}
+              disputeStatusLabel={disputeStatusLabel}
+              buildExternalAdjudicationLink={buildExternalAdjudicationLink}
+              formatEvidenceLink={formatEvidenceLink}
+              formatRelativeTime={formatRelativeTime}
+              disputeReviewLabel={disputeReviewLabel}
+              simplifyAuditTitle={simplifyAuditTitle}
+              auditCategoryForTitle={auditCategoryForTitle}
+              trailMatchesCovenant={trailMatchesCovenant}
+              renderDepositBreakdown={renderDepositBreakdown}
+              isSelf={isSelf}
+              actionLabel={actionLabel}
+              handleCancelCovenant={handleCancelCovenant}
+              handleSubmitWork={handleSubmitWork}
+              handleReportIssue={handleReportIssue}
+              handleApproveWork={handleApproveWork}
+              handleRejectWork={handleRejectWork}
+              handleAcceptIssue={handleAcceptIssue}
+              handleDisputeIssue={handleDisputeIssue}
+              handleResolveDispute={handleResolveDispute}
+              handleFinalizeResolution={handleFinalizeResolution}
+              STATUS_DISPUTED={STATUS_DISPUTED}
+            />
+          ))}
         </WorkAgreementsSection>
       </main>
     </div>
