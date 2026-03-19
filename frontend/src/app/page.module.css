@@ -206,6 +206,46 @@
   gap: 16px;
 }
 
+.viewTabs {
+  display: grid;
+  gap: 12px;
+}
+
+.tabList {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(122, 92, 43, 0.1);
+  box-shadow: 0 10px 24px rgba(70, 55, 30, 0.05);
+  width: fit-content;
+}
+
+.tabButton {
+  border: none;
+  background: transparent;
+  color: var(--ink-700);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tabButtonActive {
+  background: linear-gradient(135deg, rgba(122, 92, 43, 0.95), rgba(196, 154, 90, 0.92));
+  color: #fffaf0;
+  box-shadow: 0 10px 20px rgba(122, 92, 43, 0.18);
+}
+
+.tabDescription {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-600);
+  max-width: 760px;
+}
+
 .metric {
   background: var(--glass);
   border-radius: 24px;
@@ -1262,6 +1302,16 @@
 
   .main {
     padding: 40px 0 72px;
+  }
+
+  .tabList {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tabButton {
+    text-align: center;
   }
 
   .startStrip {

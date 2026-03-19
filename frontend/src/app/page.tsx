@@ -68,6 +68,8 @@ type TrailLog = {
   args?: Record<string, unknown>;
 };
 
+type DashboardView = "participant" | "operator";
+
 const shortAddress = (value: string) => `${value.slice(0, 6)}…${value.slice(-4)}`;
 const safeAddress = (value?: string) => (value ? shortAddress(value) : "Unknown");
 const formatDate = (timestamp: bigint, locale: string) =>
@@ -104,8 +106,8 @@ const auditFilters = [
 
 const disputeStatusLabel = (status: number) => {
   if (status === STATUS_RESOLVED) return "The dispute is finished.";
-  if (status >= STATUS_PROPOSED) return "The resolver has proposed an outcome.";
-  if (status >= STATUS_DISPUTED) return "The dispute is waiting for the resolver.";
+  if (status >= STATUS_PROPOSED) return "The dispute arbiter has proposed an outcome.";
+  if (status >= STATUS_DISPUTED) return "The dispute is waiting for the arbiter.";
   return "The worker has asked for help on this agreement.";
 };
 
@@ -156,7 +158,7 @@ const simplifyAuditTitle = (title: string) => {
   if (title.startsWith("Support resolved: agreement #")) {
     return title.replace("Support resolved: agreement #", "Dispute finished for agreement #");
   }
-  if (title === "Support resolver updated") return "Dispute resolver updated";
+  if (title === "Support resolver updated") return "Dispute arbiter updated";
   return title;
 };
 
@@ -175,25 +177,25 @@ const nextStepForCovenant = (
     return "Next: wait for the worker to submit the work.";
   }
   if (item.status === 1) {
-    if (isCreator) return "Next: the owner should approve or reject the submitted work.";
-    if (isWorker) return "Next: wait for the owner review.";
-    return "Next: waiting for the owner review.";
+    if (isCreator) return "Next: the requester should approve or reject the submitted work.";
+    if (isWorker) return "Next: wait for the requester review.";
+    return "Next: waiting for the requester review.";
   }
   if (item.status === 2) return "Finished: reward and trust score were released.";
-  if (item.status === 3) return "Stopped: the owner rejected this submission.";
+  if (item.status === 3) return "Stopped: the requester rejected this submission.";
   if (item.status === 4) return "Stopped: this agreement was cancelled and refunded.";
   if (item.status === 5) {
     if (isCreator) return "Next: accept the worker claim or challenge it.";
-    if (isWorker) return "Next: wait for the owner response to your help request.";
-    return "Next: the owner must respond to the worker claim.";
+    if (isWorker) return "Next: wait for the requester response to your help request.";
+    return "Next: the requester must respond to the worker claim.";
   }
   if (item.status === 6) {
-    if (isDisputeResolver) return "Next: the resolver should propose an outcome.";
-    return "Next: waiting for the resolver to review the dispute.";
+    if (isDisputeResolver) return "Next: the dispute arbiter should propose an outcome.";
+    return "Next: waiting for the dispute arbiter to review the dispute.";
   }
   if (item.status === 7) {
-    if (isDisputeResolver) return "Next: the resolver should finalize the proposed outcome.";
-    return "Next: waiting for the resolver to finalize the outcome.";
+    if (isDisputeResolver) return "Next: the dispute arbiter should finalize the proposed outcome.";
+    return "Next: waiting for the dispute arbiter to finalize the outcome.";
   }
   if (item.status === 8) return "Finished: the dispute outcome has been finalized.";
   return "Next step unavailable.";
@@ -213,7 +215,7 @@ const explainDisabledAction = (options: {
   if (options.busy) return "Please wait until the current wallet action finishes.";
   if (options.missingEnv) return "Contract addresses are missing in frontend/.env.local.";
   if (options.walletConnected === false) return "Connect a wallet first.";
-  if (options.ownerRequired) return "Switch to the owner wallet for this action.";
+  if (options.ownerRequired) return "Switch to the temporary operator wallet for this action.";
   if (options.workerRequired) return "Enter the worker wallet first.";
   if (options.libraryRequired) return "Template library is not connected in this environment.";
   if (options.registryRequired) return "Resource registry is not connected in this environment.";
@@ -288,7 +290,7 @@ const formatTxError = (error: unknown) => {
     return "This wallet does not have enough balance for that action.";
   }
   if (lower.includes("owner")) {
-    return "This action needs the owner wallet.";
+    return "This action needs the temporary operator wallet.";
   }
   return `This transaction failed. Check the connected wallet, balances, and contract setup. Details: ${message}`;
 };
@@ -391,6 +393,7 @@ export default function Home() {
   const [appiDayInput, setAppiDayInput] = useState("");
   const [trailQuery, setTrailQuery] = useState("");
   const [trailFilter, setTrailFilter] = useState<(typeof auditFilters)[number]["value"]>("all");
+  const [dashboardView, setDashboardView] = useState<DashboardView>("participant");
   const [appiStats, setAppiStats] = useState<
     { category: number; reports: number; unique: number }[]
   >([]);
@@ -1232,7 +1235,7 @@ export default function Home() {
           id,
           timestamp,
           title: "Support resolver updated",
-          body: `Resolver ${safeAddress(args.resolver as string | undefined)}`,
+          body: `Dispute arbiter ${safeAddress(args.resolver as string | undefined)}`,
         };
       }
       case "ResolutionProposed": {
@@ -2987,6 +2990,39 @@ export default function Home() {
           </div>
         </section>
 
+        <section className={styles.viewTabs} aria-label="Dashboard sections">
+          <div className={styles.tabList} role="tablist" aria-label="Choose dashboard view">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={dashboardView === "participant"}
+              className={`${styles.tabButton} ${
+                dashboardView === "participant" ? styles.tabButtonActive : ""
+              }`}
+              onClick={() => setDashboardView("participant")}
+            >
+              Use FairSoil
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={dashboardView === "operator"}
+              className={`${styles.tabButton} ${
+                dashboardView === "operator" ? styles.tabButtonActive : ""
+              }`}
+              onClick={() => setDashboardView("operator")}
+            >
+              Run FairSoil
+            </button>
+          </div>
+          <p className={styles.tabDescription}>
+            {dashboardView === "participant"
+              ? "Participant view is the default. It shows the everyday flow: verify, collect bonuses, and create agreements."
+              : "Operator view is for the temporary operator wallet, manual reviewers, and the dispute arbiter."}
+          </p>
+        </section>
+
+        {dashboardView === "participant" ? (
         <section className={`${styles.dashboardSection} ${styles.participantSection}`}>
           <div className={styles.sectionHeading}>
             <div>
@@ -3050,11 +3086,15 @@ export default function Home() {
                     ? "This wallet is verified."
                     : worldIdAppId && worldIdActionId
                     ? "Use World ID to verify this wallet and unlock the full daily bonus flow."
-                    : "This wallet is not verified yet. For MVP testing, the owner can verify it manually."}
+                    : "This wallet is not verified yet. For MVP testing, the temporary operator can verify it manually."}
                 </p>
                 <div className={styles.cardFooter}>
                   <span>Verification is needed for the full bonus flow</span>
-                  <span>{isTokenAOwner ? "Owner wallet connected" : "Owner wallet required"}</span>
+                  <span>
+                    {isTokenAOwner
+                      ? "Temporary operator wallet connected"
+                      : "Temporary operator wallet required"}
+                  </span>
                 </div>
                 <div className={styles.cardActions}>
                   {worldIdAppId && worldIdActionId ? (
@@ -3593,7 +3633,9 @@ export default function Home() {
             </article>
           </div>
         </section>
+        ) : null}
 
+        {dashboardView === "operator" ? (
         <section className={`${styles.dashboardSection} ${styles.operatorSection}`}>
           <div className={styles.sectionHeading}>
             <div>
@@ -3601,14 +3643,14 @@ export default function Home() {
               <h2>System setup and review tools</h2>
             </div>
             <p>
-              These tools are for the wallet that deployed the contracts, updates
-              system settings, reports verified outcomes, or resolves disputes.
+              These tools are for the temporary operator wallet, manual reviewers,
+              and the dispute arbiter during the MVP phase.
             </p>
           </div>
           <div className={styles.operatorScope}>
-            <span>Owner wallet: changes system settings and treasury rules</span>
-            <span>Reporter: adds verified rewards after work is checked</span>
-            <span>Resolver: handles disputes when agreement parties disagree</span>
+            <span>Temporary operator: changes system settings and treasury rules</span>
+            <span>Manual reviewer: adds verified rewards after work is checked</span>
+            <span>Dispute arbiter: handles disagreements when agreement parties conflict</span>
           </div>
           <div className={styles.grid}>
             <article className={`${styles.card} ${styles.cardCompact}`}>
@@ -3765,8 +3807,8 @@ export default function Home() {
                 </button>
               </div>
               <p className={styles.taskHint}>
-                In this MVP, the owner wallet sets the rules, reporters submit values,
-                and the owner wallet applies the final update.
+                In this MVP, the temporary operator wallet sets the rules, reporters submit values,
+                and the temporary operator wallet applies the final update.
               </p>
               {!account.address || !isTreasuryOwner || isBusy ? (
                 <p className={styles.helperNote}>
@@ -3951,7 +3993,7 @@ export default function Home() {
                 {actionLabel("reportTaskCompleted", "Add verified reward")}
               </button>
               <p className={styles.taskHint}>
-                In the current MVP, this needs the owner wallet and a verified worker wallet.
+                In the current MVP, this needs the temporary operator wallet and a verified worker wallet.
               </p>
               {!account.address || missingEnv || isBusy || !taskWorker ? (
                 <p className={styles.helperNote}>
@@ -3968,6 +4010,7 @@ export default function Home() {
             </article>
           </div>
         </section>
+        ) : null}
 
         <section className={styles.timeline}>
           <div className={styles.timelineHeader}>
@@ -4236,7 +4279,7 @@ export default function Home() {
                         <p className={styles.disputeHint}>
                           {disputeStatusLabel(item.status)}
                           <span className={styles.disputeSubhint}>
-                            The resolver first proposes an outcome, then finalizes it. High-value
+                            The dispute arbiter first proposes an outcome, then finalizes it. High-value
                             cases can still route to outside adjudication.
                           </span>
                           {externalAdjudicationUrl ? (
