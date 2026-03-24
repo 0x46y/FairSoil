@@ -24,6 +24,11 @@ Accounts used in local demo:
 | requester wallet is available in MetaMask | ☐ Pass / ☐ Fail |  |
 | worker wallet is available in MetaMask | ☐ Pass / ☐ Fail |  |
 
+Reference:
+
+- staging simulator: `e2e/worldid_simulator_runbook.md`
+- production cutover: `e2e/worldid_production_cutover_checklist.md`
+
 ## 1. Automated UI smoke
 
 Run:

@@ -95,6 +95,12 @@ For a browser-first World ID staging flow, use the simulator runbook:
 cat e2e/worldid_simulator_runbook.md
 ```
 
+For the production switch after staging is validated, use:
+
+```bash
+cat e2e/worldid_production_cutover_checklist.md
+```
+
 If you do not yet have a real World ID, use the mock identity guide:
 
 ```bash

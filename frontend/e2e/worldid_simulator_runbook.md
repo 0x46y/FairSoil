@@ -74,6 +74,12 @@ Expected result:
 - the app sends a request to `/api/worldid/verify`
 - if verifier acceptance succeeds, the wallet then reaches `setPrimaryAddress`
 
+Observed FairSoil staging result:
+
+- proof verification completed in staging and the wallet reached MetaMask signing for `setPrimaryAddress`
+- the verifier returned success even when the same staging proof was retried, with the message `Proof verified successfully (nullifier reuse)`
+- for FairSoil Phase1 this is acceptable as a staging validation result, but production should treat nullifiers as a real replay / uniqueness control surface
+
 ## 5. Read the Next.js server logs
 
 Watch the terminal running `npm run dev`.
@@ -88,7 +94,8 @@ Interpretation:
 
 - if only `rp-signature` appears, the widget opened but no proof came back to the host app
 - if `verifying payload` appears but `verifier response` is an error, the proof reached FairSoil and the verifier rejected it
-- if `verifier response` shows `verified: true`, the remaining step is the wallet transaction for `setPrimaryAddress`
+- if `verifier response` shows `success: true` or `verified: true`, the remaining step is the wallet transaction for `setPrimaryAddress`
+- if the same proof is retried in staging, you may see `Proof verified successfully (nullifier reuse)`; that still indicates the verifier accepted the payload
 
 ## 6. Switching back to production
 
