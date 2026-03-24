@@ -33,19 +33,29 @@ NEXT_PUBLIC_WORLD_ID_MOCK=true
 NEXT_PUBLIC_ZKNFC_MOCK=true
 ```
 
-If you already have verifier endpoints, point the app to them instead:
+If you want to use the real World ID widget flow instead of the mock route, set:
 
 ```env
+NEXT_PUBLIC_WORLD_ID_APP_ID=app_...
+NEXT_PUBLIC_WORLD_ID_ENVIRONMENT=production
+NEXT_PUBLIC_WORLD_ID_ACTION_ID=verify-fairsoil
+NEXT_PUBLIC_WORLD_ID_MOCK=false
 WORLD_ID_RP_ID=rp_...
 RP_SIGNING_KEY=0x...
-NEXT_PUBLIC_WORLD_ID_VERIFY_URL=https://...
-NEXT_PUBLIC_ZKNFC_VERIFIER_URL=https://...
 ```
 
 For World ID v4 widget flow, the frontend now requests an RP signature from
 `/api/worldid/rp-signature`, then sends the proof to `/api/worldid/verify`.
 That means `WORLD_ID_RP_ID` and `RP_SIGNING_KEY` should be set on the Next.js server
 when you want the real World ID widget instead of the mock route.
+
+Notes:
+
+- `RP_SIGNING_KEY` should be the raw private key string, not the whole downloaded JSON file.
+- Set `NEXT_PUBLIC_WORLD_ID_ENVIRONMENT=staging` when you want to use the World ID simulator with a staging app, and `production` when you want to use the real World App with a production app.
+- `WORLD_ID_VERIFY_URL` is optional in this repo. If it is unset, the server route falls back to `https://developer.world.org/api/v4/verify/${WORLD_ID_RP_ID}`.
+- `WORLD_ID_DEBUG=true` enables server-side World ID request logs in the Next.js terminal for local debugging.
+- `NEXT_PUBLIC_ZKNFC_VERIFIER_URL` is only needed if you also want the ZK-NFC button.
 
 Run the development server:
 
@@ -78,6 +88,12 @@ npm run e2e:wallet:guide
 ```
 
 Detailed steps are in `e2e/manual_wallet_runbook.md`.
+
+For a browser-first World ID staging flow, use the simulator runbook:
+
+```bash
+cat e2e/worldid_simulator_runbook.md
+```
 
 If you do not yet have a real World ID, use the mock identity guide:
 

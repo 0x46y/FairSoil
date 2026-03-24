@@ -72,6 +72,7 @@ import {
   auditReserveThresholdB,
   auditWindowHours,
   worldIdActionId,
+  worldIdEnvironment,
   worldIdAppId,
   worldIdMock,
   zknfcMock,
@@ -1091,38 +1092,6 @@ export default function Home() {
     }, 5000);
   }, []);
 
-  const {
-    handleSubmitWork,
-    handleApproveWork,
-    handleRejectWork,
-    handleCancelCovenant,
-    handleReportIssue,
-    handleAcceptIssue,
-    handleDisputeIssue,
-    handleResolveDispute,
-    handleFinalizeResolution,
-  } = useCovenantActions({
-    covenantAddress,
-    tokenBAddress,
-    covenantAddr,
-    tokenBAddr,
-    treasuryAddr,
-    publicClient,
-    covenants,
-    disputeState: disputeFormState,
-    hasDefenseQuota,
-    getDepositBreakdown,
-    runTransaction,
-    writeContractAsync,
-    postTransactionSync,
-    setTxError,
-    setTxSuccess,
-    setTxStatus,
-    setTxAction,
-    showSuccess,
-    formatTxError,
-  });
-
   const covenantReward = useMemo(
     () => safeParseUnits(covenantRewardAmount, 18),
     [covenantRewardAmount]
@@ -1911,6 +1880,38 @@ export default function Home() {
   );
 
   const isBusy = isWriting || txStatus !== "idle";
+
+  const {
+    handleSubmitWork,
+    handleApproveWork,
+    handleRejectWork,
+    handleCancelCovenant,
+    handleReportIssue,
+    handleAcceptIssue,
+    handleDisputeIssue,
+    handleResolveDispute,
+    handleFinalizeResolution,
+  } = useCovenantActions({
+    covenantAddress,
+    tokenBAddress,
+    covenantAddr,
+    tokenBAddr,
+    treasuryAddr,
+    publicClient,
+    covenants,
+    disputeState: disputeFormState,
+    hasDefenseQuota,
+    getDepositBreakdown,
+    runTransaction,
+    writeContractAsync,
+    postTransactionSync,
+    setTxError,
+    setTxSuccess,
+    setTxStatus,
+    setTxAction,
+    showSuccess,
+    formatTxError,
+  });
 
   useEffect(() => {
     if (!taskWorker && account.address) {
@@ -3146,6 +3147,7 @@ export default function Home() {
                           onOpenChange={setWorldIdOpen}
                           app_id={worldIdAppId as `app_${string}`}
                           action={worldIdActionId}
+                          environment={worldIdEnvironment}
                           rp_context={worldIdRpContext}
                           allow_legacy_proofs={true}
                           preset={orbLegacy({ signal: account.address ?? "" })}

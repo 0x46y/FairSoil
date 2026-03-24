@@ -1,6 +1,6 @@
 "use client";
 
-import { type Dispatch, type SetStateAction, useCallback, useState } from "react";
+import { type Dispatch, type SetStateAction, useCallback, useRef, useState } from "react";
 import type { IDKitErrorCodes, IDKitResult, RpContext } from "@worldcoin/idkit";
 
 type SetStringState = Dispatch<SetStateAction<string | null>>;
@@ -38,56 +38,56 @@ export function useIdentityFlow(params: {
 
   const [worldIdOpen, setWorldIdOpen] = useState(false);
   const [worldIdRpContext, setWorldIdRpContext] = useState<RpContext | null>(null);
+  const worldIdHostErrorRef = useRef<string | null>(null);
 
   const handleWorldIdHostVerify = useCallback(
     async (result: IDKitResult) => {
-      if (!accountAddress || !worldIdAppId || !worldIdActionId) {
-        throw new Error("World ID config missing.");
-      }
-      const proofPayload = result as {
-        proof?: unknown;
-        signal?: string;
-        nullifier_hash?: string;
-        merkle_root?: string;
-        verification_level?: string;
-        credential_type?: string;
-      };
-      const response = await fetch("/api/worldid/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          address: accountAddress,
-          appId: worldIdAppId,
-          actionId: worldIdActionId,
-          proof: proofPayload.proof,
-          signal: proofPayload.signal ?? accountAddress,
-          nullifierHash: proofPayload.nullifier_hash,
-          merkleRoot: proofPayload.merkle_root,
-          verificationLevel: proofPayload.verification_level,
-          credentialType: proofPayload.credential_type,
-          rpContext: worldIdRpContext,
-        }),
-      });
-      if (!response.ok) {
-        const result = (await response.json().catch(() => null)) as { message?: string } | null;
-        throw new Error(result?.message || `Network error from verifier (${response.status})`);
-      }
-      const verifyResult = (await response.json()) as { verified?: boolean; message?: string };
-      if (!verifyResult.verified) {
-        throw new Error(verifyResult.message || "Verification failed.");
+      worldIdHostErrorRef.current = null;
+      try {
+        if (!accountAddress || !worldIdAppId || !worldIdActionId) {
+          throw new Error("World ID config missing.");
+        }
+        const response = await fetch("/api/worldid/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            address: accountAddress,
+            appId: worldIdAppId,
+            actionId: worldIdActionId,
+            idkitResponse: result,
+            rpContext: worldIdRpContext,
+          }),
+        });
+        if (!response.ok) {
+          const result = (await response.json().catch(() => null)) as { message?: string } | null;
+          throw new Error(result?.message || `Network error from verifier (${response.status})`);
+        }
+        const verifyResult = (await response.json()) as { verified?: boolean; message?: string };
+        if (!verifyResult.verified) {
+          throw new Error(verifyResult.message || "Verification failed.");
+        }
+      } catch (error) {
+        worldIdHostErrorRef.current = normalizeErrorMessage(error);
+        throw error;
       }
     },
-    [accountAddress, worldIdActionId, worldIdAppId, worldIdRpContext]
+    [accountAddress, normalizeErrorMessage, worldIdActionId, worldIdAppId, worldIdRpContext]
   );
 
   const handleWorldIdWidgetSuccess = useCallback(async () => {
+    worldIdHostErrorRef.current = null;
     await handleSetPrimary();
     setWorldIdOpen(false);
   }, [handleSetPrimary]);
 
   const handleWorldIdWidgetError = useCallback(
     (errorCode: IDKitErrorCodes) => {
-      setTxError(`World ID widget failed (${errorCode}).`);
+      const hostError = worldIdHostErrorRef.current;
+      if (errorCode === "failed_by_host_app" && hostError) {
+        setTxError(`Verification failed. ${hostError}`);
+      } else {
+        setTxError(`World ID widget failed (${errorCode}).`);
+      }
       setTxSuccess(null);
       setWorldIdOpen(false);
     },
@@ -106,6 +106,7 @@ export function useIdentityFlow(params: {
       return;
     }
     try {
+      worldIdHostErrorRef.current = null;
       setTxError(null);
       setTxSuccess(null);
       setTxStatus("signing");

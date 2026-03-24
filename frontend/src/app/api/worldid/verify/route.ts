@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
+import type { IDKitResult } from "@worldcoin/idkit";
 
 type VerifyPayload = {
   address?: string;
   appId?: string;
   actionId?: string;
-  proof?: unknown;
-  signal?: unknown;
-  nullifierHash?: string;
-  merkleRoot?: string;
-  verificationLevel?: string;
-  credentialType?: string;
+  idkitResponse?: IDKitResult;
   rpContext?: {
     rp_id?: string;
     nonce?: string;
@@ -20,16 +16,21 @@ type VerifyPayload = {
 };
 
 type VerifierResponse = {
+  success?: boolean;
   verified?: boolean;
   message?: string;
 };
 
+const redactAddress = (value?: string) =>
+  value ? `${value.slice(0, 6)}...${value.slice(-4)}` : undefined;
+
 export async function POST(request: Request) {
   try {
+    const debugEnabled = process.env.WORLD_ID_DEBUG === "true";
     const body = (await request.json()) as VerifyPayload;
-    if (!body.address || !body.appId || !body.actionId) {
+    if (!body.address || !body.appId || !body.actionId || !body.idkitResponse) {
       return NextResponse.json(
-        { verified: false, message: "Missing address/appId/actionId." },
+        { verified: false, message: "Missing address/appId/actionId/idkitResponse." },
         { status: 400 }
       );
     }
@@ -58,24 +59,51 @@ export async function POST(request: Request) {
       );
     }
 
+    if (debugEnabled) {
+      const firstResponse = body.idkitResponse.responses?.[0];
+      console.log("[worldid/verify] verifying payload", {
+        address: redactAddress(body.address),
+        appId: body.appId,
+        actionId: body.actionId,
+        rpId,
+        verifierUrl,
+        protocolVersion: body.idkitResponse.protocol_version,
+        environment: body.idkitResponse.environment,
+        responseCount: body.idkitResponse.responses?.length ?? 0,
+        identifier: firstResponse?.identifier,
+        hasProof: Boolean(firstResponse?.proof),
+        hasNullifierHash:
+          "nullifier" in (firstResponse ?? {}) ? Boolean(firstResponse?.nullifier) : false,
+        hasMerkleRoot:
+          "merkle_root" in (firstResponse ?? {}) ? Boolean(firstResponse?.merkle_root) : false,
+      });
+    }
+
     const response = await fetch(verifierUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        address: body.address,
-        app_id: body.appId,
-        action: body.actionId,
-        proof: body.proof,
-        signal: body.signal,
-        nullifier_hash: body.nullifierHash,
-        merkle_root: body.merkleRoot,
-        verification_level: body.verificationLevel,
-        credential_type: body.credentialType,
-      }),
+      body: JSON.stringify(body.idkitResponse),
       cache: "no-store",
     });
 
-    const result = (await response.json().catch(() => null)) as VerifierResponse | null;
+    const rawText = await response.text();
+    let result: VerifierResponse | null = null;
+    if (rawText) {
+      try {
+        result = JSON.parse(rawText) as VerifierResponse | null;
+      } catch {
+        result = null;
+      }
+    }
+    if (debugEnabled) {
+      console.log("[worldid/verify] verifier response", {
+        status: response.status,
+        success: result?.success,
+        verified: result?.verified,
+        message: result?.message,
+        rawText: rawText || null,
+      });
+    }
     if (!response.ok) {
       return NextResponse.json(
         {
@@ -88,13 +116,16 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       {
-        verified: Boolean(result?.verified),
+        verified: Boolean(result?.verified ?? result?.success),
         message: result?.message || "World ID verification completed.",
         mode: "remote",
       },
       { status: 200 }
     );
-  } catch {
+  } catch (error) {
+    if (process.env.WORLD_ID_DEBUG === "true") {
+      console.error("[worldid/verify] failed", error);
+    }
     return NextResponse.json(
       { verified: false, message: "Invalid request body." },
       { status: 400 }

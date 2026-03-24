@@ -16,6 +16,21 @@ Use MetaMask on `Anvil Local` (`http://127.0.0.1:8545`, chain `31337`).
 
 ## One-time prep
 
+Before testing the real World ID route, make sure `frontend/.env.local` contains:
+
+```env
+NEXT_PUBLIC_WORLD_ID_APP_ID=app_...
+NEXT_PUBLIC_WORLD_ID_ENVIRONMENT=production
+NEXT_PUBLIC_WORLD_ID_ACTION_ID=verify-fairsoil
+NEXT_PUBLIC_WORLD_ID_MOCK=false
+WORLD_ID_RP_ID=rp_...
+RP_SIGNING_KEY=0x...
+```
+
+`RP_SIGNING_KEY` must be the raw private key string from the downloaded World ID credentials, not the whole JSON body.
+
+If you want to debug the proof flow before using the production World App, use `e2e/worldid_simulator_runbook.md` first and keep production testing for the last step.
+
 Make sure the worker wallet is verified, because agreements require a verified worker.
 
 ```bash
@@ -33,7 +48,7 @@ If you redeployed and addresses changed, use the current `frontend/.env.local` v
 ## Run order
 
 1. Start Anvil.
-2. Start the frontend with `npm run dev`.
+2. Start or restart the frontend with `npm run dev`.
 3. Open `http://localhost:3000`.
 4. Connect the requester / operator wallet.
 
@@ -49,7 +64,8 @@ If you redeployed and addresses changed, use the current `frontend/.env.local` v
    - `Verify (mock)` for the local Phase1 mock route
    - `Verify with World ID` when a World ID verifier is configured
    - `Verify with ZK-NFC` when a ZK-NFC verifier is configured
-6. Approve the wallet transaction if the flow reaches `setPrimaryAddress`.
+6. If using World ID, complete the widget flow in the modal and return to the app.
+7. Approve the wallet transaction if the flow reaches `setPrimaryAddress`.
 
 Expected result:
 - `Action completed` appears.

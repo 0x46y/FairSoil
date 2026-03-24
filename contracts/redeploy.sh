@@ -99,7 +99,28 @@ else
   PUBLIC_RPC_URL="$RPC_URL"
 fi
 
-cat > "$FRONTEND_ENV" <<EOF
+existing_env_line() {
+  local key="$1"
+  if [[ ! -f "$FRONTEND_ENV" ]]; then
+    return 1
+  fi
+  grep -m1 -E "^${key}=" "$FRONTEND_ENV" || true
+}
+
+append_env_line_or_comment() {
+  local key="$1"
+  local fallback="$2"
+  local line
+  line="$(existing_env_line "$key")"
+  if [[ -n "$line" ]]; then
+    printf '%s\n' "$line"
+  else
+    printf '%s\n' "$fallback"
+  fi
+}
+
+{
+cat <<EOF
 NEXT_PUBLIC_TOKENA_ADDRESS=$TOKEN_A
 NEXT_PUBLIC_TOKENB_ADDRESS=$TOKEN_B
 NEXT_PUBLIC_TREASURY_ADDRESS=$TREASURY
@@ -114,6 +135,26 @@ NEXT_PUBLIC_AUDIT_RESERVE_A_THRESHOLD=100
 NEXT_PUBLIC_AUDIT_RESERVE_B_THRESHOLD=100
 NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 EOF
+
+echo
+echo "# World ID (real widget flow)"
+append_env_line_or_comment "NEXT_PUBLIC_WORLD_ID_APP_ID" "# NEXT_PUBLIC_WORLD_ID_APP_ID=app_..."
+append_env_line_or_comment "NEXT_PUBLIC_WORLD_ID_ENVIRONMENT" "# NEXT_PUBLIC_WORLD_ID_ENVIRONMENT=production"
+append_env_line_or_comment "NEXT_PUBLIC_WORLD_ID_ACTION_ID" "# NEXT_PUBLIC_WORLD_ID_ACTION_ID=verify-fairsoil"
+append_env_line_or_comment "NEXT_PUBLIC_WORLD_ID_MOCK" "# NEXT_PUBLIC_WORLD_ID_MOCK=false"
+append_env_line_or_comment "WORLD_ID_RP_ID" "# WORLD_ID_RP_ID=rp_..."
+append_env_line_or_comment "RP_SIGNING_KEY" "# RP_SIGNING_KEY=0x..."
+echo "# Optional: when unset, the app falls back to https://developer.world.org/api/v4/verify/\${WORLD_ID_RP_ID}"
+append_env_line_or_comment "WORLD_ID_VERIFY_URL" "# WORLD_ID_VERIFY_URL="
+append_env_line_or_comment "NEXT_PUBLIC_WORLD_ID_VERIFY_URL" "# NEXT_PUBLIC_WORLD_ID_VERIFY_URL="
+append_env_line_or_comment "WORLD_ID_DEBUG" "# WORLD_ID_DEBUG=false"
+
+echo
+echo "# Optional integrations"
+append_env_line_or_comment "NEXT_PUBLIC_ZKNFC_VERIFIER_URL" "# NEXT_PUBLIC_ZKNFC_VERIFIER_URL="
+append_env_line_or_comment "NEXT_PUBLIC_ZKNFC_MOCK" "# NEXT_PUBLIC_ZKNFC_MOCK=true"
+append_env_line_or_comment "NEXT_PUBLIC_EXTERNAL_ADJ_URL" "# NEXT_PUBLIC_EXTERNAL_ADJ_URL="
+} > "$FRONTEND_ENV"
 
 echo "Updated $FRONTEND_ENV"
 echo "TOKEN_A=$TOKEN_A"
