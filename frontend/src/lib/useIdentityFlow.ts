@@ -82,6 +82,13 @@ export function useIdentityFlow(params: {
 
   const handleWorldIdWidgetError = useCallback(
     (errorCode: IDKitErrorCodes) => {
+      if (typeof window !== "undefined") {
+        console.error("[worldid/widget] error", {
+          errorCode,
+          environment:
+            process.env.NEXT_PUBLIC_WORLD_ID_ENVIRONMENT === "staging" ? "staging" : "production",
+        });
+      }
       const hostError = worldIdHostErrorRef.current;
       if (errorCode === "failed_by_host_app" && hostError) {
         setTxError(`Verification failed. ${hostError}`);

@@ -101,6 +101,12 @@ For the production switch after staging is validated, use:
 cat e2e/worldid_production_cutover_checklist.md
 ```
 
+If local tunnel tools are blocked and you need a real HTTPS origin, use:
+
+```bash
+cat e2e/worldid_vercel_preview_runbook.md
+```
+
 If you do not yet have a real World ID, use the mock identity guide:
 
 ```bash
