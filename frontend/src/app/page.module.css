@@ -513,6 +513,19 @@
   align-items: center;
 }
 
+.createAgreementFooter {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(122, 92, 43, 0.12);
+}
+
+.createAgreementFooter .primaryButton {
+  width: 100%;
+  justify-content: center;
+}
+
 .stepSummary {
   display: flex;
   flex-wrap: wrap;

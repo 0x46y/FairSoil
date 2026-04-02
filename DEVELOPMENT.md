@@ -79,6 +79,13 @@ Notes:
 - Phase1 dispute handling is now split across `disputeResolver` and `disputeFinalizer`.
 - The frontend identity card shows `Active route`, `World ID mode`, and `ZK-NFC mode`, so keep the mock flags explicit when you expect a fully local demo.
 - UBI claims now emit `UBIClaimed` and show up in the integrity trail.
+- If you want one local demo bootstrap instead of the manual ritual, run:
+```bash
+cd /workspaces/FairSoil
+export PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+bash ./scripts/seed_local_demo.sh
+```
+- The seed script is rerunnable: it verifies the requester/worker, tops Treasury reserves back up to the configured targets, and ensures both wallets have starter `Token B` so agreement creation does not stop on `Insufficient Balance`.
 
 ## Step 4: Frontend (Terminal C)
 ```bash

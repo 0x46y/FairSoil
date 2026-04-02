@@ -354,7 +354,7 @@ const formatTxError = (error: unknown) => {
     return "Wallet confirmation was cancelled. Nothing changed.";
   }
   if (lower.includes("insufficient reserves")) {
-    return "This action cannot finish yet because the treasury does not have enough reserves.";
+    return "This action cannot finish yet because the treasury does not have enough reserves. Ask the operator to top up or rebalance the treasury before retrying.";
   }
   if (lower.includes("insufficient balance") || lower.includes("exceeds balance")) {
     return "This wallet does not have enough balance for that action.";
@@ -741,6 +741,16 @@ export default function Home() {
     functionName: "dailyUBIAmount",
     query: {
       enabled: Boolean(treasuryAddress),
+    },
+  });
+
+  const { data: canPayDailyUbi } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "canPayOutA",
+    args: dailyUBIAmount !== undefined ? [dailyUBIAmount as bigint] : undefined,
+    query: {
+      enabled: Boolean(treasuryAddress && dailyUBIAmount !== undefined),
     },
   });
 
@@ -1154,6 +1164,19 @@ export default function Home() {
     return 0n;
   }, [tokenBBalance, tokenBUnlocked]);
 
+  const selectedPaymentTokenAddress = covenantPayInTokenA ? tokenAAddr : tokenBAddr;
+  const selectedPaymentTokenAbi = covenantPayInTokenA ? tokenAAbi : tokenBAbi;
+
+  const { data: covenantAllowance, refetch: refetchCovenantAllowance } = useReadContract({
+    address: selectedPaymentTokenAddress,
+    abi: selectedPaymentTokenAbi,
+    functionName: "allowance",
+    args: [address, covenantAddr],
+    query: {
+      enabled: Boolean(account.address && covenantAddress && selectedPaymentTokenAddress !== zeroAddress),
+    },
+  });
+
   const getDepositBreakdown = useCallback(
     (deposit: bigint) => {
       if (deposit <= 0n) {
@@ -1472,6 +1495,19 @@ export default function Home() {
     if (balance === undefined) return false;
     return covenantReward > balance;
   }, [covenantPayInTokenA, covenantReward, tokenABalance, tokenBUnlocked]);
+
+  const createCovenantButtonLabel = useMemo(() => {
+    if (txAction === "approveCovenantAllowance" || txAction === "createCovenantLock") {
+      return txStatus === "confirming" ? "Confirming…" : "Processing…";
+    }
+    if (hasInsufficientBalance) return "Create Agreement (insufficient balance)";
+    return "Create Agreement (approve + lock)";
+  }, [hasInsufficientBalance, txAction, txStatus]);
+
+  const createCovenantStepMessage =
+    (covenantAllowance ?? 0n) >= covenantReward
+      ? "Token approval is already sufficient, so the next retry can go straight to the reward lock."
+      : "Your wallet first allows token use, then confirms the reward lock.";
 
   const getTrailActorContext = useCallback(
     (
@@ -2259,6 +2295,24 @@ export default function Home() {
   );
 
   const isBusy = isWriting || txStatus !== "idle";
+  const cannotClaimDaily = canPayDailyUbi === false;
+  const claimHelperText = useMemo(() => {
+    if (!account.address || missingEnv || isBusy) {
+      return explainDisabledAction({
+        walletConnected: Boolean(account.address),
+        missingEnv,
+        busy: isBusy,
+        label: "Connect a wallet, then you can claim today's bonus here.",
+      });
+    }
+    if (cannotClaimDaily) {
+      return "The treasury cannot pay today's bonus right now. Ask the operator to top up or rebalance reserves, then retry.";
+    }
+    if (txAction === "claimUBI" && txError) {
+      return txError;
+    }
+    return null;
+  }, [account.address, cannotClaimDaily, isBusy, txAction, txError]);
 
   const {
     handleSubmitWork,
@@ -3023,18 +3077,25 @@ export default function Home() {
         // ignore localStorage failures
       }
     }
+    let failedStage: "approve" | "create" | "finalize" = "approve";
     try {
-      setCovenantStep(1);
-      await runTransaction("createCovenant", () =>
-        writeContractAsync({
-          address: paymentTokenAddress,
-          abi: paymentTokenAbi,
-          functionName: "approve",
+      const currentAllowance = covenantAllowance ?? 0n;
+      const needsAllowance = currentAllowance < reward;
+      if (needsAllowance) {
+        setCovenantStep(1);
+        await runTransaction("approveCovenantAllowance", () =>
+          writeContractAsync({
+            address: paymentTokenAddress,
+            abi: paymentTokenAbi,
+            functionName: "approve",
             args: [covenantAddr, reward],
-        })
-      );
+          })
+        );
+        await refetchCovenantAllowance();
+      }
+      failedStage = "create";
       setCovenantStep(2);
-      const receipt = await runTransaction("createCovenant", () =>
+      const receipt = await runTransaction("createCovenantLock", () =>
         writeContractAsync({
           address: covenantAddr,
           abi: covenantAbi,
@@ -3042,6 +3103,7 @@ export default function Home() {
           args: [workerAddress, reward, points, covenantPayInTokenA],
         })
       );
+      failedStage = "finalize";
       let createdId: bigint | null = null;
       if (receipt) {
         const parsed = parseEventLogs({
@@ -3081,7 +3143,16 @@ export default function Home() {
       setTxError(null);
       showSuccess("Transaction successful!");
     } catch (error) {
-      setTxError(formatTxError(error));
+      const detail = formatTxError(error);
+      if (failedStage === "create") {
+        setTxError(
+          `Token approval is already in place, but the agreement lock transaction failed. Retry once to send only the agreement creation step. Details: ${detail}`
+        );
+      } else if (failedStage === "finalize") {
+        setTxError(`The agreement was created, but a follow-up metadata step failed. Details: ${detail}`);
+      } else {
+        setTxError(detail);
+      }
       setTxSuccess(null);
     } finally {
       setTxStatus("idle");
@@ -3433,7 +3504,7 @@ export default function Home() {
               <button
                 className={styles.primaryButton}
                 onClick={handleClaim}
-                disabled={!account.address || missingEnv || isBusy}
+                disabled={!account.address || missingEnv || isBusy || cannotClaimDaily}
               >
                 {actionLabel("claimUBI", "Claim today's bonus")}
               </button>
@@ -3450,14 +3521,9 @@ export default function Home() {
                 </button>
               )}
             </div>
-            {!account.address || missingEnv || isBusy ? (
+            {claimHelperText ? (
               <p className={styles.helperNote}>
-                {explainDisabledAction({
-                  walletConnected: Boolean(account.address),
-                  missingEnv,
-                  busy: isBusy,
-                  label: "Connect a wallet, then you can claim today's bonus here.",
-                })}
+                {claimHelperText}
               </p>
             ) : null}
             <div className={styles.heroMeta}>
@@ -4016,17 +4082,12 @@ export default function Home() {
                     onClick={() => setCovenantFormStage(2)}
                     disabled={!covenantWorker}
                   >
-                    Open optional details
+                    Open optional template settings
                   </button>
                   <span className={styles.taskHint}>
-                    You can create the agreement from this first step alone. The next step is optional.
+                    Create from this main step if you already know the worker and reward. Template settings are optional.
                   </span>
                 </div>
-                {!covenantWorker ? (
-                  <p className={styles.helperNote}>
-                    {explainDisabledAction({ workerRequired: true })}
-                  </p>
-                ) : null}
               </div>
             ) : (
               <div className={styles.stepPanel}>
@@ -4128,49 +4189,6 @@ export default function Home() {
                     scope alone.
                   </p>
                 </div>
-            <button
-              className={styles.ghostButton}
-              onClick={handleCreateCovenant}
-              disabled={
-                !account.address ||
-                missingEnv ||
-                isBusy ||
-                !covenantWorker ||
-                hasInsufficientBalance
-              }
-            >
-                {hasInsufficientBalance
-                  ? "Insufficient Balance"
-                  : actionLabel("createCovenant", "Create Agreement (approve + lock)")}
-            </button>
-            <div className={styles.stepNote}>
-              <span className={styles.stepPill}>
-                {covenantStep === 1
-                  ? "Step 1/2: Allow token use"
-                  : covenantStep === 2
-                  ? "Step 2/2: Lock reward"
-                  : "Two wallet confirmations"}
-              </span>
-              <span>
-                Your wallet first allows token use, then confirms the reward lock.
-              </span>
-            </div>
-            <p className={styles.taskHint}>
-              {covenantPayInTokenA
-                ? "This uses Token A first, then locks the converted value into the agreement."
-                : "This uses Token B directly, then locks it into the agreement."}
-            </p>
-            {!account.address || missingEnv || isBusy || !covenantWorker || hasInsufficientBalance ? (
-              <p className={styles.helperNote}>
-                {explainDisabledAction({
-                  walletConnected: Boolean(account.address),
-                  missingEnv,
-                  busy: isBusy,
-                  workerRequired: !covenantWorker,
-                  insufficientBalance: hasInsufficientBalance,
-                })}
-              </p>
-            ) : null}
             {covenantPayInTokenA ? (
               royaltyBreakdown ? (
                 <div className={styles.metricBreakdown}>
@@ -4434,6 +4452,47 @@ export default function Home() {
                 </div>
               </div>
             )}
+            <div className={styles.createAgreementFooter}>
+              <div className={styles.stepNote}>
+                <span className={styles.stepPill}>
+                  {covenantStep === 1
+                    ? "Step 1/2: Allow token use"
+                    : covenantStep === 2
+                    ? "Step 2/2: Lock reward"
+                    : "Two wallet confirmations"}
+                </span>
+                <span>{createCovenantStepMessage}</span>
+              </div>
+              <p className={styles.taskHint}>
+                {covenantPayInTokenA
+                  ? "This uses Token A first, then locks the converted value into the agreement."
+                  : "This uses Token B directly, then locks it into the agreement."}
+              </p>
+              <button
+                className={styles.primaryButton}
+                onClick={handleCreateCovenant}
+                disabled={
+                  !account.address ||
+                  missingEnv ||
+                  isBusy ||
+                  !covenantWorker ||
+                  hasInsufficientBalance
+                }
+              >
+                {createCovenantButtonLabel}
+              </button>
+              {!account.address || missingEnv || isBusy || !covenantWorker || hasInsufficientBalance ? (
+                <p className={styles.helperNote}>
+                  {explainDisabledAction({
+                    walletConnected: Boolean(account.address),
+                    missingEnv,
+                    busy: isBusy,
+                    workerRequired: !covenantWorker,
+                    insufficientBalance: hasInsufficientBalance,
+                  })}
+                </p>
+              ) : null}
+            </div>
             {templateList.length > 0 ? (
               <>
                 <div className={styles.templateHeader}>

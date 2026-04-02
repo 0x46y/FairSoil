@@ -86,8 +86,8 @@ Expected result:
 1. In `Step 3: Create a work agreement`, enter worker wallet `0x70997970C51812dc3A010C7d01b50e0d17dc79C8`.
 2. Keep `Reward type = Token B`.
 3. Set a small reward such as `25`.
-4. Open optional details only if needed.
-5. Click `Create Agreement (approve + lock)`.
+4. Click `Create Agreement (approve + lock)` from the main details section.
+5. Open optional details only if you want to add template metadata or quote context before creating.
 6. Approve both MetaMask confirmations.
 
 Expected result:
@@ -98,9 +98,11 @@ Expected result:
 ### D. Worker submits
 
 1. Switch MetaMask to the worker wallet.
-2. Refresh the page.
-3. In the new agreement row, click `Submit work`.
-4. Approve the transaction.
+2. In FairSoil, click `Disconnect wallet`.
+3. Refresh the page.
+4. Click `Connect wallet` and reconnect with the worker wallet.
+5. In the new agreement row, click `Submit work`.
+6. Approve the transaction.
 
 Expected result:
 - `Action completed` appears.
@@ -110,9 +112,11 @@ Expected result:
 ### E. Requester approves
 
 1. Switch MetaMask back to the requester wallet.
-2. Refresh the page.
-3. Click `Approve work`.
-4. Approve the transaction.
+2. In FairSoil, click `Disconnect wallet`.
+3. Refresh the page.
+4. Click `Connect wallet` and reconnect with the requester wallet.
+5. Click `Approve work`.
+6. Approve the transaction.
 
 Expected result:
 - `Action completed` appears.
@@ -163,5 +167,7 @@ Expected result:
   - the verifier rejected the proof or route payload; inspect the dev server logs before retrying
 - `Verified` never appears after wallet confirmation
   - confirm the `setPrimaryAddress(address,true)` transaction succeeded on-chain
+- worker/requester action buttons do not match the selected MetaMask account
+  - disconnect the wallet inside FairSoil, refresh, then reconnect with the intended account; MetaMask account switching alone may leave the app on the previous session
 
 For the formal happy-path gate on rollout day, also use `docs/worldid_acceptance_checklist_en.md`.

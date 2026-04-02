@@ -40,6 +40,16 @@ export const tokenAAbi = [
     ],
     outputs: [{ name: "", type: "bool" }],
   },
+  {
+    type: "function",
+    name: "allowance",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
 ] as const;
 
 export const tokenBAbi = [
@@ -59,6 +69,16 @@ export const tokenBAbi = [
       { name: "amount", type: "uint256" },
     ],
     outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "allowance",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
   },
   {
     type: "function",
@@ -118,6 +138,13 @@ export const treasuryAbi = [
     stateMutability: "view",
     inputs: [],
     outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "canPayOutA",
+    stateMutability: "view",
+    inputs: [{ name: "amount", type: "uint256" }],
+    outputs: [{ name: "", type: "bool" }],
   },
   {
     type: "event",
