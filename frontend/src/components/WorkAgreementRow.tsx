@@ -46,6 +46,8 @@ export type WorkAgreementTrailItem = {
   timestamp: number;
   title: string;
   body?: ReactNode;
+  actorSummary?: string;
+  actorRoleLabel?: string;
 };
 
 export function WorkAgreementRow(props: {
@@ -379,7 +381,13 @@ export function WorkAgreementRow(props: {
                           {formatRelativeTime(trailItem.timestamp, trailNow, locale)}
                         </span>
                         <div>
+                          {trailItem.actorRoleLabel ? (
+                            <span className={styles.disputeReviewRolePill}>{trailItem.actorRoleLabel}</span>
+                          ) : null}
                           <p className={styles.disputeReviewTitle}>{disputeReviewLabel(trailItem.title)}</p>
+                          {trailItem.actorSummary ? (
+                            <p className={styles.disputeReviewMeta}>Executed by {trailItem.actorSummary}</p>
+                          ) : null}
                           <p className={styles.disputeReviewBody}>
                             {trailItem.body || simplifyAuditTitle(trailItem.title)}
                           </p>

@@ -40,6 +40,12 @@ NEXT_PUBLIC_TREASURY_ADDRESS=0x...
 NEXT_PUBLIC_COVENANT_ADDRESS=0x...
 NEXT_PUBLIC_RESOURCE_REGISTRY_ADDRESS=0x...
 NEXT_PUBLIC_COVENANT_LIBRARY_ADDRESS=0x...
+NEXT_PUBLIC_WORLD_ID_APP_ID=...
+NEXT_PUBLIC_WORLD_ID_ACTION_ID=...
+NEXT_PUBLIC_WORLD_ID_ENVIRONMENT=staging
+NEXT_PUBLIC_WORLD_ID_MOCK=true
+NEXT_PUBLIC_ZKNFC_VERIFIER_URL=https://...
+NEXT_PUBLIC_ZKNFC_MOCK=true
 NEXT_PUBLIC_AUDIT_DISPUTE_THRESHOLD=5
 NEXT_PUBLIC_AUDIT_TREASURY_THRESHOLD=20
 NEXT_PUBLIC_AUDIT_RESERVE_A_THRESHOLD=100
@@ -69,9 +75,11 @@ NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 
 ## Phase1 Roles (Temporary)
 - **Temporary Operator:** in Phase1, a temporary operator updates Treasury, APPI, and other system settings.
-- **Dispute Arbiter:** disputes are resolved by a single address or limited-role arbiter during the MVP stage.
+- **Reward Operator:** `reportTaskCompleted` can be delegated from the treasury owner to approved reward operators.
+- **Dispute Resolver / Finalizer:** dispute proposal and dispute finalization are intentionally split into separate temporary roles during Phase1.
+- **Identity Operator:** identity routes still converge on `setPrimaryAddress`, which remains a temporary operator step in the current Phase1 model.
 - **Positioning:** this is not final DAO governance; it is guarded MVP operation.
-- **Future direction:** in Phase2, the temporary operator is expected to move toward timelock + governance, and the dispute arbiter toward external adjudication or elected models.
+- **Future direction:** in Phase2, the temporary operator is expected to move toward timelock + governance, and the dispute resolver/finalizer path toward external adjudication or elected models.
 
 ## What Phase1 Already Does
 - distributes Token A to verified addresses and supports batched claim flow
@@ -89,6 +97,7 @@ NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 
 ## Phase1 identity integration (minimum)
 - `Verify this wallet` currently supports World ID, ZK-NFC, and mock verification routes.
+- The UI now surfaces `Active route`, `World ID mode`, and `ZK-NFC mode` so local/mock/staging/production behavior is visible at a glance.
 - The minimum current model is: the route returns success, then the frontend sends `setPrimaryAddress`.
 - In local development, `NEXT_PUBLIC_WORLD_ID_MOCK=true` and `NEXT_PUBLIC_ZKNFC_MOCK=true` are enough to test the flow.
 - Details: `docs/phase1_identity_integration_en.md`
@@ -115,6 +124,8 @@ NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 - To keep price comparisons stable, Phase1 now uses fixed vocabulary for scope / material / urgency / hours band. Details: `docs/market_vocabulary_en.md`
 - The operator UI now shows **reputation-ring heuristic warnings** such as repeated creator-worker pairs, reciprocal role pairs, and concentrated template-author usage. These are review signals only, not proof.
 - The operator UI also shows **review-priority tags** for missing evidence, missing arbiter summaries, and major quote / market mismatches.
+- The operator UI includes a **Needs my action** queue and role-aware controls for requester / worker / reward operator / resolver / finalizer actions.
+- Dispute and treasury activity now show **Executed by ... as ...** labels in the audit trail to make temporary Phase1 authority visible.
 
 ## Phase1 dispute fairness policy
 - rulings should be driven by evidence, timeline, and procedure, not wallet size

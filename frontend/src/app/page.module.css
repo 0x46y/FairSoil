@@ -1392,6 +1392,26 @@
   font-weight: 700;
 }
 
+.disputeReviewRolePill {
+  display: inline-flex;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(161, 123, 63, 0.12);
+  color: var(--soil-700);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.disputeReviewMeta {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--ink-500);
+  line-height: 1.4;
+}
+
 .disputeReviewBody {
   margin-top: 3px;
   font-size: 11px;

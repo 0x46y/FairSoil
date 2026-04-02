@@ -93,6 +93,8 @@ type TrailItem = {
   timestamp: number;
   title: string;
   body?: ReactNode;
+  actorSummary?: string;
+  actorRoleLabel?: string;
 };
 
 type TrailLog = {
@@ -1501,6 +1503,19 @@ export default function Home() {
     const eventName = log.eventName as string;
     const args = log.args ?? {};
     const actorMeta = formatActorWithRoles(actorContext);
+    const actorSummary =
+      actorContext.actorAddress && actorContext.actorRoles.length > 0
+        ? `${safeAddress(actorContext.actorAddress)} as ${actorContext.actorRoles.join(", ")}`
+        : actorContext.actorAddress
+        ? `${safeAddress(actorContext.actorAddress)} as participant`
+        : undefined;
+    const actorRoleLabel =
+      actorContext.actorRoles.length > 0 ? actorContext.actorRoles.join(" / ") : undefined;
+    const withActor = (item: Omit<TrailItem, "actorSummary" | "actorRoleLabel">): TrailItem => ({
+      ...item,
+      actorSummary,
+      actorRoleLabel,
+    });
 
     switch (eventName) {
       case "CovenantCreated": {
@@ -1510,7 +1525,7 @@ export default function Home() {
         const parts: string[] = [];
         if (tokenBReward > 0n) parts.push(formatTokenB(tokenBReward));
         if (integrityPoints > 0n) parts.push(formatIntegrity(integrityPoints));
-        return {
+        return withActor({
           id,
           timestamp,
           title: `Work agreement #${covenantId} created`,
@@ -1522,11 +1537,11 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "CovenantSubmitted": {
         const covenantId = Number(args.covenantId ?? 0);
-        return {
+        return withActor({
           id,
           timestamp,
           title: `Work agreement #${covenantId} submitted`,
@@ -1536,11 +1551,11 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "CovenantApproved": {
         const covenantId = Number(args.covenantId ?? 0);
-        return {
+        return withActor({
           id,
           timestamp,
           title: `Work agreement #${covenantId} approved`,
@@ -1550,11 +1565,11 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "CovenantRejected": {
         const covenantId = Number(args.covenantId ?? 0);
-        return {
+        return withActor({
           id,
           timestamp,
           title: `Work agreement #${covenantId} rejected`,
@@ -1564,11 +1579,11 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "CovenantCancelled": {
         const covenantId = Number(args.covenantId ?? 0);
-        return {
+        return withActor({
           id,
           timestamp,
           title: `Work agreement #${covenantId} cancelled`,
@@ -1578,7 +1593,7 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "IssueReported": {
         const covenantId = Number(args.covenantId ?? 0);
@@ -1590,7 +1605,7 @@ export default function Home() {
         const packet =
           typeof args.evidenceUri === "string" ? decodeEvidencePacket(args.evidenceUri) : null;
         const evidenceLink = formatEvidenceLink(args.evidenceUri);
-        return {
+        return withActor({
           id,
           timestamp,
           title: `Support requested for agreement #${covenantId}`,
@@ -1603,12 +1618,12 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "IssueAccepted": {
         const covenantId = Number(args.covenantId ?? 0);
         const claimPct = formatPercent((args.claimBps ?? 0n) as bigint);
-        return {
+        return withActor({
           id,
           timestamp,
           title: `Support accepted on agreement #${covenantId}`,
@@ -1618,7 +1633,7 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "IssueDisputed": {
         const covenantId = Number(args.covenantId ?? 0);
@@ -1629,7 +1644,7 @@ export default function Home() {
         const packet =
           typeof args.evidenceUri === "string" ? decodeEvidencePacket(args.evidenceUri) : null;
         const evidenceLink = formatEvidenceLink(args.evidenceUri);
-        return {
+        return withActor({
           id,
           timestamp,
           title: `Support disputed on agreement #${covenantId}`,
@@ -1641,10 +1656,10 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "DisputeResolverSet": {
-        return {
+        return withActor({
           id,
           timestamp,
           title: "Support resolver updated",
@@ -1654,10 +1669,10 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "DisputeFinalizerSet": {
-        return {
+        return withActor({
           id,
           timestamp,
           title: "Support finalizer updated",
@@ -1667,13 +1682,13 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "ResolutionProposed": {
         const covenantId = Number(args.covenantId ?? 0);
         const payoutBps = (args.workerPayoutBps ?? 0n) as bigint;
         const integrityPoints = (args.integrityPoints ?? 0n) as bigint;
-        return {
+        return withActor({
           id,
           timestamp,
           title: `Support proposal for agreement #${covenantId}`,
@@ -1683,12 +1698,12 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "MaliceSlashed": {
         const covenantId = Number(args.covenantId ?? 0);
         const penalty = (args.penalty ?? 0n) as bigint;
-        return {
+        return withActor({
           id,
           timestamp,
           title: `Integrity penalty on agreement #${covenantId}`,
@@ -1699,13 +1714,13 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "DisputeResolved": {
         const covenantId = Number(args.covenantId ?? 0);
         const payoutBps = (args.workerPayoutBps ?? 0n) as bigint;
         const integrityPoints = (args.integrityPoints ?? 0n) as bigint;
-        return {
+        return withActor({
           id,
           timestamp,
           title: `Support resolved: agreement #${covenantId}`,
@@ -1715,7 +1730,7 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "TaskCompleted": {
         const tokenBReward = (args.tokenBReward ?? 0n) as bigint;
@@ -1723,7 +1738,7 @@ export default function Home() {
         const parts: string[] = [];
         if (tokenBReward > 0n) parts.push(`+${formatTokenB(tokenBReward)}`);
         if (integrityPoints > 0n) parts.push(formatIntegrity(integrityPoints));
-        return {
+        return withActor({
           id,
           timestamp,
           title: "Task completed",
@@ -1734,11 +1749,11 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "UBIClaimed": {
         const amount = (args.amount ?? 0n) as bigint;
-        return {
+        return withActor({
           id,
           timestamp,
           title: "Bonus claimed",
@@ -1748,10 +1763,10 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "CovenantSet": {
-        return {
+        return withActor({
           id,
           timestamp,
           title: "Agreement contract linked to treasury",
@@ -1761,10 +1776,10 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "RewardOperatorSet": {
-        return {
+        return withActor({
           id,
           timestamp,
           title: `Reward operator ${args.approved ? "approved" : "removed"}`,
@@ -1774,12 +1789,12 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "TreasuryIn": {
         const amount = (args.amount ?? 0n) as bigint;
         const reason = formatReason(args.reason, "IN");
-        return {
+        return withActor({
           id,
           timestamp,
           title: "Treasury inflow",
@@ -1789,12 +1804,12 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "TreasuryOutA": {
         const amount = (args.amount ?? 0n) as bigint;
         const reason = formatReason(args.reason, "OUT_A");
-        return {
+        return withActor({
           id,
           timestamp,
           title: "Treasury outflow (A)",
@@ -1804,12 +1819,12 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "TreasuryOutB": {
         const amount = (args.amount ?? 0n) as bigint;
         const reason = formatReason(args.reason, "OUT_B");
-        return {
+        return withActor({
           id,
           timestamp,
           title: "Treasury outflow (B)",
@@ -1819,12 +1834,12 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "ReserveSnapshot": {
         const reservesA = (args.reservesA ?? 0n) as bigint;
         const reservesB = (args.reservesB ?? 0n) as bigint;
-        return {
+        return withActor({
           id,
           timestamp,
           title: "Treasury reserve snapshot",
@@ -1834,13 +1849,13 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       case "LiabilityChanged": {
         const deltaA = (args.deltaA ?? 0n) as bigint;
         const deltaB = (args.deltaB ?? 0n) as bigint;
         const reason = formatReason(args.reason, "LIAB");
-        return {
+        return withActor({
           id,
           timestamp,
           title: "Liability updated",
@@ -1850,7 +1865,7 @@ export default function Home() {
               {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
-        };
+        });
       }
       default:
         return null;
