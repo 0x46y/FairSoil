@@ -4,6 +4,11 @@ import { type Dispatch, type SetStateAction, useCallback, useRef, useState } fro
 import type { IDKitErrorCodes, IDKitResult, RpContext } from "@worldcoin/idkit";
 
 type SetStringState = Dispatch<SetStateAction<string | null>>;
+type VerifyRouteResponse = {
+  verified?: boolean;
+  message?: string;
+  mode?: "mock" | "remote";
+};
 
 export function useIdentityFlow(params: {
   accountAddress?: string;
@@ -60,11 +65,11 @@ export function useIdentityFlow(params: {
             rpContext: worldIdRpContext,
           }),
         });
-        if (!response.ok) {
-          const result = (await response.json().catch(() => null)) as { message?: string } | null;
-          throw new Error(result?.message || `Network error from verifier (${response.status})`);
-        }
-        const verifyResult = (await response.json()) as { verified?: boolean; message?: string };
+      if (!response.ok) {
+        const result = (await response.json().catch(() => null)) as VerifyRouteResponse | null;
+        throw new Error(result?.message || `Network error from verifier (${response.status})`);
+      }
+        const verifyResult = (await response.json()) as VerifyRouteResponse;
         if (!verifyResult.verified) {
           throw new Error(verifyResult.message || "Verification failed.");
         }
@@ -180,12 +185,12 @@ export function useIdentityFlow(params: {
       if (!response.ok) {
         throw new Error(`Network error from verifier (${response.status})`);
       }
-      const result = (await response.json()) as { verified?: boolean; message?: string };
+      const result = (await response.json()) as VerifyRouteResponse;
       if (!result.verified) {
         throw new Error(result.message || "Verification failed. Please re-check your NFC proof.");
       }
       await handleSetPrimary();
-      showSuccess("ZK-NFC verification accepted.");
+      showSuccess(result.message || "ZK-NFC verification accepted.");
     } catch (error) {
       const message = normalizeErrorMessage(error);
       if (message.toLowerCase().includes("network error")) {

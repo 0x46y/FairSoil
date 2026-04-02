@@ -36,9 +36,17 @@ NEXT_PUBLIC_TOKENB_ADDRESS=0x...
 NEXT_PUBLIC_TREASURY_ADDRESS=0x...
 NEXT_PUBLIC_COVENANT_ADDRESS=0x...
 NEXT_PUBLIC_RPC_URL=https://<your-codespace>-8545.app.github.dev/
+NEXT_PUBLIC_WORLD_ID_ENVIRONMENT=staging
 NEXT_PUBLIC_WORLD_ID_MOCK=true
 NEXT_PUBLIC_ZKNFC_MOCK=true
 ```
+
+Recommended identity env patterns:
+- `local mock`: `NEXT_PUBLIC_WORLD_ID_MOCK=true`, `NEXT_PUBLIC_ZKNFC_MOCK=true`
+- `staging-like`: set World ID app/action, `NEXT_PUBLIC_WORLD_ID_ENVIRONMENT=staging`, and keep both mock flags `false`
+- `production-like`: same as staging-like, but set `NEXT_PUBLIC_WORLD_ID_ENVIRONMENT=production`
+
+For the full matrix and UI route behavior, see `docs/phase1_identity_integration_en.md`.
 
 ### Optional: One-command redeploy
 If you want the deploy + env sync in one step:

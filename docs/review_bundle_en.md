@@ -98,8 +98,10 @@ NEXT_PUBLIC_AUDIT_WINDOW_HOURS=24
 ## Phase1 identity integration (minimum)
 - `Verify this wallet` currently supports World ID, ZK-NFC, and mock verification routes.
 - The UI now surfaces `Active route`, `World ID mode`, and `ZK-NFC mode` so local/mock/staging/production behavior is visible at a glance.
+- When a real World ID verifier is available, validate the rollout with `docs/worldid_acceptance_checklist_en.md`.
 - The minimum current model is: the route returns success, then the frontend sends `setPrimaryAddress`.
 - In local development, `NEXT_PUBLIC_WORLD_ID_MOCK=true` and `NEXT_PUBLIC_ZKNFC_MOCK=true` are enough to test the flow.
+- The recommended env patterns are now `local mock`, `staging-like`, and `production-like`.
 - Details: `docs/phase1_identity_integration_en.md`
 
 ## What Phase1 Does Not Yet Do

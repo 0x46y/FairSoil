@@ -641,6 +641,44 @@
   border: 1px solid rgba(122, 92, 43, 0.08);
 }
 
+.identityRouteBlock {
+  display: grid;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.identityRouteHint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-500);
+}
+
+.identityNextStepPanel,
+.identityRetryPanel {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--sand-200);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.identityNextStepPanel strong,
+.identityRetryPanel strong {
+  font-size: 12px;
+  color: var(--ink-800);
+}
+
+.identityNextStepPanel p,
+.identityRetryPanel p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-600);
+}
+
 .emptyState {
   font-size: 14px;
   line-height: 1.6;

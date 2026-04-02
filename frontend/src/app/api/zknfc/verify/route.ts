@@ -5,8 +5,10 @@ type VerifyPayload = {
 };
 
 type VerifierResponse = {
+  success?: boolean;
   verified?: boolean;
   message?: string;
+  mode?: "mock" | "remote";
 };
 
 const jsonHeaders = { "Content-Type": "application/json" };
@@ -48,7 +50,15 @@ export async function POST(request: Request) {
       cache: "no-store",
     });
 
-    const result = (await response.json().catch(() => null)) as VerifierResponse | null;
+    const rawText = await response.text();
+    let result: VerifierResponse | null = null;
+    if (rawText) {
+      try {
+        result = JSON.parse(rawText) as VerifierResponse | null;
+      } catch {
+        result = null;
+      }
+    }
     if (!response.ok) {
       return NextResponse.json(
         {
@@ -61,7 +71,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       {
-        verified: Boolean(result?.verified),
+        verified: Boolean(result?.verified ?? result?.success),
         message: result?.message || "ZK-NFC verification completed.",
         mode: "remote",
       },

@@ -36,14 +36,15 @@ This keeps local mock, staging-style, and production-style configuration visible
 
 ## Environment variables
 
-### Local mock mode
+### Recommended env patterns
 
-```env
-NEXT_PUBLIC_WORLD_ID_MOCK=true
-NEXT_PUBLIC_ZKNFC_MOCK=true
-```
+| Pattern | Purpose | World ID mode | ZK-NFC mode | Active route in UI |
+| --- | --- | --- | --- | --- |
+| local mock | fully local demo / recovery | `mock` | `mock` | `World ID (mock)` |
+| staging-like | connect a non-production World ID style flow | `staging` | `disabled` or `remote` | `World ID (staging)` or fallback to ZK-NFC |
+| production-like | production-shaped config review | `production` | `disabled` or `remote` | `World ID (production)` or fallback to ZK-NFC |
 
-Recommended for a fully local demo:
+### 1. Local mock
 
 ```env
 NEXT_PUBLIC_WORLD_ID_ENVIRONMENT=staging
@@ -51,13 +52,40 @@ NEXT_PUBLIC_WORLD_ID_MOCK=true
 NEXT_PUBLIC_ZKNFC_MOCK=true
 ```
 
-### Remote verifier mode
+This is the simplest setup when:
+
+- you only want to prove the UI flow
+- you want `Verify this wallet` to finish without a remote verifier
+- you still want the UI to show a stable route label
+
+### 2. Staging-like
 
 ```env
 NEXT_PUBLIC_WORLD_ID_APP_ID=...
 NEXT_PUBLIC_WORLD_ID_ACTION_ID=...
+NEXT_PUBLIC_WORLD_ID_ENVIRONMENT=staging
+NEXT_PUBLIC_WORLD_ID_MOCK=false
+NEXT_PUBLIC_ZKNFC_MOCK=false
 WORLD_ID_VERIFY_URL=https://...
+NEXT_PUBLIC_ZKNFC_VERIFIER_URL=
+```
+
+Use this when:
+
+- you want the UI and route logic to behave like a real World ID integration
+- production World ID is not the target yet
+- you may still want ZK-NFC disabled for a cleaner test surface
+
+### 3. Production-like
+
+```env
+NEXT_PUBLIC_WORLD_ID_APP_ID=...
+NEXT_PUBLIC_WORLD_ID_ACTION_ID=...
+NEXT_PUBLIC_WORLD_ID_ENVIRONMENT=production
+NEXT_PUBLIC_WORLD_ID_MOCK=false
 NEXT_PUBLIC_ZKNFC_VERIFIER_URL=https://...
+NEXT_PUBLIC_ZKNFC_MOCK=false
+WORLD_ID_VERIFY_URL=https://...
 ```
 
 Notes:
@@ -65,6 +93,9 @@ Notes:
 - `NEXT_PUBLIC_WORLD_ID_VERIFY_URL` is still accepted as a fallback
 - ZK-NFC currently relays through `NEXT_PUBLIC_ZKNFC_VERIFIER_URL`
 - `NEXT_PUBLIC_WORLD_ID_ENVIRONMENT` controls the visible World ID mode label in the UI (`staging` or `production`)
+- when `NEXT_PUBLIC_WORLD_ID_APP_ID` and `NEXT_PUBLIC_WORLD_ID_ACTION_ID` are missing, World ID is treated as disabled
+- when `NEXT_PUBLIC_ZKNFC_VERIFIER_URL` is empty and `NEXT_PUBLIC_ZKNFC_MOCK=false`, ZK-NFC is treated as disabled
+- if both remote routes are disabled, the UI falls back to temporary operator mock verification
 
 ## Requirements for real verifier integration
 
@@ -100,6 +131,8 @@ Phase1 is in a good state if:
 - the UI clearly shows `Verified / Not verified yet`
 - the UI clearly shows which identity route is active
 - the user can continue into UBI claim after verification
+
+When a real verifier becomes available, use `docs/worldid_acceptance_checklist_en.md` to confirm the World ID path end-to-end before changing broader docs or runbooks.
 
 ## Not implemented yet
 

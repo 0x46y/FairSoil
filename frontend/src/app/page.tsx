@@ -371,6 +371,15 @@ const formatTxError = (error: unknown) => {
   return `This transaction failed. Check the connected wallet, balances, and contract setup. Details: ${message}`;
 };
 
+const classifyIdentityError = (message: string | null) => {
+  const lower = message?.toLowerCase() ?? "";
+  if (!message) return "none" as const;
+  if (lower.includes("unreachable") || lower.includes("network error")) return "unreachable" as const;
+  if (lower.includes("config missing") || lower.includes("verifier url missing")) return "config" as const;
+  if (lower.includes("not verified") || lower.includes("failed")) return "failed" as const;
+  return "other" as const;
+};
+
 const formatRelativeTime = (timestamp: number, nowMs: number, locale: string) => {
   const diffSeconds = Math.max(0, Math.floor(nowMs / 1000 - timestamp));
   if (diffSeconds < 60) return "Just now";
@@ -2782,6 +2791,114 @@ export default function Home() {
     normalizeErrorMessage,
   });
 
+  const identityErrorKind = useMemo(() => classifyIdentityError(txError), [txError]);
+
+  const verificationStatusLabel = useMemo(() => {
+    if (!account.address) return "Connect wallet";
+    if (isPrimaryAddress === undefined) return "Checking current status…";
+    if (isPrimaryAddress) return "Verified";
+    if (txAction === "worldIdVerify") return "Preparing World ID verification…";
+    if (txAction === "zknfcVerify") return "Preparing ZK-NFC verification…";
+    if (txAction === "setPrimary") {
+      return txStatus === "confirming" ? "Registering verified wallet…" : "Awaiting wallet confirmation…";
+    }
+    if (worldIdOpen) return "Complete the World ID widget to continue.";
+    if (identityErrorKind === "unreachable") return "Verifier unreachable";
+    if (identityErrorKind === "config") return "Verification config missing";
+    if (identityErrorKind === "failed") return "Verification failed";
+    return "Not verified yet";
+  }, [account.address, identityErrorKind, isPrimaryAddress, txAction, txStatus, worldIdOpen]);
+
+  const verificationStatusDetail = useMemo(() => {
+    if (!account.address) return "Connect a wallet first to see which verification routes are usable.";
+    if (isPrimaryAddress === undefined) return "The frontend is checking whether this address is already primary.";
+    if (isPrimaryAddress) return "This address can use the full daily bonus flow and identity-gated actions.";
+    if (txAction === "worldIdVerify") {
+      return worldIdMock
+        ? "Mock mode will skip the remote verifier and move directly to primary-address registration."
+        : "The app is requesting RP context before opening the World ID widget.";
+    }
+    if (txAction === "zknfcVerify") {
+      return zknfcMock
+        ? "Mock mode will skip the remote verifier and move directly to primary-address registration."
+        : "The app is sending this wallet to the ZK-NFC verifier route.";
+    }
+    if (txAction === "setPrimary") {
+      return "The operator step is writing setPrimaryAddress on-chain. Confirm in the wallet if prompted.";
+    }
+    if (worldIdOpen) return "The widget is open. Complete or cancel it there, then return here.";
+    if (identityErrorKind === "unreachable") {
+      return "Retry the same route, switch to another configured route, or use operator mock verification for local testing.";
+    }
+    if (identityErrorKind === "config") {
+      return "Check the env values for the selected route, or fall back to another enabled route.";
+    }
+    if (identityErrorKind === "failed") {
+      return txError ?? "The verifier rejected this attempt. Re-check the proof route and try again.";
+    }
+    if (hasWorldIdConfig) return "World ID is the active route here. If it is unavailable, ZK-NFC or operator fallback can still be used.";
+    if (hasZkNfcConfig) return "World ID is disabled in this env, but ZK-NFC is available as the active route.";
+    return "No remote verifier is active in this env, so local testing depends on the temporary operator wallet.";
+  }, [account.address, identityErrorKind, isPrimaryAddress, txAction, txError, worldIdOpen]);
+
+  const worldIdButtonHint = useMemo(() => {
+    if (!hasWorldIdConfig) return "World ID is disabled in this environment.";
+    if (!account.address) return "Connect a wallet to start World ID verification.";
+    if (isPrimaryAddress) return "This wallet is already verified.";
+    if (isBusy && txAction !== "worldIdVerify") return "Another transaction is already in progress.";
+    if (worldIdMock) return "Mock mode: this will skip the remote verifier and write the primary address directly.";
+    return "Recommended when you want the normal World ID path for this environment.";
+  }, [account.address, isBusy, isPrimaryAddress, txAction]);
+
+  const zknfcButtonHint = useMemo(() => {
+    if (!hasZkNfcConfig) return "ZK-NFC is disabled in this environment.";
+    if (!account.address) return "Connect a wallet to start ZK-NFC verification.";
+    if (isPrimaryAddress) return "This wallet is already verified.";
+    if (isBusy && txAction !== "zknfcVerify") return "Another transaction is already in progress.";
+    if (zknfcMock) return "Mock mode: this will skip the remote verifier and write the primary address directly.";
+    return "Use this when World ID is unavailable here or when you want to test the NFC route.";
+  }, [account.address, isBusy, isPrimaryAddress, txAction]);
+
+  const operatorVerifyHint = useMemo(() => {
+    if (!account.address) return "Connect a wallet first.";
+    if (isPrimaryAddress) return "This wallet is already verified.";
+    if (!isTokenAOwner) return "Switch to the temporary operator wallet to use the direct mock registration path.";
+    if (isBusy && txAction !== "setPrimary") return "Another transaction is already in progress.";
+    return "Operator fallback: writes setPrimaryAddress directly for local or recovery testing.";
+  }, [account.address, isBusy, isPrimaryAddress, isTokenAOwner, txAction]);
+
+  const identityNextStep = useMemo(() => {
+    if (!account.address) return "Connect a wallet, then choose the route that matches this environment.";
+    if (isPrimaryAddress) return "Verification is complete. Continue to Step 2 and collect or accrue your daily bonus.";
+    if (txAction === "worldIdVerify" || worldIdOpen) {
+      return "Finish the World ID flow, then wait for the primary-address registration step.";
+    }
+    if (txAction === "zknfcVerify") {
+      return "Wait for the verifier response, then confirm the primary-address registration step if prompted.";
+    }
+    if (txAction === "setPrimary") {
+      return "Confirm the wallet transaction to register this address as primary.";
+    }
+    if (identityErrorKind === "unreachable") {
+      return "Retry the same route if the verifier is back, or switch to another enabled route for local testing.";
+    }
+    if (identityErrorKind === "config") {
+      return "Check the env setup for the intended route, or use another enabled route while the config is incomplete.";
+    }
+    if (identityErrorKind === "failed") {
+      return "Retry after checking the proof source or use another available route to confirm the rest of the participant flow.";
+    }
+    if (hasWorldIdConfig) return "Start with World ID, then use ZK-NFC or operator fallback only if the route is unavailable.";
+    if (hasZkNfcConfig) return "Start with ZK-NFC. If you only need a local demo, operator fallback is still available.";
+    return "Use the operator fallback path for local testing in this environment.";
+  }, [
+    account.address,
+    identityErrorKind,
+    isPrimaryAddress,
+    txAction,
+    worldIdOpen,
+  ]);
+
   const handleAccrueUnclaimed = async () => {
     if (!treasuryAddress) return;
     try {
@@ -3482,25 +3599,10 @@ export default function Home() {
               <article className={styles.card}>
                 <h3>Step 1: Verify this wallet</h3>
                 <p>
-                  {isPrimaryAddress === undefined
-                    ? "Check whether this wallet is already verified."
-                    : isPrimaryAddress
-                    ? "This wallet is verified."
-                    : hasWorldIdConfig
-                    ? "Use World ID to verify this wallet and unlock the full daily bonus flow."
-                    : hasZkNfcConfig
-                    ? "World ID is not active here, but you can still verify with ZK-NFC."
-                    : "This wallet is not verified yet. For MVP testing, the temporary operator can verify it manually."}
+                  {verificationStatusDetail}
                 </p>
-                <div className={styles.metricBreakdown}>
-                  <span>
-                    Verification status:{" "}
-                    {isPrimaryAddress === undefined
-                      ? "Checking…"
-                      : isPrimaryAddress
-                      ? "Verified"
-                      : "Not verified yet"}
-                  </span>
+                <div className={styles.metricBreakdown} aria-live="polite">
+                  <span>Verification status: {verificationStatusLabel}</span>
                   <span>Active route: {activeIdentityRoute}</span>
                   <span>World ID mode: {worldIdMode}</span>
                   <span>ZK-NFC mode: {zknfcMode}</span>
@@ -3518,14 +3620,15 @@ export default function Home() {
                 </div>
                 <div className={styles.cardActions}>
                   {hasWorldIdConfig ? (
-                    <>
+                    <div className={styles.identityRouteBlock}>
                       <button
                         className={styles.secondaryButton}
                         onClick={handleWorldIdVerify}
-                        disabled={!account.address || isBusy}
+                        disabled={!account.address || isBusy || Boolean(isPrimaryAddress)}
                       >
                         {actionLabel("worldIdVerify", worldIdMock ? "Verify (mock)" : "Verify with World ID")}
                       </button>
+                      <p className={styles.identityRouteHint}>{worldIdButtonHint}</p>
                       {!worldIdMock && worldIdRpContext ? (
                         <IDKitRequestWidget
                           open={worldIdOpen}
@@ -3541,26 +3644,68 @@ export default function Home() {
                           onError={handleWorldIdWidgetError}
                         />
                       ) : null}
-                    </>
+                    </div>
                   ) : null}
                   {hasZkNfcConfig ? (
+                    <div className={styles.identityRouteBlock}>
+                      <button
+                        className={styles.secondaryButton}
+                        onClick={handleZkNfcVerify}
+                        disabled={!account.address || isBusy || Boolean(isPrimaryAddress)}
+                      >
+                        {actionLabel("zknfcVerify", zknfcMock ? "Verify (mock)" : "Verify with ZK-NFC")}
+                      </button>
+                      <p className={styles.identityRouteHint}>{zknfcButtonHint}</p>
+                    </div>
+                  ) : null}
+                  <div className={styles.identityRouteBlock}>
                     <button
                       className={styles.secondaryButton}
-                      onClick={handleZkNfcVerify}
-                      disabled={!account.address || isBusy}
+                      onClick={handleSetPrimary}
+                      disabled={!account.address || !isTokenAOwner || isBusy || Boolean(isPrimaryAddress)}
                     >
-                      {actionLabel("zknfcVerify", zknfcMock ? "Verify (mock)" : "Verify with ZK-NFC")}
+                      {actionLabel("setPrimary", "Operator verify (mock)")}
                     </button>
-                  ) : null}
-                  <button
-                    className={styles.secondaryButton}
-                    onClick={handleSetPrimary}
-                    disabled={!account.address || !isTokenAOwner || isBusy}
-                  >
-                    {actionLabel("setPrimary", "Verify (mock)")}
-                  </button>
+                    <p className={styles.identityRouteHint}>{operatorVerifyHint}</p>
+                  </div>
                 </div>
-                {!account.address || !isTokenAOwner || isBusy ? (
+                <div className={styles.identityNextStepPanel} aria-live="polite">
+                  <strong>Suggested next step</strong>
+                  <p>{identityNextStep}</p>
+                </div>
+                {identityErrorKind !== "none" && !isPrimaryAddress ? (
+                  <div className={styles.identityRetryPanel} aria-live="polite">
+                    <strong>Retry or fallback</strong>
+                    <div className={styles.cardActions}>
+                      {hasWorldIdConfig ? (
+                        <button
+                          className={styles.secondaryButton}
+                          onClick={handleWorldIdVerify}
+                          disabled={!account.address || isBusy}
+                        >
+                          Retry World ID
+                        </button>
+                      ) : null}
+                      {hasZkNfcConfig ? (
+                        <button
+                          className={styles.secondaryButton}
+                          onClick={handleZkNfcVerify}
+                          disabled={!account.address || isBusy}
+                        >
+                          Retry ZK-NFC
+                        </button>
+                      ) : null}
+                      <button
+                        className={styles.secondaryButton}
+                        onClick={handleSetPrimary}
+                        disabled={!account.address || !isTokenAOwner || isBusy}
+                      >
+                        Use operator fallback
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+                {!account.address || !isTokenAOwner || isBusy || txAction === "worldIdVerify" || txAction === "zknfcVerify" ? (
                   <p className={styles.helperNote}>
                     {explainDisabledAction({
                       walletConnected: Boolean(account.address),

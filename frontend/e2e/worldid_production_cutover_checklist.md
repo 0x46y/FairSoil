@@ -2,6 +2,12 @@
 
 Use this after staging / simulator validation is complete and before switching FairSoil back to the real World App path.
 
+Related references:
+
+- `docs/worldid_acceptance_checklist_en.md`
+- `frontend/e2e/manual_wallet_runbook.md`
+- `frontend/e2e/worldid_simulator_runbook.md`
+
 ## 1. Replace staging values
 
 Update `frontend/.env.local`:
@@ -98,3 +104,16 @@ Escalate if:
 - document the production app ID and RP ID location for the team
 - decide whether to persist nullifiers server-side before broader rollout
 - remove any stale staging values from notes or temporary files
+
+## 8. UI failure triage
+
+If the identity card shows one of these states:
+
+- `Verification config missing`
+  - re-check `NEXT_PUBLIC_WORLD_ID_APP_ID`, `NEXT_PUBLIC_WORLD_ID_ACTION_ID`, and relay env values
+- `Verifier unreachable`
+  - confirm the relay endpoint is up and the frontend can reach `/api/worldid/verify`
+- `Verification failed`
+  - inspect the verifier response first, then re-check app/action alignment in the World dashboard
+- `Verified` does not appear after MetaMask success
+  - treat it as an on-chain follow-up problem and confirm `setPrimaryAddress(address,true)` was actually mined

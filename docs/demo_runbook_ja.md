@@ -9,6 +9,7 @@
 - `frontend/.env.local` 更新済み
 - `npm run dev` でフロント起動済み
 - MetaMask は Anvil の deployer / test wallet に接続済み
+- 実 World ID ルートを見せるなら `docs/worldid_acceptance_checklist_ja.md` と `frontend/e2e/manual_wallet_runbook.md` を手元に開いておく
 
 ## 1. 30秒: 何を作っているか
 
@@ -123,3 +124,9 @@
   - `Recent activity` と `Work agreements` の状態遷移だけ見せる
 - もし時間が2分しかないなら:
   - Hero -> Claim -> Agreement approve -> Recent activity
+
+## 実 World ID を使う場合の補助資料
+
+- 正常系の受け入れ確認は `docs/worldid_acceptance_checklist_ja.md`
+- MetaMask を使うローカル手順は `frontend/e2e/manual_wallet_runbook.md`
+- staging / mock から production credential へ切り替える日は `frontend/e2e/worldid_production_cutover_checklist.md`

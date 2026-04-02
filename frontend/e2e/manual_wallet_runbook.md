@@ -152,3 +152,16 @@ Expected result:
 - The arbiter card shows separate `Worker / Requester / Arbiter` records.
 - The arbiter record shows the structured fields instead of a single vague note.
 - If evidence is still missing or the quote looks unusual, review-priority tags appear before a human ruling is trusted.
+
+## Identity troubleshooting
+
+- `Verification config missing`
+  - env is incomplete for the selected route; check the World ID app/action ids and relay URL
+- `Verifier unreachable`
+  - the relay or verifier endpoint is down or not reachable from the frontend
+- `Verification failed`
+  - the verifier rejected the proof or route payload; inspect the dev server logs before retrying
+- `Verified` never appears after wallet confirmation
+  - confirm the `setPrimaryAddress(address,true)` transaction succeeded on-chain
+
+For the formal happy-path gate on rollout day, also use `docs/worldid_acceptance_checklist_en.md`.

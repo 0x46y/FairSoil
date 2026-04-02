@@ -9,6 +9,7 @@ This is the shortest reliable demo path for hackathons, grant calls, or technica
 - `frontend/.env.local` updated
 - `npm run dev` already running
 - MetaMask connected to the local Anvil wallet
+- if you are demoing the real World ID route, keep `docs/worldid_acceptance_checklist_en.md` and `frontend/e2e/manual_wallet_runbook.md` open beside the app
 
 ## 1. 30 seconds: what FairSoil is
 
@@ -93,3 +94,10 @@ Say:
 
 > FairSoil is not just a UBI app.  
 > It is an attempt to combine survival support, transparent work agreements, and fairer dispute handling in one Phase1 protocol kernel.
+
+## If the demo uses the real World ID path
+
+- confirm the env matches the target route before the call
+- use `docs/worldid_acceptance_checklist_en.md` for the happy-path acceptance sequence
+- use `frontend/e2e/manual_wallet_runbook.md` for the MetaMask-backed local flow
+- use `frontend/e2e/worldid_production_cutover_checklist.md` if you are switching from staging or mock assumptions to production credentials
