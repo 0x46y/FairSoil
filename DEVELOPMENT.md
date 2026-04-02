@@ -36,6 +36,8 @@ NEXT_PUBLIC_TOKENB_ADDRESS=0x...
 NEXT_PUBLIC_TREASURY_ADDRESS=0x...
 NEXT_PUBLIC_COVENANT_ADDRESS=0x...
 NEXT_PUBLIC_RPC_URL=https://<your-codespace>-8545.app.github.dev/
+NEXT_PUBLIC_WORLD_ID_MOCK=true
+NEXT_PUBLIC_ZKNFC_MOCK=true
 ```
 
 ### Optional: One-command redeploy
@@ -65,7 +67,9 @@ cast send $NEXT_PUBLIC_TREASURY_ADDRESS \
 ```
 
 Notes:
-- `reportTaskCompleted` is `onlyOwner`, so it must be sent by the deployer key.
+- `reportTaskCompleted` is callable by the treasury owner or an approved reward operator. In local recovery, using the deployer key is still the simplest path.
+- Phase1 dispute handling is now split across `disputeResolver` and `disputeFinalizer`.
+- The frontend identity card shows `Active route`, `World ID mode`, and `ZK-NFC mode`, so keep the mock flags explicit when you expect a fully local demo.
 - UBI claims now emit `UBIClaimed` and show up in the integrity trail.
 
 ## Step 4: Frontend (Terminal C)

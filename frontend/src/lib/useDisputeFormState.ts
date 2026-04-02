@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import type { EvidenceDraft } from "./evidencePacket";
 import type { DisputeReviewRecord } from "./marketVocabulary";
 
 export function useDisputeFormState() {
   const [issueClaims, setIssueClaims] = useState<Record<number, string>>({});
   const [issueReasons, setIssueReasons] = useState<Record<number, string>>({});
-  const [issueEvidenceUris, setIssueEvidenceUris] = useState<Record<number, string>>({});
+  const [issueEvidenceDrafts, setIssueEvidenceDrafts] = useState<Record<number, EvidenceDraft>>({});
   const [issueDepositEstimates, setIssueDepositEstimates] = useState<Record<number, bigint>>({});
   const [disputeReasons, setDisputeReasons] = useState<Record<number, string>>({});
-  const [disputeEvidenceUris, setDisputeEvidenceUris] = useState<Record<number, string>>({});
+  const [disputeEvidenceDrafts, setDisputeEvidenceDrafts] = useState<Record<number, EvidenceDraft>>({});
   const [resolveClaims, setResolveClaims] = useState<Record<number, string>>({});
   const [resolveIntegrity, setResolveIntegrity] = useState<Record<number, string>>({});
   const [resolveSlashing, setResolveSlashing] = useState<Record<number, string>>({});
@@ -24,14 +25,14 @@ export function useDisputeFormState() {
     setIssueClaims,
     issueReasons,
     setIssueReasons,
-    issueEvidenceUris,
-    setIssueEvidenceUris,
+    issueEvidenceDrafts,
+    setIssueEvidenceDrafts,
     issueDepositEstimates,
     setIssueDepositEstimates,
     disputeReasons,
     setDisputeReasons,
-    disputeEvidenceUris,
-    setDisputeEvidenceUris,
+    disputeEvidenceDrafts,
+    setDisputeEvidenceDrafts,
     resolveClaims,
     setResolveClaims,
     resolveIntegrity,

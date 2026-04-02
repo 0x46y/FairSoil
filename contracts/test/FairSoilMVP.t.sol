@@ -15,6 +15,7 @@ contract FairSoilMVPTest is Test {
     SoilTreasury internal treasury;
 
     address internal alice = address(0xA11CE);
+    address internal rewardOperator = address(0xA03);
 
     function setUp() public {
         FairSoilTokenA implementation = new FairSoilTokenA();
@@ -48,5 +49,21 @@ contract FairSoilMVPTest is Test {
         assertEq(tokenB.balanceOf(alice), 1e18);
         assertEq(treasury.integrityScore(alice), 100);
         assertTrue(treasury.isEligibleForGovernance(alice));
+    }
+
+    function testRewardOperatorCanReportTaskCompletion() public {
+        treasury.setRewardOperator(rewardOperator, true);
+
+        vm.prank(rewardOperator);
+        treasury.reportTaskCompleted(alice, 2e18, 25);
+
+        assertEq(tokenB.balanceOf(alice), 2e18);
+        assertEq(treasury.integrityScore(alice), 25);
+    }
+
+    function testUnauthorizedRewardReporterIsRejected() public {
+        vm.prank(rewardOperator);
+        vm.expectRevert("Reward operator only");
+        treasury.reportTaskCompleted(alice, 1e18, 10);
     }
 }

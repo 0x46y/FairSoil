@@ -24,6 +24,12 @@ type VerifierResponse = {
 const redactAddress = (value?: string) =>
   value ? `${value.slice(0, 6)}...${value.slice(-4)}` : undefined;
 
+const hasOwnString = (value: unknown, key: string) =>
+  typeof value === "object" &&
+  value !== null &&
+  key in value &&
+  typeof (value as Record<string, unknown>)[key] === "string";
+
 export async function POST(request: Request) {
   try {
     const debugEnabled = process.env.WORLD_ID_DEBUG === "true";
@@ -72,10 +78,8 @@ export async function POST(request: Request) {
         responseCount: body.idkitResponse.responses?.length ?? 0,
         identifier: firstResponse?.identifier,
         hasProof: Boolean(firstResponse?.proof),
-        hasNullifierHash:
-          "nullifier" in (firstResponse ?? {}) ? Boolean(firstResponse?.nullifier) : false,
-        hasMerkleRoot:
-          "merkle_root" in (firstResponse ?? {}) ? Boolean(firstResponse?.merkle_root) : false,
+        hasNullifierHash: hasOwnString(firstResponse, "nullifier"),
+        hasMerkleRoot: hasOwnString(firstResponse, "merkle_root"),
       });
     }
 

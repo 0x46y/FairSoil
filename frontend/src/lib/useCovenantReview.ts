@@ -18,7 +18,11 @@ type DashboardView = "participant" | "operator";
 type TemplateItem = {
   id: number;
   creator: string;
+  royaltyBps: bigint;
   metadataUri: string;
+  active: boolean;
+  createdAt: bigint;
+  effectiveRoyaltyBps: bigint;
 };
 
 type CovenantItem = {
@@ -26,7 +30,16 @@ type CovenantItem = {
   creator: string;
   worker: string;
   tokenBReward: bigint;
+  integrityPoints: bigint;
+  issueClaimBps: bigint;
+  escrowStart: bigint;
+  milestoneProgress: bigint;
+  proposedWorkerPayoutBps: bigint;
+  proposedIntegrityPoints: bigint;
+  proposedSlashingPenalty: bigint;
   templateId: bigint;
+  paymentToken: number;
+  paymentMode: number;
   status: number;
 };
 

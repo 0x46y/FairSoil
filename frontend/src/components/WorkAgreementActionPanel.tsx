@@ -1,8 +1,13 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { formatUnits } from "viem";
 import styles from "../app/page.module.css";
+import {
+  EMPTY_EVIDENCE_DRAFT,
+  buildEvidenceReference,
+  type EvidenceDraft,
+} from "../lib/evidencePacket";
 import type { DisputeFormState } from "../lib/useDisputeFormState";
 import type { WorkAgreementItem } from "./WorkAgreementRow";
 
@@ -10,6 +15,7 @@ export function WorkAgreementActionPanel(props: {
   item: WorkAgreementItem;
   accountAddress?: string;
   isDisputeResolver: boolean;
+  isDisputeFinalizer: boolean;
   isBusy: boolean;
   disputeState: Pick<
     DisputeFormState,
@@ -17,13 +23,13 @@ export function WorkAgreementActionPanel(props: {
     | "setIssueClaims"
     | "issueReasons"
     | "setIssueReasons"
-    | "issueEvidenceUris"
-    | "setIssueEvidenceUris"
+    | "issueEvidenceDrafts"
+    | "setIssueEvidenceDrafts"
     | "issueDepositEstimates"
     | "disputeReasons"
     | "setDisputeReasons"
-    | "disputeEvidenceUris"
-    | "setDisputeEvidenceUris"
+    | "disputeEvidenceDrafts"
+    | "setDisputeEvidenceDrafts"
     | "resolveClaims"
     | "setResolveClaims"
     | "resolveIntegrity"
@@ -57,6 +63,7 @@ export function WorkAgreementActionPanel(props: {
     item,
     accountAddress,
     isDisputeResolver,
+    isDisputeFinalizer,
     isBusy,
     disputeState,
     formatEvidenceLink,
@@ -78,13 +85,13 @@ export function WorkAgreementActionPanel(props: {
     setIssueClaims,
     issueReasons,
     setIssueReasons,
-    issueEvidenceUris,
-    setIssueEvidenceUris,
+    issueEvidenceDrafts,
+    setIssueEvidenceDrafts,
     issueDepositEstimates,
     disputeReasons,
     setDisputeReasons,
-    disputeEvidenceUris,
-    setDisputeEvidenceUris,
+    disputeEvidenceDrafts,
+    setDisputeEvidenceDrafts,
     resolveClaims,
     setResolveClaims,
     resolveIntegrity,
@@ -100,6 +107,21 @@ export function WorkAgreementActionPanel(props: {
     resolveEvidenceUris,
     setResolveEvidenceUris,
   } = disputeState;
+
+  const updateEvidenceDraft = (
+    setter: Dispatch<SetStateAction<Record<number, EvidenceDraft>>>,
+    covenantId: number,
+    field: keyof EvidenceDraft,
+    value: string
+  ) => {
+    setter((prev) => ({
+      ...prev,
+      [covenantId]: {
+        ...(prev[covenantId] ?? EMPTY_EVIDENCE_DRAFT),
+        [field]: value,
+      },
+    }));
+  };
 
   return (
     <>
@@ -166,17 +188,61 @@ export function WorkAgreementActionPanel(props: {
             <span className={styles.issueLabel}>Evidence URL</span>
             <input
               className={`${styles.issueInput} ${styles.issueInputWide}`}
-              value={issueEvidenceUris[item.id] ?? ""}
+              value={(issueEvidenceDrafts[item.id] ?? EMPTY_EVIDENCE_DRAFT).sourceUrl}
               onChange={(event) =>
-                setIssueEvidenceUris((prev) => ({
-                  ...prev,
-                  [item.id]: event.target.value,
-                }))
+                updateEvidenceDraft(setIssueEvidenceDrafts, item.id, "sourceUrl", event.target.value)
               }
               placeholder="https://…"
             />
-            {formatEvidenceLink(issueEvidenceUris[item.id]) ? (
-              <div className={styles.issuePreview}>{formatEvidenceLink(issueEvidenceUris[item.id])}</div>
+          </label>
+          <label className={styles.issueField}>
+            <span className={styles.issueLabel}>Evidence title</span>
+            <input
+              className={styles.issueInput}
+              value={(issueEvidenceDrafts[item.id] ?? EMPTY_EVIDENCE_DRAFT).title}
+              onChange={(event) =>
+                updateEvidenceDraft(setIssueEvidenceDrafts, item.id, "title", event.target.value)
+              }
+              placeholder="Photo set / invoice / log bundle"
+            />
+          </label>
+          <label className={styles.issueField}>
+            <span className={styles.issueLabel}>Content hash</span>
+            <input
+              className={styles.issueInput}
+              value={(issueEvidenceDrafts[item.id] ?? EMPTY_EVIDENCE_DRAFT).hash}
+              onChange={(event) =>
+                updateEvidenceDraft(setIssueEvidenceDrafts, item.id, "hash", event.target.value)
+              }
+              placeholder="bafy… / sha256:…"
+            />
+          </label>
+          <label className={styles.issueField}>
+            <span className={styles.issueLabel}>Evidence summary</span>
+            <textarea
+              className={styles.issueTextarea}
+              value={(issueEvidenceDrafts[item.id] ?? EMPTY_EVIDENCE_DRAFT).summary}
+              onChange={(event) =>
+                updateEvidenceDraft(setIssueEvidenceDrafts, item.id, "summary", event.target.value)
+              }
+              placeholder="What does this evidence prove?"
+            />
+            {formatEvidenceLink(
+              buildEvidenceReference(
+                issueEvidenceDrafts[item.id] ?? EMPTY_EVIDENCE_DRAFT,
+                "worker",
+                issueReasons[item.id] ?? ""
+              )
+            ) ? (
+              <div className={styles.issuePreview}>
+                {formatEvidenceLink(
+                  buildEvidenceReference(
+                    issueEvidenceDrafts[item.id] ?? EMPTY_EVIDENCE_DRAFT,
+                    "worker",
+                    issueReasons[item.id] ?? ""
+                  )
+                )}
+              </div>
             ) : null}
           </label>
           <button
@@ -242,17 +308,61 @@ export function WorkAgreementActionPanel(props: {
             <span className={styles.issueLabel}>Evidence URL</span>
             <input
               className={`${styles.issueInput} ${styles.issueInputWide}`}
-              value={disputeEvidenceUris[item.id] ?? ""}
+              value={(disputeEvidenceDrafts[item.id] ?? EMPTY_EVIDENCE_DRAFT).sourceUrl}
               onChange={(event) =>
-                setDisputeEvidenceUris((prev) => ({
-                  ...prev,
-                  [item.id]: event.target.value,
-                }))
+                updateEvidenceDraft(setDisputeEvidenceDrafts, item.id, "sourceUrl", event.target.value)
               }
               placeholder="https://…"
             />
-            {formatEvidenceLink(disputeEvidenceUris[item.id]) ? (
-              <div className={styles.issuePreview}>{formatEvidenceLink(disputeEvidenceUris[item.id])}</div>
+          </label>
+          <label className={styles.issueField}>
+            <span className={styles.issueLabel}>Evidence title</span>
+            <input
+              className={styles.issueInput}
+              value={(disputeEvidenceDrafts[item.id] ?? EMPTY_EVIDENCE_DRAFT).title}
+              onChange={(event) =>
+                updateEvidenceDraft(setDisputeEvidenceDrafts, item.id, "title", event.target.value)
+              }
+              placeholder="Counter evidence bundle"
+            />
+          </label>
+          <label className={styles.issueField}>
+            <span className={styles.issueLabel}>Content hash</span>
+            <input
+              className={styles.issueInput}
+              value={(disputeEvidenceDrafts[item.id] ?? EMPTY_EVIDENCE_DRAFT).hash}
+              onChange={(event) =>
+                updateEvidenceDraft(setDisputeEvidenceDrafts, item.id, "hash", event.target.value)
+              }
+              placeholder="bafy… / sha256:…"
+            />
+          </label>
+          <label className={styles.issueField}>
+            <span className={styles.issueLabel}>Evidence summary</span>
+            <textarea
+              className={styles.issueTextarea}
+              value={(disputeEvidenceDrafts[item.id] ?? EMPTY_EVIDENCE_DRAFT).summary}
+              onChange={(event) =>
+                updateEvidenceDraft(setDisputeEvidenceDrafts, item.id, "summary", event.target.value)
+              }
+              placeholder="Why does this evidence change the payout or integrity outcome?"
+            />
+            {formatEvidenceLink(
+              buildEvidenceReference(
+                disputeEvidenceDrafts[item.id] ?? EMPTY_EVIDENCE_DRAFT,
+                "creator",
+                disputeReasons[item.id] ?? ""
+              )
+            ) ? (
+              <div className={styles.issuePreview}>
+                {formatEvidenceLink(
+                  buildEvidenceReference(
+                    disputeEvidenceDrafts[item.id] ?? EMPTY_EVIDENCE_DRAFT,
+                    "creator",
+                    disputeReasons[item.id] ?? ""
+                  )
+                )}
+              </div>
             ) : null}
             <span className={styles.issueHelp}>
               Evidence is optional, but it can increase the maximum refundable amount.
@@ -279,125 +389,131 @@ export function WorkAgreementActionPanel(props: {
           </button>
         </>
       ) : null}
-      {(item.status === 6 || item.status === 7) && accountAddress && isDisputeResolver ? (
+      {(item.status === 6 || item.status === 7) &&
+      accountAddress &&
+      (isDisputeResolver || isDisputeFinalizer) ? (
         <div className={styles.resolveActions}>
-          <label className={styles.issueField}>
-            <span className={styles.issueLabel}>Payout %</span>
-            <input
-              className={styles.issueInput}
-              value={resolveClaims[item.id] ?? ""}
-              onChange={(event) =>
-                setResolveClaims((prev) => ({
-                  ...prev,
-                  [item.id]: event.target.value,
-                }))
-              }
-              placeholder="50"
-            />
-            <span className={styles.issueHelp}>Percent of the reward that should go to the worker.</span>
-          </label>
-          <label className={styles.issueField}>
-            <span className={styles.issueLabel}>Trust score</span>
-            <input
-              className={styles.issueInput}
-              value={resolveIntegrity[item.id] ?? ""}
-              onChange={(event) =>
-                setResolveIntegrity((prev) => ({
-                  ...prev,
-                  [item.id]: event.target.value,
-                }))
-              }
-              placeholder="10"
-            />
-          </label>
-          <label className={styles.issueField}>
-            <span className={styles.issueLabel}>Penalty in Token B</span>
-            <input
-              className={styles.issueInput}
-              value={resolveSlashing[item.id] ?? ""}
-              onChange={(event) =>
-                setResolveSlashing((prev) => ({
-                  ...prev,
-                  [item.id]: event.target.value,
-                }))
-              }
-              placeholder="0"
-            />
-          </label>
-          <label className={styles.issueField}>
-            <span className={styles.issueLabel}>Claim summary</span>
-            <textarea
-              className={styles.issueTextarea}
-              value={resolveClaimSummaries[item.id] ?? ""}
-              onChange={(event) =>
-                setResolveClaimSummaries((prev) => ({
-                  ...prev,
-                  [item.id]: event.target.value,
-                }))
-              }
-              placeholder="Summarize what the worker is asking for"
-            />
-            <span className={styles.issueHelp}>This becomes part of the on-chain arbiter note.</span>
-          </label>
-          <label className={styles.issueField}>
-            <span className={styles.issueLabel}>Requester response</span>
-            <textarea
-              className={styles.issueTextarea}
-              value={resolveRequesterResponses[item.id] ?? ""}
-              onChange={(event) =>
-                setResolveRequesterResponses((prev) => ({
-                  ...prev,
-                  [item.id]: event.target.value,
-                }))
-              }
-              placeholder="Summarize the requester response and strongest counterpoint"
-            />
-          </label>
-          <label className={styles.issueField}>
-            <span className={styles.issueLabel}>Missing evidence / gaps</span>
-            <textarea
-              className={styles.issueTextarea}
-              value={resolveMissingEvidenceNotes[item.id] ?? ""}
-              onChange={(event) =>
-                setResolveMissingEvidenceNotes((prev) => ({
-                  ...prev,
-                  [item.id]: event.target.value,
-                }))
-              }
-              placeholder="What is still missing, unclear, or contradictory?"
-            />
-          </label>
-          <label className={styles.issueField}>
-            <span className={styles.issueLabel}>Arbiter evidence URL</span>
-            <input
-              className={`${styles.issueInput} ${styles.issueInputWide}`}
-              value={resolveEvidenceUris[item.id] ?? ""}
-              onChange={(event) =>
-                setResolveEvidenceUris((prev) => ({
-                  ...prev,
-                  [item.id]: event.target.value,
-                }))
-              }
-              placeholder="https://…"
-            />
-            {formatEvidenceLink(resolveEvidenceUris[item.id]) ? (
-              <div className={styles.issuePreview}>{formatEvidenceLink(resolveEvidenceUris[item.id])}</div>
-            ) : null}
-          </label>
-          <button
-            className={`${styles.primaryButton} ${styles.covenantActionPrimary}`}
-            onClick={() => handleResolveDispute(item.id)}
-            disabled={isBusy}
-          >
-            {actionLabel(`resolve-${item.id}`, item.status === 7 ? "Update proposal" : "Propose outcome")}
-          </button>
+          {isDisputeResolver ? (
+            <>
+              <label className={styles.issueField}>
+                <span className={styles.issueLabel}>Payout %</span>
+                <input
+                  className={styles.issueInput}
+                  value={resolveClaims[item.id] ?? ""}
+                  onChange={(event) =>
+                    setResolveClaims((prev) => ({
+                      ...prev,
+                      [item.id]: event.target.value,
+                    }))
+                  }
+                  placeholder="50"
+                />
+                <span className={styles.issueHelp}>Percent of the reward that should go to the worker.</span>
+              </label>
+              <label className={styles.issueField}>
+                <span className={styles.issueLabel}>Trust score</span>
+                <input
+                  className={styles.issueInput}
+                  value={resolveIntegrity[item.id] ?? ""}
+                  onChange={(event) =>
+                    setResolveIntegrity((prev) => ({
+                      ...prev,
+                      [item.id]: event.target.value,
+                    }))
+                  }
+                  placeholder="10"
+                />
+              </label>
+              <label className={styles.issueField}>
+                <span className={styles.issueLabel}>Penalty in Token B</span>
+                <input
+                  className={styles.issueInput}
+                  value={resolveSlashing[item.id] ?? ""}
+                  onChange={(event) =>
+                    setResolveSlashing((prev) => ({
+                      ...prev,
+                      [item.id]: event.target.value,
+                    }))
+                  }
+                  placeholder="0"
+                />
+              </label>
+              <label className={styles.issueField}>
+                <span className={styles.issueLabel}>Claim summary</span>
+                <textarea
+                  className={styles.issueTextarea}
+                  value={resolveClaimSummaries[item.id] ?? ""}
+                  onChange={(event) =>
+                    setResolveClaimSummaries((prev) => ({
+                      ...prev,
+                      [item.id]: event.target.value,
+                    }))
+                  }
+                  placeholder="Summarize what the worker is asking for"
+                />
+                <span className={styles.issueHelp}>This becomes part of the on-chain arbiter note.</span>
+              </label>
+              <label className={styles.issueField}>
+                <span className={styles.issueLabel}>Requester response</span>
+                <textarea
+                  className={styles.issueTextarea}
+                  value={resolveRequesterResponses[item.id] ?? ""}
+                  onChange={(event) =>
+                    setResolveRequesterResponses((prev) => ({
+                      ...prev,
+                      [item.id]: event.target.value,
+                    }))
+                  }
+                  placeholder="Summarize the requester response and strongest counterpoint"
+                />
+              </label>
+              <label className={styles.issueField}>
+                <span className={styles.issueLabel}>Missing evidence / gaps</span>
+                <textarea
+                  className={styles.issueTextarea}
+                  value={resolveMissingEvidenceNotes[item.id] ?? ""}
+                  onChange={(event) =>
+                    setResolveMissingEvidenceNotes((prev) => ({
+                      ...prev,
+                      [item.id]: event.target.value,
+                    }))
+                  }
+                  placeholder="What is still missing, unclear, or contradictory?"
+                />
+              </label>
+              <label className={styles.issueField}>
+                <span className={styles.issueLabel}>Arbiter evidence URL</span>
+                <input
+                  className={`${styles.issueInput} ${styles.issueInputWide}`}
+                  value={resolveEvidenceUris[item.id] ?? ""}
+                  onChange={(event) =>
+                    setResolveEvidenceUris((prev) => ({
+                      ...prev,
+                      [item.id]: event.target.value,
+                    }))
+                  }
+                  placeholder="https://…"
+                />
+                {formatEvidenceLink(resolveEvidenceUris[item.id]) ? (
+                  <div className={styles.issuePreview}>{formatEvidenceLink(resolveEvidenceUris[item.id])}</div>
+                ) : null}
+              </label>
+              <button
+                className={`${styles.primaryButton} ${styles.covenantActionPrimary}`}
+                onClick={() => handleResolveDispute(item.id)}
+                disabled={isBusy}
+              >
+                {actionLabel(`resolve-${item.id}`, item.status === 7 ? "Update proposal" : "Propose outcome")}
+              </button>
+            </>
+          ) : null}
           {item.status === 7 ? (
             <button
               className={styles.secondaryButton}
               onClick={() => handleFinalizeResolution(item.id)}
-              disabled={isBusy}
+              disabled={isBusy || !isDisputeFinalizer}
             >
-              {actionLabel(`finalize-${item.id}`, "Finalize outcome")}
+              {actionLabel(`finalize-${item.id}`, isDisputeFinalizer ? "Finalize outcome" : "Waiting for finalizer")}
             </button>
           ) : null}
         </div>

@@ -108,6 +108,7 @@ contract Covenant is Ownable {
     uint256 public constant JURY_EXPERT_SLOTS = 3;
     uint256 public constant JURY_EXPERT_MIN_INTEGRITY = 200;
     address public disputeResolver;
+    address public disputeFinalizer;
     IRoyaltyRouter public royaltyRouter;
 
     mapping(uint256 => CovenantData) public covenants;
@@ -179,6 +180,7 @@ contract Covenant is Ownable {
         uint256 slashingPenalty
     );
     event DisputeResolverSet(address indexed resolver);
+    event DisputeFinalizerSet(address indexed finalizer);
     event RoyaltyRouterSet(address indexed router);
     event CovenantTemplateLinked(uint256 indexed covenantId, uint256 indexed templateId);
     event IssueDepositLocked(uint256 indexed covenantId, address indexed worker, uint256 amount);
@@ -217,6 +219,7 @@ contract Covenant is Ownable {
         tokenA = IFairSoilTokenA(tokenAAddress);
         treasury = ISoilTreasury(treasuryAddress);
         disputeResolver = msg.sender;
+        disputeFinalizer = msg.sender;
     }
 
     modifier onlyDisputeResolver() {
@@ -224,9 +227,21 @@ contract Covenant is Ownable {
         _;
     }
 
+    modifier onlyDisputeFinalizer() {
+        require(msg.sender == disputeFinalizer, "Finalizer only");
+        _;
+    }
+
     function setDisputeResolver(address resolver) external onlyOwner {
+        require(resolver != address(0), "Resolver required");
         disputeResolver = resolver;
         emit DisputeResolverSet(resolver);
+    }
+
+    function setDisputeFinalizer(address finalizer) external onlyOwner {
+        require(finalizer != address(0), "Finalizer required");
+        disputeFinalizer = finalizer;
+        emit DisputeFinalizerSet(finalizer);
     }
 
     function setRoyaltyRouter(address router) external onlyOwner {
@@ -629,7 +644,7 @@ contract Covenant is Ownable {
         emit ResolutionProposed(covenantId, workerPayoutBps, integrityPoints, slashingPenalty);
     }
 
-    function finalizeResolution(uint256 covenantId) external onlyDisputeResolver {
+    function finalizeResolution(uint256 covenantId) external onlyDisputeFinalizer {
         CovenantData storage data = covenants[covenantId];
         require(data.creator != address(0), "Unknown covenant");
         require(data.status == Status.ResolutionProposed, "Not proposed");

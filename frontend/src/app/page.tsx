@@ -7,6 +7,7 @@ import {
 } from "@worldcoin/idkit";
 import {
   formatUnits,
+  isAddress,
   parseUnits,
   zeroAddress,
   keccak256,
@@ -51,6 +52,7 @@ import {
   urgencyLabelFor,
   urgencyVocabulary,
 } from "../lib/marketVocabulary";
+import { decodeEvidencePacket } from "../lib/evidencePacket";
 import { useCovenantReview } from "../lib/useCovenantReview";
 import { useDisputeFormState } from "../lib/useDisputeFormState";
 import { useCovenantActions } from "../lib/useCovenantActions";
@@ -58,11 +60,14 @@ import { useIdentityFlow } from "../lib/useIdentityFlow";
 import { WorkAgreementsSection } from "../components/WorkAgreementsSection";
 import { WorkAgreementRow } from "../components/WorkAgreementRow";
 import {
+  activeIdentityRoute,
   covenantAddress,
   missingEnv,
   covenantLibraryAddress,
   resourceRegistryAddress,
   tokenAAddress,
+  hasWorldIdConfig,
+  hasZkNfcConfig,
   tokenBAddress,
   treasuryAddress,
   externalAdjudicationUrl,
@@ -74,7 +79,9 @@ import {
   worldIdActionId,
   worldIdEnvironment,
   worldIdAppId,
+  worldIdMode,
   worldIdMock,
+  zknfcMode,
   zknfcMock,
   zknfcVerifierUrl,
 } from "../lib/contracts";
@@ -96,10 +103,30 @@ type TrailLog = {
   args?: Record<string, unknown>;
 };
 
+type TrailActorContext = {
+  actorAddress?: string;
+  actorRoles: string[];
+};
+
 type DashboardView = "participant" | "operator";
 
 const shortAddress = (value: string) => `${value.slice(0, 6)}…${value.slice(-4)}`;
 const safeAddress = (value?: string) => (value ? shortAddress(value) : "Unknown");
+const sameAddress = (left?: string, right?: string) =>
+  Boolean(left && right && left.toLowerCase() === right.toLowerCase());
+
+const uniq = (items: string[]) => Array.from(new Set(items));
+
+const formatActorWithRoles = (context: TrailActorContext) => {
+  if (!context.actorAddress) return null;
+  const roleLabel = context.actorRoles.length > 0 ? context.actorRoles.join(", ") : "participant";
+  return (
+    <>
+      Executed by {safeAddress(context.actorAddress)} as {roleLabel}
+    </>
+  );
+};
+
 const formatDate = (timestamp: bigint, locale: string) =>
   new Intl.DateTimeFormat(locale, {
     year: "numeric",
@@ -193,7 +220,8 @@ const simplifyAuditTitle = (title: string) => {
 const nextStepForCovenant = (
   item: { status: number; creator: string; worker: string },
   account: string | undefined,
-  isDisputeResolver: boolean
+  isDisputeResolver: boolean,
+  isDisputeFinalizer: boolean
 ) => {
   const lower = account?.toLowerCase();
   const isCreator = !!lower && item.creator.toLowerCase() === lower;
@@ -222,8 +250,9 @@ const nextStepForCovenant = (
     return "Next: waiting for the dispute arbiter to review the dispute.";
   }
   if (item.status === 7) {
-    if (isDisputeResolver) return "Next: the dispute arbiter should finalize the proposed outcome.";
-    return "Next: waiting for the dispute arbiter to finalize the outcome.";
+    if (isDisputeFinalizer) return "Next: the finalizer should confirm the proposed outcome.";
+    if (isDisputeResolver) return "Next: wait for the finalizer to confirm the proposed outcome.";
+    return "Next: waiting for the finalizer to confirm the outcome.";
   }
   if (item.status === 8) return "Finished: the dispute outcome has been finalized.";
   return "Next step unavailable.";
@@ -266,6 +295,17 @@ const formatEvidenceLink = (value: unknown) => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
+  const packet = decodeEvidencePacket(trimmed);
+  if (packet?.sourceUrl) {
+    return (
+      <a className={styles.timelineLink} href={packet.sourceUrl} target="_blank" rel="noreferrer">
+        {packet.title?.trim() || "Evidence packet"}
+      </a>
+    );
+  }
+  if (packet) {
+    return <span className={styles.timelineMeta}>Evidence packet attached</span>;
+  }
   return (
     <a className={styles.timelineLink} href={trimmed} target="_blank" rel="noreferrer">
       Evidence URL
@@ -319,6 +359,12 @@ const formatTxError = (error: unknown) => {
   }
   if (lower.includes("owner")) {
     return "This action needs the temporary operator wallet.";
+  }
+  if (lower.includes("reward operator")) {
+    return "This action needs the treasury owner or an approved reward operator wallet.";
+  }
+  if (lower.includes("finalizer")) {
+    return "This action needs the configured dispute finalizer wallet.";
   }
   return `This transaction failed. Check the connected wallet, balances, and contract setup. Details: ${message}`;
 };
@@ -376,6 +422,9 @@ export default function Home() {
   const [covenantTags, setCovenantTags] = useState("general");
   const [covenantTagFilter, setCovenantTagFilter] = useState("");
   const [onlyFlaggedAgreements, setOnlyFlaggedAgreements] = useState(false);
+  const [queueFilter, setQueueFilter] = useState<
+    "all" | "mine" | "creator" | "worker" | "resolver" | "finalizer"
+  >("all");
   const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
   const [covenantTagMap, setCovenantTagMap] = useState<Record<string, string>>({});
   const [covenantTransparencyMap, setCovenantTransparencyMap] = useState<Record<string, CovenantTransparencyNote>>(
@@ -756,10 +805,34 @@ export default function Home() {
     },
   });
 
+  const { data: disputeFinalizer } = useReadContract({
+    address: covenantAddr,
+    abi: covenantAbi,
+    functionName: "disputeFinalizer",
+    query: {
+      enabled: Boolean(covenantAddress),
+    },
+  });
+
+  const { data: isRewardOperator } = useReadContract({
+    address: treasuryAddr,
+    abi: treasuryAbi,
+    functionName: "rewardOperators",
+    args: [address],
+    query: {
+      enabled: Boolean(treasuryAddress && account.address),
+    },
+  });
+
   const isDisputeResolver = useMemo(() => {
     if (!account.address || !disputeResolver) return false;
     return (disputeResolver as string).toLowerCase() === account.address.toLowerCase();
   }, [account.address, disputeResolver]);
+
+  const isDisputeFinalizer = useMemo(() => {
+    if (!account.address || !disputeFinalizer) return false;
+    return (disputeFinalizer as string).toLowerCase() === account.address.toLowerCase();
+  }, [account.address, disputeFinalizer]);
 
   const formattedTokenA = useMemo(() => {
     if (tokenABalance === undefined) return "--";
@@ -825,6 +898,8 @@ export default function Home() {
     if (!account.address || !treasuryOwner) return false;
     return (treasuryOwner as string).toLowerCase() === account.address.toLowerCase();
   }, [account.address, treasuryOwner]);
+
+  const canReportTaskCompleted = isTreasuryOwner || Boolean(isRewardOperator);
 
   const formattedLastAPPI = useMemo(() => {
     if (lastAPPI === undefined) return "--";
@@ -948,6 +1023,55 @@ export default function Home() {
     covenantTransparencyMap,
     disputeReviewRecords,
   });
+
+  const covenantQueue = useMemo(() => {
+    const normalizedAccount = account.address?.toLowerCase();
+    const items = visibleCovenants.map((item) => {
+      const isCreator = Boolean(normalizedAccount && item.creator.toLowerCase() === normalizedAccount);
+      const isWorker = Boolean(normalizedAccount && item.worker.toLowerCase() === normalizedAccount);
+      const creatorActionable = isCreator && (item.status === 1 || item.status === 5 || item.status === 6);
+      const workerActionable = isWorker && (item.status === 0 || item.status === 1 || item.status === 5);
+      const resolverActionable = isDisputeResolver && (item.status === 6 || item.status === 7);
+      const finalizerActionable = isDisputeFinalizer && item.status === 7;
+
+      return {
+        ...item,
+        creatorActionable,
+        workerActionable,
+        resolverActionable,
+        finalizerActionable,
+        mineActionable:
+          creatorActionable || workerActionable || resolverActionable || finalizerActionable,
+      };
+    });
+
+    const counts = {
+      creator: items.filter((item) => item.creatorActionable).length,
+      worker: items.filter((item) => item.workerActionable).length,
+      resolver: items.filter((item) => item.resolverActionable).length,
+      finalizer: items.filter((item) => item.finalizerActionable).length,
+      mine: items.filter((item) => item.mineActionable).length,
+    };
+
+    const filteredItems = items.filter((item) => {
+      switch (queueFilter) {
+        case "mine":
+          return item.mineActionable;
+        case "creator":
+          return item.creatorActionable;
+        case "worker":
+          return item.workerActionable;
+        case "resolver":
+          return item.resolverActionable;
+        case "finalizer":
+          return item.finalizerActionable;
+        default:
+          return true;
+      }
+    });
+
+    return { items: filteredItems, counts };
+  }, [account.address, isDisputeFinalizer, isDisputeResolver, queueFilter, visibleCovenants]);
 
   const handleExportAudit = () => {
     const rows = filteredTrailItems.map((item) => {
@@ -1338,11 +1462,45 @@ export default function Home() {
     return covenantReward > balance;
   }, [covenantPayInTokenA, covenantReward, tokenABalance, tokenBUnlocked]);
 
-  const buildTrailItemFromLog = useCallback((log: TrailLog, timestamp: number): TrailItem | null => {
+  const getTrailActorContext = useCallback(
+    (
+      eventName: string,
+      args: Record<string, unknown>,
+      actorAddress?: string,
+      actorIsRewardOperator?: boolean
+    ): TrailActorContext => {
+      if (!actorAddress) return { actorAddress: undefined, actorRoles: [] };
+
+      const roles: string[] = [];
+      if (sameAddress(actorAddress, args.creator as string | undefined)) roles.push("requester");
+      if (sameAddress(actorAddress, args.worker as string | undefined)) roles.push("worker");
+      if (sameAddress(actorAddress, treasuryOwner as string | undefined)) roles.push("treasury owner");
+      if (actorIsRewardOperator && !sameAddress(actorAddress, treasuryOwner as string | undefined)) {
+        roles.push("reward operator");
+      }
+      if (sameAddress(actorAddress, disputeResolver as string | undefined)) roles.push("dispute resolver");
+      if (sameAddress(actorAddress, disputeFinalizer as string | undefined)) roles.push("dispute finalizer");
+      if (sameAddress(actorAddress, tokenAOwner as string | undefined)) roles.push("identity operator");
+
+      if (eventName === "ResolutionProposed" && roles.length === 0) roles.push("dispute resolver");
+      if (eventName === "DisputeResolved" && roles.length === 0) roles.push("dispute finalizer");
+      if (eventName === "TaskCompleted" && roles.length === 0) roles.push("reward operator");
+
+      return { actorAddress, actorRoles: uniq(roles) };
+    },
+    [disputeFinalizer, disputeResolver, tokenAOwner, treasuryOwner]
+  );
+
+  const buildTrailItemFromLog = useCallback((
+    log: TrailLog,
+    timestamp: number,
+    actorContext: TrailActorContext
+  ): TrailItem | null => {
     if (!log?.eventName) return null;
     const id = `${log.transactionHash ?? "0x"}-${log.logIndex ?? 0}`;
     const eventName = log.eventName as string;
     const args = log.args ?? {};
+    const actorMeta = formatActorWithRoles(actorContext);
 
     switch (eventName) {
       case "CovenantCreated": {
@@ -1356,9 +1514,14 @@ export default function Home() {
           id,
           timestamp,
           title: `Work agreement #${covenantId} created`,
-          body: `Creator ${safeAddress(args.creator as string | undefined)} · Worker ${safeAddress(
-            args.worker as string | undefined
-          )}${parts.length ? ` · ${parts.join(" · ")}` : ""}`,
+          body: (
+            <>
+              Creator {safeAddress(args.creator as string | undefined)} · Worker{" "}
+              {safeAddress(args.worker as string | undefined)}
+              {parts.length ? <> · {parts.join(" · ")}</> : null}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "CovenantSubmitted": {
@@ -1367,7 +1530,12 @@ export default function Home() {
           id,
           timestamp,
           title: `Work agreement #${covenantId} submitted`,
-          body: `Submitted by ${safeAddress(args.worker as string | undefined)}`,
+          body: (
+            <>
+              Submitted by {safeAddress(args.worker as string | undefined)}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "CovenantApproved": {
@@ -1376,7 +1544,12 @@ export default function Home() {
           id,
           timestamp,
           title: `Work agreement #${covenantId} approved`,
-          body: `Approved by ${safeAddress(args.creator as string | undefined)} · Reward released`,
+          body: (
+            <>
+              Approved by {safeAddress(args.creator as string | undefined)} · Reward released
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "CovenantRejected": {
@@ -1385,7 +1558,12 @@ export default function Home() {
           id,
           timestamp,
           title: `Work agreement #${covenantId} rejected`,
-          body: `Rejected by ${safeAddress(args.creator as string | undefined)}`,
+          body: (
+            <>
+              Rejected by {safeAddress(args.creator as string | undefined)}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "CovenantCancelled": {
@@ -1394,7 +1572,12 @@ export default function Home() {
           id,
           timestamp,
           title: `Work agreement #${covenantId} cancelled`,
-          body: `Cancelled by ${safeAddress(args.creator as string | undefined)}`,
+          body: (
+            <>
+              Cancelled by {safeAddress(args.creator as string | undefined)}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "IssueReported": {
@@ -1404,6 +1587,8 @@ export default function Home() {
           typeof args.reason === "string" && args.reason.trim().length > 0
             ? `Reason: ${args.reason.trim()}`
             : "Reason not provided";
+        const packet =
+          typeof args.evidenceUri === "string" ? decodeEvidencePacket(args.evidenceUri) : null;
         const evidenceLink = formatEvidenceLink(args.evidenceUri);
         return {
           id,
@@ -1413,7 +1598,9 @@ export default function Home() {
             <>
               Reported by {safeAddress(args.worker as string | undefined)} · Claim {claimPct}% ·{" "}
               {reason}
+              {packet?.summary ? <> · Summary: {packet.summary}</> : null}
               {evidenceLink ? <> · {evidenceLink}</> : null}
+              {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
         };
@@ -1425,7 +1612,12 @@ export default function Home() {
           id,
           timestamp,
           title: `Support accepted on agreement #${covenantId}`,
-          body: `Accepted by ${safeAddress(args.creator as string | undefined)} · Claim ${claimPct}%`,
+          body: (
+            <>
+              Accepted by {safeAddress(args.creator as string | undefined)} · Claim {claimPct}%
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "IssueDisputed": {
@@ -1434,6 +1626,8 @@ export default function Home() {
           typeof args.reason === "string" && args.reason.trim().length > 0
             ? `Reason: ${args.reason.trim()}`
             : "Reason not provided";
+        const packet =
+          typeof args.evidenceUri === "string" ? decodeEvidencePacket(args.evidenceUri) : null;
         const evidenceLink = formatEvidenceLink(args.evidenceUri);
         return {
           id,
@@ -1442,7 +1636,9 @@ export default function Home() {
           body: (
             <>
               Disputed by {safeAddress(args.creator as string | undefined)} · {reason}
+              {packet?.summary ? <> · Summary: {packet.summary}</> : null}
               {evidenceLink ? <> · {evidenceLink}</> : null}
+              {actorMeta ? <> · {actorMeta}</> : null}
             </>
           ),
         };
@@ -1452,7 +1648,25 @@ export default function Home() {
           id,
           timestamp,
           title: "Support resolver updated",
-          body: `Dispute arbiter ${safeAddress(args.resolver as string | undefined)}`,
+          body: (
+            <>
+              Dispute arbiter {safeAddress(args.resolver as string | undefined)}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
+        };
+      }
+      case "DisputeFinalizerSet": {
+        return {
+          id,
+          timestamp,
+          title: "Support finalizer updated",
+          body: (
+            <>
+              Dispute finalizer {safeAddress(args.finalizer as string | undefined)}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "ResolutionProposed": {
@@ -1463,7 +1677,12 @@ export default function Home() {
           id,
           timestamp,
           title: `Support proposal for agreement #${covenantId}`,
-          body: `${formatPercent(payoutBps)}% payout to worker · +${integrityPoints.toString()} points`,
+          body: (
+            <>
+              {formatPercent(payoutBps)}% payout to worker · +{integrityPoints.toString()} points
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "MaliceSlashed": {
@@ -1473,9 +1692,13 @@ export default function Home() {
           id,
           timestamp,
           title: `Integrity penalty on agreement #${covenantId}`,
-          body: `Creator ${safeAddress(args.creator as string | undefined)} · Worker ${safeAddress(
-            args.worker as string | undefined
-          )} · Penalty ${formatTokenB(penalty)}`,
+          body: (
+            <>
+              Creator {safeAddress(args.creator as string | undefined)} · Worker{" "}
+              {safeAddress(args.worker as string | undefined)} · Penalty {formatTokenB(penalty)}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "DisputeResolved": {
@@ -1486,7 +1709,12 @@ export default function Home() {
           id,
           timestamp,
           title: `Support resolved: agreement #${covenantId}`,
-          body: `${formatPercent(payoutBps)}% payout to worker · +${integrityPoints.toString()} points`,
+          body: (
+            <>
+              {formatPercent(payoutBps)}% payout to worker · +{integrityPoints.toString()} points
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "TaskCompleted": {
@@ -1499,9 +1727,13 @@ export default function Home() {
           id,
           timestamp,
           title: "Task completed",
-          body: `Worker ${safeAddress(args.worker as string | undefined)}${
-            parts.length ? ` · ${parts.join(" · ")}` : ""
-          }`,
+          body: (
+            <>
+              Worker {safeAddress(args.worker as string | undefined)}
+              {parts.length ? <> · {parts.join(" · ")}</> : null}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "UBIClaimed": {
@@ -1510,7 +1742,12 @@ export default function Home() {
           id,
           timestamp,
           title: "Bonus claimed",
-          body: `User ${safeAddress(args.user as string | undefined)} · +${formatTokenA(amount)}`,
+          body: (
+            <>
+              User {safeAddress(args.user as string | undefined)} · +{formatTokenA(amount)}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "CovenantSet": {
@@ -1518,7 +1755,25 @@ export default function Home() {
           id,
           timestamp,
           title: "Agreement contract linked to treasury",
-          body: `Contract ${safeAddress(args.covenant as string | undefined)}`,
+          body: (
+            <>
+              Contract {safeAddress(args.covenant as string | undefined)}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
+        };
+      }
+      case "RewardOperatorSet": {
+        return {
+          id,
+          timestamp,
+          title: `Reward operator ${args.approved ? "approved" : "removed"}`,
+          body: (
+            <>
+              Operator {safeAddress(args.operator as string | undefined)}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "TreasuryIn": {
@@ -1528,9 +1783,12 @@ export default function Home() {
           id,
           timestamp,
           title: "Treasury inflow",
-          body: `From ${safeAddress(args.from as string | undefined)} · +${formatTokenA(
-            amount
-          )} · ${reason}`,
+          body: (
+            <>
+              From {safeAddress(args.from as string | undefined)} · +{formatTokenA(amount)} · {reason}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "TreasuryOutA": {
@@ -1540,9 +1798,12 @@ export default function Home() {
           id,
           timestamp,
           title: "Treasury outflow (A)",
-          body: `To ${safeAddress(args.to as string | undefined)} · -${formatTokenA(
-            amount
-          )} · ${reason}`,
+          body: (
+            <>
+              To {safeAddress(args.to as string | undefined)} · -{formatTokenA(amount)} · {reason}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "TreasuryOutB": {
@@ -1552,9 +1813,12 @@ export default function Home() {
           id,
           timestamp,
           title: "Treasury outflow (B)",
-          body: `To ${safeAddress(args.to as string | undefined)} · -${formatTokenB(
-            amount
-          )} · ${reason}`,
+          body: (
+            <>
+              To {safeAddress(args.to as string | undefined)} · -{formatTokenB(amount)} · {reason}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "ReserveSnapshot": {
@@ -1564,7 +1828,12 @@ export default function Home() {
           id,
           timestamp,
           title: "Treasury reserve snapshot",
-          body: `A ${formatTokenA(reservesA)} · B ${formatTokenB(reservesB)}`,
+          body: (
+            <>
+              A {formatTokenA(reservesA)} · B {formatTokenB(reservesB)}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       case "LiabilityChanged": {
@@ -1575,7 +1844,12 @@ export default function Home() {
           id,
           timestamp,
           title: "Liability updated",
-          body: `ΔA ${deltaA.toString()} · ΔB ${deltaB.toString()} · ${reason}`,
+          body: (
+            <>
+              ΔA {deltaA.toString()} · ΔB {deltaB.toString()} · {reason}
+              {actorMeta ? <> · {actorMeta}</> : null}
+            </>
+          ),
         };
       }
       default:
@@ -1596,6 +1870,69 @@ export default function Home() {
     });
   }, []);
 
+  const loadTrailActorContexts = useCallback(
+    async (logs: TrailLog[]) => {
+      if (!publicClient || logs.length === 0) return new Map<string, TrailActorContext>();
+
+      const uniqueHashes = Array.from(
+        new Set(
+          logs
+            .map((log) => log.transactionHash)
+            .filter((hash): hash is `0x${string}` => typeof hash === "string" && hash.startsWith("0x"))
+        )
+      );
+
+      const transactions = await Promise.all(
+        uniqueHashes.map(async (hash) => {
+          const tx = await publicClient.getTransaction({ hash });
+          return [hash, tx.from] as const;
+        })
+      );
+
+      const uniqueActors = Array.from(new Set(transactions.map(([, from]) => from.toLowerCase())));
+      const rewardOperatorEntries = await Promise.all(
+        uniqueActors.map(async (actorLower) => {
+          const actorAddress = transactions.find(([, from]) => from.toLowerCase() === actorLower)?.[1];
+          if (!actorAddress || treasuryAddr === zeroAddress) return [actorLower, false] as const;
+          if (sameAddress(actorAddress, treasuryOwner as string | undefined)) {
+            return [actorLower, false] as const;
+          }
+          try {
+            const approved = (await publicClient.readContract({
+              address: treasuryAddr,
+              abi: treasuryAbi,
+              functionName: "rewardOperators",
+              args: [actorAddress],
+            })) as boolean;
+            return [actorLower, approved] as const;
+          } catch {
+            return [actorLower, false] as const;
+          }
+        })
+      );
+
+      const rewardOperatorMap = new Map<string, boolean>(rewardOperatorEntries);
+
+      return new Map(
+        logs.map((log) => {
+          const id = `${log.transactionHash ?? "0x"}-${log.logIndex ?? 0}`;
+          const actorAddress =
+            typeof log.transactionHash === "string"
+              ? transactions.find(([hash]) => hash === log.transactionHash)?.[1]
+              : undefined;
+          const actorIsRewardOperator = actorAddress
+            ? rewardOperatorMap.get(actorAddress.toLowerCase()) ?? false
+            : false;
+          return [
+            id,
+            getTrailActorContext(log.eventName ?? "", log.args ?? {}, actorAddress, actorIsRewardOperator),
+          ] as const;
+        })
+      );
+    },
+    [getTrailActorContext, publicClient, treasuryAddr, treasuryOwner]
+  );
+
   const loadHistoricalTrail = useCallback(async () => {
     if (!publicClient || covenantAddr === zeroAddress || treasuryAddr === zeroAddress) return;
     const toBlock = await publicClient.getBlockNumber();
@@ -1615,6 +1952,7 @@ export default function Home() {
     ]);
 
     const logs = [...covenantLogs, ...treasuryLogs];
+    const actorContextMap = await loadTrailActorContexts(logs);
     const blockMap = new Map<bigint, number>();
     const uniqueBlocks = Array.from(new Set(logs.map((log) => log.blockNumber)));
     await Promise.all(
@@ -1625,19 +1963,29 @@ export default function Home() {
     );
 
     const items = logs
-      .map((log) => buildTrailItemFromLog(log, blockMap.get(log.blockNumber) ?? 0))
+      .map((log) =>
+        buildTrailItemFromLog(
+          log,
+          blockMap.get(log.blockNumber) ?? 0,
+          actorContextMap.get(`${log.transactionHash ?? "0x"}-${log.logIndex ?? 0}`) ?? {
+            actorAddress: undefined,
+            actorRoles: [],
+          }
+        )
+      )
       .filter((item): item is TrailItem => item !== null)
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, MAX_TRAIL_ITEMS);
 
     trailIds.current = new Set(items.map((item) => item.id));
     setTrailItems(items);
-  }, [publicClient, covenantAddr, treasuryAddr, buildTrailItemFromLog]);
+  }, [publicClient, covenantAddr, treasuryAddr, buildTrailItemFromLog, loadTrailActorContexts]);
 
   const handleLiveLogs = useCallback(
     async (logs: TrailLog[]) => {
       if (!publicClient || logs.length === 0) return;
       const blockMap = new Map<bigint, number>();
+      const actorContextMap = await loadTrailActorContexts(logs);
       const items = await Promise.all(
         logs.map(async (log) => {
           const blockNumber = log.blockNumber as bigint;
@@ -1647,12 +1995,19 @@ export default function Home() {
             timestamp = Number(block.timestamp);
             blockMap.set(blockNumber, timestamp);
           }
-          return buildTrailItemFromLog(log, timestamp);
+          return buildTrailItemFromLog(
+            log,
+            timestamp,
+            actorContextMap.get(`${log.transactionHash ?? "0x"}-${log.logIndex ?? 0}`) ?? {
+              actorAddress: undefined,
+              actorRoles: [],
+            }
+          );
         })
       );
       addTrailItems(items.filter((item): item is TrailItem => item !== null));
     },
-    [publicClient, buildTrailItemFromLog, addTrailItems]
+    [publicClient, buildTrailItemFromLog, addTrailItems, loadTrailActorContexts]
   );
 
   const refreshCovenants = useCallback(async () => {
@@ -2151,7 +2506,7 @@ export default function Home() {
     try {
       await runTransaction("claimUBI", () =>
         writeContractAsync({
-          address: treasuryAddress,
+          address: treasuryAddr,
           abi: treasuryAbi,
           functionName: "claimUBI",
         })
@@ -2176,10 +2531,15 @@ export default function Home() {
       setTxSuccess(null);
       return;
     }
+    if (!isAddress(target)) {
+      setTxError("Enter a valid APPI oracle address.");
+      setTxSuccess(null);
+      return;
+    }
     try {
       await runTransaction("setAPPIOracle", () =>
         writeContractAsync({
-          address: treasuryAddress,
+          address: treasuryAddr,
           abi: treasuryAbi,
           functionName: "setAPPIOracle",
           args: [target],
@@ -2294,7 +2654,7 @@ export default function Home() {
     try {
       await runTransaction("applyAPPI", () =>
         writeContractAsync({
-          address: treasuryAddress,
+          address: treasuryAddr,
           abi: treasuryAbi,
           functionName: "applyAPPI",
           args: [BigInt(day)],
@@ -2349,14 +2709,15 @@ export default function Home() {
   };
 
   const handleSetPrimary = useCallback(async () => {
-    if (!tokenAAddress || !account.address) return;
+    const accountAddress = account.address;
+    if (!tokenAAddress || !accountAddress) return;
     try {
       await runTransaction("setPrimary", () =>
         writeContractAsync({
           address: tokenAAddr,
           abi: tokenAAbi,
           functionName: "setPrimaryAddress",
-          args: [account.address, true],
+          args: [accountAddress, true],
         })
       );
       await postTransactionSync();
@@ -2371,8 +2732,8 @@ export default function Home() {
       setTxAction(null);
     }
   }, [
-    account.address,
     tokenAAddr,
+    account.address,
     writeContractAsync,
     postTransactionSync,
     refetchPrimary,
@@ -2393,6 +2754,7 @@ export default function Home() {
     accountAddress: account.address,
     worldIdAppId,
     worldIdActionId,
+    worldIdEnvironment,
     worldIdMock,
     zknfcMock,
     zknfcVerifierUrl,
@@ -2410,7 +2772,7 @@ export default function Home() {
     try {
       await runTransaction("accrueUBI", () =>
         writeContractAsync({
-          address: treasuryAddress,
+          address: treasuryAddr,
           abi: treasuryAbi,
           functionName: "accrueUBI",
         })
@@ -2439,7 +2801,7 @@ export default function Home() {
     try {
       await runTransaction("claimUnclaimed", () =>
         writeContractAsync({
-          address: treasuryAddress,
+          address: treasuryAddr,
           abi: treasuryAbi,
           functionName: "claimUnclaimed",
           args: [BigInt(fromDay), BigInt(toDay)],
@@ -2466,15 +2828,21 @@ export default function Home() {
 
   const handleReport = async () => {
     if (!treasuryAddress || !taskWorker) return;
+    const workerAddress = taskWorker.trim();
+    if (!isAddress(workerAddress)) {
+      setTxError("Enter a valid worker address.");
+      setTxSuccess(null);
+      return;
+    }
     const amount = parseUnits(taskTokenBAmount || "0", 18);
-    const points = Number.parseInt(taskIntegrityPoints || "0", 10);
+    const points = BigInt(taskIntegrityPoints || "0");
     try {
       await runTransaction("reportTaskCompleted", () =>
         writeContractAsync({
-          address: treasuryAddress,
+          address: treasuryAddr,
           abi: treasuryAbi,
           functionName: "reportTaskCompleted",
-          args: [taskWorker, amount, points],
+          args: [workerAddress, amount, points],
         })
       );
       await postTransactionSync();
@@ -2491,11 +2859,17 @@ export default function Home() {
 
   const handleCreateCovenant = async () => {
     if (!covenantAddress || !covenantWorker) return;
+    const workerAddress = covenantWorker.trim();
+    if (!isAddress(workerAddress)) {
+      setTxError("Enter a valid worker address.");
+      setTxSuccess(null);
+      return;
+    }
     const paymentTokenAddress = covenantPayInTokenA ? tokenAAddress : tokenBAddress;
     const paymentTokenAbi = covenantPayInTokenA ? tokenAAbi : tokenBAbi;
     if (!paymentTokenAddress) return;
     const reward = covenantReward;
-    const points = Number.parseInt(covenantIntegrityPoints || "0", 10);
+    const points = BigInt(covenantIntegrityPoints || "0");
     const transparencyValue = JSON.stringify({
       scopeLabel: templateScopeLabel.trim(),
       estimatedHours: Number.parseFloat(templateEstimatedHours || "0") || 0,
@@ -2524,16 +2898,16 @@ export default function Home() {
           address: paymentTokenAddress,
           abi: paymentTokenAbi,
           functionName: "approve",
-          args: [covenantAddress, reward],
+            args: [covenantAddr, reward],
         })
       );
       setCovenantStep(2);
       const receipt = await runTransaction("createCovenant", () =>
         writeContractAsync({
-          address: covenantAddress,
+          address: covenantAddr,
           abi: covenantAbi,
           functionName: "createCovenant",
-          args: [covenantWorker, reward, points, covenantPayInTokenA],
+          args: [workerAddress, reward, points, covenantPayInTokenA],
         })
       );
       let createdId: bigint | null = null;
@@ -2690,19 +3064,19 @@ export default function Home() {
   const handleLoadResource = async () => {
     if (!publicClient || !resourceIdBytes || !resourceRegistryAddress) return;
     const data = (await publicClient.readContract({
-      address: resourceRegistryAddress,
+      address: registryAddr,
       abi: resourceRegistryAbi,
       functionName: "resources",
       args: [resourceIdBytes],
     })) as [string, bigint, bigint, bigint, boolean];
     const pending = (await publicClient.readContract({
-      address: resourceRegistryAddress,
+      address: registryAddr,
       abi: resourceRegistryAbi,
       functionName: "pendingTax",
       args: [resourceIdBytes],
     })) as [bigint, bigint];
     const note = (await publicClient.readContract({
-      address: resourceRegistryAddress,
+      address: registryAddr,
       abi: resourceRegistryAbi,
       functionName: "resourceMetadataNotes",
       args: [resourceIdBytes],
@@ -3097,8 +3471,10 @@ export default function Home() {
                     ? "Check whether this wallet is already verified."
                     : isPrimaryAddress
                     ? "This wallet is verified."
-                    : worldIdAppId && worldIdActionId
+                    : hasWorldIdConfig
                     ? "Use World ID to verify this wallet and unlock the full daily bonus flow."
+                    : hasZkNfcConfig
+                    ? "World ID is not active here, but you can still verify with ZK-NFC."
                     : "This wallet is not verified yet. For MVP testing, the temporary operator can verify it manually."}
                 </p>
                 <div className={styles.metricBreakdown}>
@@ -3110,17 +3486,11 @@ export default function Home() {
                       ? "Verified"
                       : "Not verified yet"}
                   </span>
+                  <span>Active route: {activeIdentityRoute}</span>
+                  <span>World ID mode: {worldIdMode}</span>
+                  <span>ZK-NFC mode: {zknfcMode}</span>
                   <span>
-                    Verification route:{" "}
-                    {worldIdAppId && worldIdActionId
-                      ? worldIdMock
-                        ? "World ID (mock)"
-                        : "World ID"
-                      : zknfcVerifierUrl || zknfcMock
-                      ? zknfcMock
-                        ? "ZK-NFC (mock)"
-                        : "ZK-NFC"
-                      : "Temporary operator mock"}
+                    Operator fallback: {hasWorldIdConfig || hasZkNfcConfig ? "Available" : "Primary path"}
                   </span>
                 </div>
                 <div className={styles.cardFooter}>
@@ -3132,7 +3502,7 @@ export default function Home() {
                   </span>
                 </div>
                 <div className={styles.cardActions}>
-                  {worldIdAppId && worldIdActionId ? (
+                  {hasWorldIdConfig ? (
                     <>
                       <button
                         className={styles.secondaryButton}
@@ -3146,7 +3516,7 @@ export default function Home() {
                           open={worldIdOpen}
                           onOpenChange={setWorldIdOpen}
                           app_id={worldIdAppId as `app_${string}`}
-                          action={worldIdActionId}
+                          action={worldIdActionId!}
                           environment={worldIdEnvironment}
                           rp_context={worldIdRpContext}
                           allow_legacy_proofs={true}
@@ -3158,7 +3528,7 @@ export default function Home() {
                       ) : null}
                     </>
                   ) : null}
-                  {zknfcVerifierUrl ? (
+                  {hasZkNfcConfig ? (
                     <button
                       className={styles.secondaryButton}
                       onClick={handleZkNfcVerify}
@@ -4494,20 +4864,23 @@ export default function Home() {
               <button
                 className={styles.ghostButton}
                 onClick={handleReport}
-                disabled={!account.address || missingEnv || isBusy || !taskWorker}
+                disabled={!account.address || missingEnv || isBusy || !taskWorker || !canReportTaskCompleted}
               >
                 {actionLabel("reportTaskCompleted", "Add verified reward")}
               </button>
               <p className={styles.taskHint}>
-                In the current MVP, this needs the temporary operator wallet and a verified worker wallet.
+                In the current MVP, this needs the treasury owner or an approved reward operator wallet, plus a verified worker wallet.
               </p>
-              {!account.address || missingEnv || isBusy || !taskWorker ? (
+              {!account.address || missingEnv || isBusy || !taskWorker || !canReportTaskCompleted ? (
                 <p className={styles.helperNote}>
                   {explainDisabledAction({
                     walletConnected: Boolean(account.address),
                     missingEnv,
                     busy: isBusy,
                     workerRequired: !taskWorker,
+                    label: !canReportTaskCompleted
+                      ? "Switch to the treasury owner wallet or an approved reward operator wallet."
+                      : undefined,
                   })}
                 </p>
               ) : null}
@@ -4652,21 +5025,27 @@ export default function Home() {
           onlyFlaggedAgreements={onlyFlaggedAgreements}
           onToggleOnlyFlagged={() => setOnlyFlaggedAgreements((current) => !current)}
           onExportReviewCsv={handleExportReviewCsv}
-          visibleCount={visibleCovenants.length}
+          visibleCount={covenantQueue.items.length}
+          queueFilter={queueFilter}
+          onQueueFilterChange={setQueueFilter}
+          queueCounts={covenantQueue.counts}
           covenantOverview={covenantOverview}
-          isEmpty={visibleCovenants.length === 0}
+          isEmpty={covenantQueue.items.length === 0}
           emptyMessage={
             isLoadingCovenants
               ? "Loading agreements…"
-              : "No agreements yet. Create one above to start the work flow."
+              : queueFilter === "all"
+              ? "No agreements yet. Create one above to start the work flow."
+              : "No agreements match this queue."
           }
         >
-          {visibleCovenants.map((item) => (
+          {covenantQueue.items.map((item) => (
             <WorkAgreementRow
               key={`covenant-${item.id}`}
               item={item}
               accountAddress={account.address}
               isDisputeResolver={isDisputeResolver}
+              isDisputeFinalizer={isDisputeFinalizer}
               externalAdjudicationUrl={externalAdjudicationUrl}
               templateById={templateById}
               covenantStatusLabels={covenantStatusLabels}

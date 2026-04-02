@@ -9,6 +9,7 @@ export function useIdentityFlow(params: {
   accountAddress?: string;
   worldIdAppId?: string;
   worldIdActionId?: string;
+  worldIdEnvironment: "staging" | "production";
   worldIdMock: boolean;
   zknfcMock: boolean;
   zknfcVerifierUrl?: string;
@@ -16,7 +17,7 @@ export function useIdentityFlow(params: {
   showSuccess: (message: string) => void;
   setTxError: SetStringState;
   setTxSuccess: SetStringState;
-  setTxStatus: Dispatch<SetStateAction<string>>;
+  setTxStatus: Dispatch<SetStateAction<"idle" | "signing" | "confirming">>;
   setTxAction: Dispatch<SetStateAction<string | null>>;
   normalizeErrorMessage: (error: unknown) => string;
 }) {
@@ -24,6 +25,7 @@ export function useIdentityFlow(params: {
     accountAddress,
     worldIdAppId,
     worldIdActionId,
+    worldIdEnvironment,
     worldIdMock,
     zknfcMock,
     zknfcVerifierUrl,
@@ -85,8 +87,7 @@ export function useIdentityFlow(params: {
       if (typeof window !== "undefined") {
         console.error("[worldid/widget] error", {
           errorCode,
-          environment:
-            process.env.NEXT_PUBLIC_WORLD_ID_ENVIRONMENT === "staging" ? "staging" : "production",
+          environment: worldIdEnvironment,
         });
       }
       const hostError = worldIdHostErrorRef.current;
@@ -98,7 +99,7 @@ export function useIdentityFlow(params: {
       setTxSuccess(null);
       setWorldIdOpen(false);
     },
-    [setTxError, setTxSuccess]
+    [setTxError, setTxSuccess, worldIdEnvironment]
   );
 
   const handleWorldIdVerify = useCallback(async () => {

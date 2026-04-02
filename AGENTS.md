@@ -21,11 +21,11 @@ NEXT_PUBLIC_COVENANT_ADDRESS=0x...
 ```
 
 ## Notes
-- `reportTaskCompleted` is `onlyOwner`, so MetaMask must use the deployer wallet.
+- `reportTaskCompleted` is callable by the treasury owner or an approved `rewardOperator`; the deployer wallet is still the simplest local operator.
 - Covenant creation requires Token B approval first; UI does approve + create in sequence.
 - Token A decay rate can be overridden at deploy with `DECAY_RATE_PER_SECOND`.
 - Evidence/Chat: plan is off-chain storage (IPFS/Arweave/etc) + on-chain hash/URI references.
-- Dispute UX: consider evidence URIs for both sides, AI summary (off-chain), and multi-step resolve to avoid mistakes.
+- Dispute UX now includes structured evidence packets and a role-split `disputeResolver` / `disputeFinalizer` flow; continue treating AI summary as off-chain assistive context only.
 
 ## Documentation workflow
 - `docs/review_bundle_ja.md` is the primary consolidated master (generated output).

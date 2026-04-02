@@ -69,12 +69,12 @@
 
 - agreement に issue を出せる
 - dispute は 2-step resolve
-- Phase1 は manual arbiter、Phase2 は external arbiter を想定
+- Phase1 は resolver / finalizer を分けた暫定運用で、Phase2 は external arbiter を想定
 - 資産量ではなく evidence と timeline を優先する方針
 
 見せる場所:
 
-- issue / dispute フォーム
+- structured evidence 入力
 - dispute track
 - Recent activity
 
@@ -89,6 +89,7 @@
 話すこと:
 
 - Treasury / agreements / dispute の activity を UI で見せる
+- 監査ログには「誰が、どの暫定ロールで実行したか」が出る
 - シミュレーションで「UBI インフレ」より「dispute fairness」の方が課題だと分かった
 - それを docs と UI に自己開示している
 
@@ -103,7 +104,7 @@
 話すこと:
 
 - external arbiter / jury 接続
-- identity flow の本実装
+- identity flow の本実装と hardening
 - APPI confidence 強化
 - governance / factory / parameter set の Phase2 準備
 

@@ -52,6 +52,7 @@ export function WorkAgreementRow(props: {
   item: WorkAgreementItem;
   accountAddress?: string;
   isDisputeResolver: boolean;
+  isDisputeFinalizer: boolean;
   externalAdjudicationUrl?: string;
   templateById: Map<number, WorkAgreementTemplateItem>;
   covenantStatusLabels: string[];
@@ -71,13 +72,13 @@ export function WorkAgreementRow(props: {
     | "setIssueClaims"
     | "issueReasons"
     | "setIssueReasons"
-    | "issueEvidenceUris"
-    | "setIssueEvidenceUris"
+    | "issueEvidenceDrafts"
+    | "setIssueEvidenceDrafts"
     | "issueDepositEstimates"
     | "disputeReasons"
     | "setDisputeReasons"
-    | "disputeEvidenceUris"
-    | "setDisputeEvidenceUris"
+    | "disputeEvidenceDrafts"
+    | "setDisputeEvidenceDrafts"
     | "resolveClaims"
     | "setResolveClaims"
     | "resolveIntegrity"
@@ -94,7 +95,12 @@ export function WorkAgreementRow(props: {
     | "setResolveEvidenceUris"
   >;
   formatPercent: (bps: bigint) => string;
-  nextStepForCovenant: (item: WorkAgreementItem, account: string | undefined, isDisputeResolver: boolean) => string;
+  nextStepForCovenant: (
+    item: WorkAgreementItem,
+    account: string | undefined,
+    isDisputeResolver: boolean,
+    isDisputeFinalizer: boolean
+  ) => string;
   getDisputeStage: (status: number) => boolean[];
   disputeStatusLabel: (status: number) => string;
   buildExternalAdjudicationLink: (base: string | undefined, covenantId: number) => string | null;
@@ -122,6 +128,7 @@ export function WorkAgreementRow(props: {
     item,
     accountAddress,
     isDisputeResolver,
+    isDisputeFinalizer,
     externalAdjudicationUrl,
     templateById,
     covenantStatusLabels,
@@ -236,7 +243,7 @@ export function WorkAgreementRow(props: {
         <span>
           <span className={styles.statusBadge}>{covenantStatusLabels[item.status] ?? "Unknown"}</span>
           <span className={styles.statusNote}>
-            {nextStepForCovenant(item, accountAddress, isDisputeResolver)}
+            {nextStepForCovenant(item, accountAddress, isDisputeResolver, isDisputeFinalizer)}
           </span>
           {covenantTagMap[String(item.id)] ? (
             <span className={styles.covenantTags}>{covenantTagMap[String(item.id)]}</span>
@@ -437,11 +444,12 @@ export function WorkAgreementRow(props: {
             </div>
           </div>
         ) : null}
-        <WorkAgreementActionPanel
-          item={item}
-          accountAddress={accountAddress}
-          isDisputeResolver={isDisputeResolver}
-          isBusy={isBusy}
+          <WorkAgreementActionPanel
+            item={item}
+            accountAddress={accountAddress}
+            isDisputeResolver={isDisputeResolver}
+            isDisputeFinalizer={isDisputeFinalizer}
+            isBusy={isBusy}
           disputeState={disputeState}
           formatEvidenceLink={formatEvidenceLink}
           renderDepositBreakdown={renderDepositBreakdown}

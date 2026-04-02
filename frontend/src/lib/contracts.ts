@@ -23,6 +23,30 @@ export const worldIdEnvironment =
 export const worldIdMock = process.env.NEXT_PUBLIC_WORLD_ID_MOCK === "true";
 export const zknfcVerifierUrl = process.env.NEXT_PUBLIC_ZKNFC_VERIFIER_URL;
 export const zknfcMock = process.env.NEXT_PUBLIC_ZKNFC_MOCK === "true";
+export const hasWorldIdConfig = Boolean(worldIdAppId && worldIdActionId);
+export const hasZkNfcConfig = Boolean(zknfcVerifierUrl || zknfcMock);
+
+export const worldIdMode = worldIdMock
+  ? "mock"
+  : hasWorldIdConfig
+  ? worldIdEnvironment
+  : "disabled";
+
+export const zknfcMode = zknfcMock
+  ? "mock"
+  : zknfcVerifierUrl
+  ? "remote"
+  : "disabled";
+
+export const activeIdentityRoute = hasWorldIdConfig
+  ? worldIdMock
+    ? "World ID (mock)"
+    : `World ID (${worldIdEnvironment})`
+  : hasZkNfcConfig
+  ? zknfcMock
+    ? "ZK-NFC (mock)"
+    : "ZK-NFC (remote)"
+  : "Temporary operator mock";
 export const externalAdjudicationUrl = process.env.NEXT_PUBLIC_EXTERNAL_ADJ_URL;
 export const auditDisputeThreshold = Number.parseInt(
   process.env.NEXT_PUBLIC_AUDIT_DISPUTE_THRESHOLD || "5",

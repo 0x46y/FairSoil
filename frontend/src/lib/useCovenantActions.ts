@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect } from "react";
-import { parseUnits, zeroAddress } from "viem";
+import { type Abi, type PublicClient, parseUnits, zeroAddress } from "viem";
 import { covenantAbi, tokenBAbi, treasuryAbi } from "./abi";
+import { EMPTY_EVIDENCE_DRAFT, buildEvidenceReference } from "./evidencePacket";
 import type { DisputeFormState } from "./useDisputeFormState";
 
 type CovenantItem = {
@@ -29,24 +30,17 @@ export function useCovenantActions(params: {
   covenantAddr: `0x${string}`;
   tokenBAddr: `0x${string}`;
   treasuryAddr: `0x${string}`;
-  publicClient: {
-    readContract: (args: {
-      address: `0x${string}`;
-      abi: unknown;
-      functionName: string;
-      args: readonly unknown[];
-    }) => Promise<unknown>;
-  } | null;
+  publicClient: PublicClient | null | undefined;
   covenants: CovenantItem[];
   disputeState: Pick<
     DisputeFormState,
     | "issueClaims"
     | "issueReasons"
-    | "issueEvidenceUris"
+    | "issueEvidenceDrafts"
     | "issueDepositEstimates"
     | "setIssueDepositEstimates"
     | "disputeReasons"
-    | "disputeEvidenceUris"
+    | "disputeEvidenceDrafts"
     | "resolveClaims"
     | "resolveIntegrity"
     | "resolveSlashing"
@@ -57,13 +51,13 @@ export function useCovenantActions(params: {
   >;
   hasDefenseQuota: boolean;
   getDepositBreakdown: (deposit: bigint) => { tokenBPart: bigint; integrityPoints: bigint };
-  runTransaction: (action: string, fn: () => Promise<unknown>) => Promise<unknown>;
-  writeContractAsync: (args: {
+  runTransaction: (action: string, fn: () => Promise<`0x${string}`>) => Promise<unknown>;
+  writeContractAsync: (variables: {
     address: `0x${string}`;
-    abi: unknown;
+    abi: Abi | readonly unknown[];
     functionName: string;
     args?: readonly unknown[];
-  }) => Promise<unknown>;
+  }) => Promise<`0x${string}`>;
   postTransactionSync: () => Promise<void>;
   setTxError: (value: string | null) => void;
   setTxSuccess: (value: string | null) => void;
@@ -97,10 +91,10 @@ export function useCovenantActions(params: {
   const {
     issueClaims,
     issueReasons,
-    issueEvidenceUris,
+    issueEvidenceDrafts,
     setIssueDepositEstimates,
     disputeReasons,
-    disputeEvidenceUris,
+    disputeEvidenceDrafts,
     resolveClaims,
     resolveIntegrity,
     resolveSlashing,
@@ -238,7 +232,11 @@ export function useCovenantActions(params: {
       if (!covenantAddress || !tokenBAddress) return;
       const claim = issueClaims[covenantId] ?? "";
       const reason = issueReasons[covenantId] ?? "";
-      const evidenceUri = issueEvidenceUris[covenantId] ?? "";
+      const evidenceUri = buildEvidenceReference(
+        issueEvidenceDrafts[covenantId] ?? EMPTY_EVIDENCE_DRAFT,
+        "worker",
+        reason
+      );
       if (!claim.trim()) return;
       const parsedClaim = Number(claim);
       if (Number.isNaN(parsedClaim)) return;
@@ -293,7 +291,7 @@ export function useCovenantActions(params: {
       getIssueDeposit,
       hasDefenseQuota,
       issueClaims,
-      issueEvidenceUris,
+      issueEvidenceDrafts,
       issueReasons,
       postTransactionSync,
       runTransaction,
@@ -312,7 +310,11 @@ export function useCovenantActions(params: {
     async (covenantId: number) => {
       if (!covenantAddress || !tokenBAddress) return;
       const reason = disputeReasons[covenantId] ?? "";
-      const evidenceUri = disputeEvidenceUris[covenantId] ?? "";
+      const evidenceUri = buildEvidenceReference(
+        disputeEvidenceDrafts[covenantId] ?? EMPTY_EVIDENCE_DRAFT,
+        "creator",
+        reason
+      );
       const actionKey = `dispute-${covenantId}`;
       try {
         const covenantItem = covenants.find((entry) => entry.id === covenantId);
@@ -353,7 +355,7 @@ export function useCovenantActions(params: {
       covenantAddr,
       covenantAddress,
       covenants,
-      disputeEvidenceUris,
+      disputeEvidenceDrafts,
       disputeReasons,
       formatTxError,
       getDepositBreakdown,

@@ -271,6 +271,13 @@ export const treasuryAbi = [
   },
   {
     type: "function",
+    name: "rewardOperators",
+    stateMutability: "view",
+    inputs: [{ name: "operator", type: "address" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
     name: "integrityScore",
     stateMutability: "view",
     inputs: [{ name: "account", type: "address" }],
@@ -517,8 +524,11 @@ export const covenantAbi = [
       { name: "proposedWorkerPayoutBps", type: "uint256" },
       { name: "proposedIntegrityPoints", type: "uint256" },
       { name: "proposedSlashingPenalty", type: "uint256" },
+      { name: "templateId", type: "uint256" },
       { name: "paymentToken", type: "uint8" },
+      { name: "paymentMode", type: "uint8" },
       { name: "status", type: "uint8" },
+      { name: "settled", type: "bool" },
     ],
   },
   {
@@ -657,6 +667,13 @@ export const covenantAbi = [
   {
     type: "function",
     name: "disputeResolver",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "disputeFinalizer",
     stateMutability: "view",
     inputs: [],
     outputs: [{ name: "", type: "address" }],

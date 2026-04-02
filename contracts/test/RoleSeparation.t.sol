@@ -21,6 +21,8 @@ contract RoleSeparationTest is Test {
     address internal creator = address(0xCAFE);
     address internal worker = address(0xBEEF);
     address internal arbiter = address(0xAB1A);
+    address internal finalizer = address(0xF1A1);
+    address internal rewardOperator = address(0xA03);
     address internal outsider = address(0x0BAD);
 
     function setUp() public {
@@ -65,9 +67,21 @@ contract RoleSeparationTest is Test {
 
         treasury.setAPPIOracle(address(oracle));
         treasury.setDailyUBIAmount(123e18);
+        treasury.setRewardOperator(rewardOperator, true);
 
         assertEq(address(treasury.appiOracle()), address(oracle));
         assertEq(treasury.dailyUBIAmount(), 123e18);
+        assertTrue(treasury.rewardOperators(rewardOperator));
+    }
+
+    function testRewardOperatorCanReportVerifiedRewards() public {
+        treasury.setRewardOperator(rewardOperator, true);
+
+        vm.prank(rewardOperator);
+        treasury.reportTaskCompleted(worker, 10e18, 5);
+
+        assertEq(tokenB.balanceOf(worker), 1010e18);
+        assertEq(treasury.integrityScore(worker), 5);
     }
 
     function testOnlyTemporaryOperatorCanChangeDisputeArbiter() public {
@@ -75,9 +89,15 @@ contract RoleSeparationTest is Test {
         vm.expectRevert();
         covenant.setDisputeResolver(arbiter);
 
+        vm.prank(outsider);
+        vm.expectRevert();
+        covenant.setDisputeFinalizer(finalizer);
+
         covenant.setDisputeResolver(arbiter);
+        covenant.setDisputeFinalizer(finalizer);
 
         assertEq(covenant.disputeResolver(), arbiter);
+        assertEq(covenant.disputeFinalizer(), finalizer);
     }
 
     function testOnlyDisputeArbiterCanResolveAndFinalizeDisputes() public {
@@ -99,6 +119,7 @@ contract RoleSeparationTest is Test {
         covenant.disputeIssue(covenantId, "Counter claim", "ipfs://creator-evidence");
 
         covenant.setDisputeResolver(arbiter);
+        covenant.setDisputeFinalizer(finalizer);
 
         vm.expectRevert("Resolver only");
         covenant.resolveDispute(covenantId, 5000, 10, 0);
@@ -111,10 +132,14 @@ contract RoleSeparationTest is Test {
         covenant.resolveDispute(covenantId, 5000, 10, 0);
 
         vm.prank(creator);
-        vm.expectRevert("Resolver only");
+        vm.expectRevert("Finalizer only");
         covenant.finalizeResolution(covenantId);
 
         vm.prank(arbiter);
+        vm.expectRevert("Finalizer only");
+        covenant.finalizeResolution(covenantId);
+
+        vm.prank(finalizer);
         covenant.finalizeResolution(covenantId);
 
         (, , , , , , , , , , , , , Covenant.Status status, bool settled) =

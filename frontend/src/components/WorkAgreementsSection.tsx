@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import styles from "../app/page.module.css";
 
 type DashboardView = "participant" | "operator";
+type QueueFilter = "all" | "mine" | "creator" | "worker" | "resolver" | "finalizer";
 
 type CovenantOverview = {
   total: number;
@@ -23,6 +24,15 @@ export function WorkAgreementsSection(props: {
   onToggleOnlyFlagged: () => void;
   onExportReviewCsv: () => void;
   visibleCount: number;
+  queueFilter: QueueFilter;
+  onQueueFilterChange: (value: QueueFilter) => void;
+  queueCounts: {
+    creator: number;
+    worker: number;
+    resolver: number;
+    finalizer: number;
+    mine: number;
+  };
   covenantOverview: CovenantOverview;
   isEmpty: boolean;
   emptyMessage: string;
@@ -39,6 +49,9 @@ export function WorkAgreementsSection(props: {
     onToggleOnlyFlagged,
     onExportReviewCsv,
     visibleCount,
+    queueFilter,
+    onQueueFilterChange,
+    queueCounts,
     covenantOverview,
     isEmpty,
     emptyMessage,
@@ -111,6 +124,56 @@ export function WorkAgreementsSection(props: {
           <span className={styles.auditLabel}>Need action now</span>
           <span className={styles.auditValue}>{covenantOverview.awaitingAction}</span>
         </div>
+      </div>
+
+      <div className={styles.queueBar}>
+        <div className={styles.queuePills}>
+          <button
+            type="button"
+            className={queueFilter === "all" ? styles.queuePillActive : styles.queuePill}
+            onClick={() => onQueueFilterChange("all")}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            className={queueFilter === "mine" ? styles.queuePillActive : styles.queuePill}
+            onClick={() => onQueueFilterChange("mine")}
+          >
+            Needs my action {queueCounts.mine > 0 ? `(${queueCounts.mine})` : ""}
+          </button>
+          <button
+            type="button"
+            className={queueFilter === "creator" ? styles.queuePillActive : styles.queuePill}
+            onClick={() => onQueueFilterChange("creator")}
+          >
+            Creator {queueCounts.creator > 0 ? `(${queueCounts.creator})` : ""}
+          </button>
+          <button
+            type="button"
+            className={queueFilter === "worker" ? styles.queuePillActive : styles.queuePill}
+            onClick={() => onQueueFilterChange("worker")}
+          >
+            Worker {queueCounts.worker > 0 ? `(${queueCounts.worker})` : ""}
+          </button>
+          <button
+            type="button"
+            className={queueFilter === "resolver" ? styles.queuePillActive : styles.queuePill}
+            onClick={() => onQueueFilterChange("resolver")}
+          >
+            Resolver {queueCounts.resolver > 0 ? `(${queueCounts.resolver})` : ""}
+          </button>
+          <button
+            type="button"
+            className={queueFilter === "finalizer" ? styles.queuePillActive : styles.queuePill}
+            onClick={() => onQueueFilterChange("finalizer")}
+          >
+            Finalizer {queueCounts.finalizer > 0 ? `(${queueCounts.finalizer})` : ""}
+          </button>
+        </div>
+        <p className={styles.queueHint}>
+          Filter by operational role to focus on the next manual step instead of scanning every agreement.
+        </p>
       </div>
 
       <div className={styles.covenantTable}>

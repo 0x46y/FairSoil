@@ -53,6 +53,7 @@ contract SoilTreasury is Ownable {
     uint256 public crystallizationRateBps = 10_000;
     uint256 public crystallizationFeeBps = 2000;
     address public covenant;
+    mapping(address => bool) public rewardOperators;
     uint256 public deficitCapA;
     uint256 public advanceCapB;
     uint256 public deficitAOutstanding;
@@ -113,6 +114,7 @@ contract SoilTreasury is Ownable {
     event IntegrityLocked(address indexed account, uint256 amount);
     event IntegrityUnlocked(address indexed account, uint256 amount);
     event IntegritySlashed(address indexed account, uint256 amount);
+    event RewardOperatorSet(address indexed operator, bool approved);
 
     bytes32 public constant REASON_UBI = "UBI";
     bytes32 public constant REASON_UBI_CLAIM = "UBI_CLAIM";
@@ -136,6 +138,11 @@ contract SoilTreasury is Ownable {
 
     modifier onlyOwnerOrCovenant() {
         require(msg.sender == owner() || msg.sender == covenant, "Owner or covenant only");
+        _;
+    }
+
+    modifier onlyRewardOperator() {
+        require(msg.sender == owner() || rewardOperators[msg.sender], "Reward operator only");
         _;
     }
 
@@ -171,6 +178,12 @@ contract SoilTreasury is Ownable {
     function setCovenant(address newCovenant) external onlyOwner {
         covenant = newCovenant;
         emit CovenantSet(newCovenant);
+    }
+
+    function setRewardOperator(address operator, bool approved) external onlyOwner {
+        require(operator != address(0), "Operator required");
+        rewardOperators[operator] = approved;
+        emit RewardOperatorSet(operator, approved);
     }
 
     function setAPPIOracle(address newOracle) external onlyOwner {
@@ -532,7 +545,7 @@ contract SoilTreasury is Ownable {
         address worker,
         uint256 tokenBReward,
         uint256 integrityPoints
-    ) external onlyOwner {
+    ) external onlyRewardOperator {
         require(circuitState == CircuitState.Normal, "Circuit limited");
         require(tokenA.isPrimaryAddress(worker), "Worker not verified");
         if (tokenBReward > 0) {

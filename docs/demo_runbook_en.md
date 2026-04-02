@@ -57,13 +57,13 @@ Say:
 
 - work disagreements can become issues, then disputes
 - resolution is two-step in Phase1
-- Phase1 uses a manual arbiter, Phase2 is expected to support external adjudication
+- Phase1 uses temporary resolver and finalizer roles, Phase2 is expected to support external adjudication
 - the intended basis is evidence and timeline, not wallet size
 
 Show:
 
 - dispute track
-- evidence URL fields
+- structured evidence fields
 - recent activity entries
 
 ## 5. 30 seconds: transparency and self-disclosure
@@ -71,6 +71,7 @@ Show:
 Say:
 
 - the UI exposes treasury, agreement, and dispute activity
+- the audit trail shows who executed an action and under which temporary role
 - the team ran coarse simulations
 - the current main concern is dispute fairness, not immediate UBI inflation collapse
 

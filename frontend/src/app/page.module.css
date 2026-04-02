@@ -1055,6 +1055,41 @@
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
+.queueBar {
+  display: grid;
+  gap: 8px;
+}
+
+.queuePills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.queuePill,
+.queuePillActive {
+  border-radius: 999px;
+  border: 1px solid var(--sand-200);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--ink-700);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.queuePillActive {
+  background: var(--clay-900);
+  border-color: var(--clay-900);
+  color: #fff;
+}
+
+.queueHint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-500);
+  line-height: 1.5;
+}
+
 .covenantStatCard {
   padding: 12px 14px;
   border-radius: 16px;
