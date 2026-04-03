@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import styles from "../app/page.module.css";
 
-type DashboardView = "participant" | "operator";
+type DashboardView = "participant" | "operator" | "activity";
 type QueueFilter = "all" | "mine" | "creator" | "worker" | "resolver" | "finalizer";
 
 type CovenantOverview = {

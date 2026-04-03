@@ -879,6 +879,24 @@
   box-shadow: var(--shadow-soft);
 }
 
+.timelinePreview {
+  display: grid;
+  gap: 18px;
+  padding: 24px 28px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.74), rgba(243, 225, 197, 0.54));
+  border: 1px solid rgba(196, 154, 90, 0.18);
+  box-shadow: 0 14px 28px rgba(70, 55, 30, 0.06);
+}
+
+.timelinePreviewHeader {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
 .timelineHeader {
   display: flex;
   flex-wrap: wrap;
@@ -997,6 +1015,19 @@
 .timelineList {
   display: grid;
   gap: 16px;
+}
+
+.timelinePaging {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.timelinePageSummary {
+  color: var(--ink-600);
+  font-size: 13px;
 }
 
 .timelineItem {

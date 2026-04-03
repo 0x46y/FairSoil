@@ -93,7 +93,7 @@ import {
   zknfcVerifierUrl,
 } from "../lib/contracts";
 
-const MAX_TRAIL_ITEMS = 12;
+const MAX_TRAIL_ITEMS = 60;
 
 type TrailItem = {
   id: string;
@@ -117,7 +117,7 @@ type TrailActorContext = {
   actorRoles: string[];
 };
 
-type DashboardView = "participant" | "operator";
+type DashboardView = "participant" | "operator" | "activity";
 
 const shortAddress = (value: string) => `${value.slice(0, 6)}…${value.slice(-4)}`;
 const safeAddress = (value?: string) => (value ? shortAddress(value) : "Unknown");
@@ -517,6 +517,8 @@ export default function Home() {
   const [trailQuery, setTrailQuery] = useState("");
   const [trailFilter, setTrailFilter] = useState<(typeof auditFilters)[number]["value"]>("all");
   const [dashboardView, setDashboardView] = useState<DashboardView>("participant");
+  const [activityPageSize, setActivityPageSize] = useState<10 | 25 | 50>(10);
+  const [activityPage, setActivityPage] = useState(1);
   const [appiStats, setAppiStats] = useState<
     { category: number; reports: number; unique: number }[]
   >([]);
@@ -979,6 +981,18 @@ export default function Home() {
     });
   }, [trailItems, trailQuery, trailFilter, covenantTagMap]);
 
+  const activityPreviewItems = useMemo(() => filteredTrailItems.slice(0, 5), [filteredTrailItems]);
+
+  const activityPageCount = useMemo(
+    () => Math.max(1, Math.ceil(filteredTrailItems.length / activityPageSize)),
+    [filteredTrailItems.length, activityPageSize]
+  );
+
+  const paginatedTrailItems = useMemo(() => {
+    const start = (activityPage - 1) * activityPageSize;
+    return filteredTrailItems.slice(start, start + activityPageSize);
+  }, [filteredTrailItems, activityPage, activityPageSize]);
+
   const auditKpis = useMemo(() => {
     const windowSeconds = auditWindowHours * 3600;
     const cutoff = Math.floor(Date.now() / 1000) - windowSeconds;
@@ -1041,6 +1055,16 @@ export default function Home() {
     });
     return { total: covenants.length, active, disputed, awaitingAction };
   }, [covenants]);
+
+  useEffect(() => {
+    setActivityPage(1);
+  }, [trailQuery, trailFilter, activityPageSize]);
+
+  useEffect(() => {
+    if (activityPage > activityPageCount) {
+      setActivityPage(activityPageCount);
+    }
+  }, [activityPage, activityPageCount]);
 
   const {
     templateById,
@@ -3731,10 +3755,23 @@ export default function Home() {
             >
               Run FairSoil
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={dashboardView === "activity"}
+              className={`${styles.tabButton} ${
+                dashboardView === "activity" ? styles.tabButtonActive : ""
+              }`}
+              onClick={() => setDashboardView("activity")}
+            >
+              Activity
+            </button>
           </div>
           <p className={styles.tabDescription}>
             {dashboardView === "participant"
               ? "Participant view is the default. It shows the everyday flow: verify, collect bonuses, and create agreements."
+              : dashboardView === "activity"
+              ? "Activity view keeps the audit trail separate from the main work flow, with filters, export, and paging."
               : "Operator view is for the temporary operator wallet, manual reviewers, and the dispute arbiter."}
           </p>
         </section>
@@ -5360,12 +5397,68 @@ export default function Home() {
         </section>
         ) : null}
 
+        {dashboardView === "participant" ? (
+        <section className={styles.timelinePreview}>
+          <div className={styles.timelinePreviewHeader}>
+            <div>
+              <span className={styles.sectionEyebrow}>Quick audit view</span>
+              <h2>Recent activity preview</h2>
+              <p>Keep the main work flow short, then open the full audit trail only when needed.</p>
+            </div>
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={() => setDashboardView("activity")}
+            >
+              View all activity
+            </button>
+          </div>
+          <div className={styles.timelineList}>
+            {activityPreviewItems.length === 0 ? (
+              <div className={styles.timelineItem}>
+                <span className={styles.timelineTime}>--</span>
+                <div>
+                  <p className={styles.timelineTitle}>No recent activity yet</p>
+                  <p className={styles.timelineBody}>
+                    Agreement updates and treasury changes will appear here.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              activityPreviewItems.map((item) => (
+                <div className={styles.timelineItem} key={`preview-${item.id}`}>
+                  <span className={styles.timelineTime}>
+                    {formatRelativeTime(item.timestamp, trailNow, locale)}
+                  </span>
+                  <div>
+                    <span className={styles.timelinePill}>
+                      {auditCategoryForTitle(item.title) === "covenant"
+                        ? "Agreement"
+                        : auditCategoryForTitle(item.title) === "treasury"
+                        ? "Treasury"
+                        : auditCategoryForTitle(item.title) === "dispute"
+                        ? "Dispute"
+                        : auditCategoryForTitle(item.title) === "ubi"
+                        ? "UBI"
+                        : "System"}
+                    </span>
+                    <p className={styles.timelineTitle}>{simplifyAuditTitle(item.title)}</p>
+                    {item.body ? <p className={styles.timelineBody}>{item.body}</p> : null}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+        ) : null}
+
+        {dashboardView === "activity" ? (
         <section className={styles.timeline}>
           <div className={styles.timelineHeader}>
             <div>
               <span className={styles.sectionEyebrow}>What just happened</span>
-              <h2>Recent activity</h2>
-              <p>Follow rewards, treasury changes, and dispute updates in plain order.</p>
+              <h2>Activity trail</h2>
+              <p>Follow rewards, treasury changes, and dispute updates without crowding the work flow.</p>
             </div>
             <div className={styles.timelineControls}>
               <input
@@ -5392,6 +5485,17 @@ export default function Home() {
                   </option>
                 ))}
               </select>
+              <select
+                className={styles.timelineSelect}
+                value={activityPageSize}
+                onChange={(event) => setActivityPageSize(Number(event.target.value) as 10 | 25 | 50)}
+                aria-label="Number of audit trail events per page"
+                name="activityPageSize"
+              >
+                <option value={10}>Show 10</option>
+                <option value={25}>Show 25</option>
+                <option value={50}>Show 50</option>
+              </select>
               <button
                 className={styles.secondaryButton}
                 onClick={handleExportAudit}
@@ -5411,8 +5515,11 @@ export default function Home() {
           <div className={styles.timelineLead}>
             <span className={styles.timelineLeadValue}>{filteredTrailItems.length}</span>
             <span className={styles.timelineLeadText}>
-              recent updates shown here
+              matching updates in this filtered view
               {trailFilter !== "all" ? ` · filtered by ${trailFilter}` : ""}
+            </span>
+            <span className={styles.timelineLeadText}>
+              page {activityPage} of {activityPageCount}
             </span>
             {auditAlerts.length > 0 ? (
               <span className={styles.timelineLeadAlert}>{auditAlerts.length} items may need operator review</span>
@@ -5451,8 +5558,33 @@ export default function Home() {
               ))}
             </div>
           ) : null}
+          <div className={styles.timelinePaging}>
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={() => setActivityPage((current) => Math.max(1, current - 1))}
+              disabled={activityPage <= 1}
+            >
+              Previous page
+            </button>
+            <span className={styles.timelinePageSummary}>
+              Showing {(activityPage - 1) * activityPageSize + 1}
+              {"–"}
+              {Math.min(activityPage * activityPageSize, filteredTrailItems.length)}
+              {" of "}
+              {filteredTrailItems.length}
+            </span>
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={() => setActivityPage((current) => Math.min(activityPageCount, current + 1))}
+              disabled={activityPage >= activityPageCount}
+            >
+              Next page
+            </button>
+          </div>
           <div className={styles.timelineList}>
-            {filteredTrailItems.length === 0 ? (
+            {paginatedTrailItems.length === 0 ? (
               <div className={styles.timelineItem}>
                 <span className={styles.timelineTime}>--</span>
                 <div>
@@ -5463,7 +5595,7 @@ export default function Home() {
                 </div>
               </div>
             ) : (
-              filteredTrailItems.map((item) => (
+              paginatedTrailItems.map((item) => (
                 <div className={styles.timelineItem} key={item.id}>
                   <span className={styles.timelineTime}>
                     {formatRelativeTime(item.timestamp, trailNow, locale)}
@@ -5490,7 +5622,9 @@ export default function Home() {
             )}
           </div>
         </section>
+        ) : null}
 
+        {dashboardView !== "activity" ? (
         <WorkAgreementsSection
           covenantTagFilter={covenantTagFilter}
           onCovenantTagFilterChange={setCovenantTagFilter}
@@ -5561,6 +5695,7 @@ export default function Home() {
             />
           ))}
         </WorkAgreementsSection>
+        ) : null}
       </main>
     </div>
   );
