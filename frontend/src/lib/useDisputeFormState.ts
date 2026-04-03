@@ -10,6 +10,7 @@ export function useDisputeFormState() {
   const [issueEvidenceDrafts, setIssueEvidenceDrafts] = useState<Record<number, EvidenceDraft>>({});
   const [issueDepositEstimates, setIssueDepositEstimates] = useState<Record<number, bigint>>({});
   const [disputeReasons, setDisputeReasons] = useState<Record<number, string>>({});
+  const [disputeReportTypes, setDisputeReportTypes] = useState<Record<number, string>>({});
   const [disputeEvidenceDrafts, setDisputeEvidenceDrafts] = useState<Record<number, EvidenceDraft>>({});
   const [resolveClaims, setResolveClaims] = useState<Record<number, string>>({});
   const [resolveIntegrity, setResolveIntegrity] = useState<Record<number, string>>({});
@@ -31,6 +32,8 @@ export function useDisputeFormState() {
     setIssueDepositEstimates,
     disputeReasons,
     setDisputeReasons,
+    disputeReportTypes,
+    setDisputeReportTypes,
     disputeEvidenceDrafts,
     setDisputeEvidenceDrafts,
     resolveClaims,

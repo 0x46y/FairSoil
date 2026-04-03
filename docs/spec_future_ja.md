@@ -17,6 +17,8 @@ README_ja.md の実装済み仕様と混在しないよう、Phase2+の構想は
 - **背景:** Phase1 の近似シミュレーションでは、deposit 緩和だけでは low-balance 参加者の勝率改善が限定的で、裁定ロジックの独立性の方が効果が大きかった。
 - **方針:** `disputeResolver` は将来の外部裁定コントラクトや jury システムへ差し替え可能なソケットとして維持する。
 - **裁定原則:** 参照すべきなのは、提出証拠、手順整合性、時系列、過去の悪意履歴であり、当事者の資産量そのものではない。
+- **制度設計メモ:** 形式だけ第三者に見えても、当事者兼審判、権限の一極集中、引き延ばしが得になる手続は避ける。詳細は `docs/adjudication_antipatterns_ja.md`。
+- **Phase1 の最小仕様:** dispute を重くしすぎず成立させるための最小構成は `docs/phase1_minimal_dispute_spec_ja.md` に分離している。
 - **最小インターフェース案:**
   - `requestExternalResolution(covenantId, evidenceRoot, metadataUri)`
   - `finalizeExternalResolution(covenantId, workerPayoutBps, integrityPoints, slashingPenalty, rulingHash)`

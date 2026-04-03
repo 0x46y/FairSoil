@@ -55,7 +55,6 @@ export function WorkAgreementRow(props: {
   accountAddress?: string;
   isDisputeResolver: boolean;
   isDisputeFinalizer: boolean;
-  externalAdjudicationUrl?: string;
   templateById: Map<number, WorkAgreementTemplateItem>;
   covenantStatusLabels: string[];
   covenantTagMap: Record<string, string>;
@@ -79,6 +78,8 @@ export function WorkAgreementRow(props: {
     | "issueDepositEstimates"
     | "disputeReasons"
     | "setDisputeReasons"
+    | "disputeReportTypes"
+    | "setDisputeReportTypes"
     | "disputeEvidenceDrafts"
     | "setDisputeEvidenceDrafts"
     | "resolveClaims"
@@ -105,7 +106,6 @@ export function WorkAgreementRow(props: {
   ) => string;
   getDisputeStage: (status: number) => boolean[];
   disputeStatusLabel: (status: number) => string;
-  buildExternalAdjudicationLink: (base: string | undefined, covenantId: number) => string | null;
   formatEvidenceLink: (value: unknown) => ReactNode;
   formatRelativeTime: (timestamp: number, now: number, locale: string) => string;
   disputeReviewLabel: (title: string) => string;
@@ -131,7 +131,6 @@ export function WorkAgreementRow(props: {
     accountAddress,
     isDisputeResolver,
     isDisputeFinalizer,
-    externalAdjudicationUrl,
     templateById,
     covenantStatusLabels,
     covenantTagMap,
@@ -149,7 +148,6 @@ export function WorkAgreementRow(props: {
     nextStepForCovenant,
     getDisputeStage,
     disputeStatusLabel,
-    buildExternalAdjudicationLink,
     formatEvidenceLink,
     formatRelativeTime,
     disputeReviewLabel,
@@ -189,8 +187,8 @@ export function WorkAgreementRow(props: {
       ? "Check what the worker originally asked for, including payout % and the reason given."
       : "Confirm the work scope and expected payout before taking action.",
     item.status >= STATUS_DISPUTED
-      ? "Compare the requester response against the worker evidence. Look for missing dates or gaps."
-      : "Ask whether the requester has answered the help request yet.",
+      ? "Compare the requester misconduct report against the worker evidence. Look for missing dates or gaps."
+      : "Ask whether the requester has answered the help request or filed a documented misconduct report.",
     relationWarnings.length > 0
       ? "Review repeated-pair or related-party warnings before trusting reputation at face value."
       : "Use integrity only as a supporting signal after reading the evidence.",
@@ -287,27 +285,16 @@ export function WorkAgreementRow(props: {
             <p className={styles.disputeHint}>
               {disputeStatusLabel(item.status)}
               <span className={styles.disputeSubhint}>
-                The dispute arbiter first proposes an outcome, then finalizes it. High-value cases can
-                still route to outside adjudication.
+                The dispute arbiter first proposes an outcome, then finalizes it. Phase1 treats this as an internal
+                evidence review, not a full external court.
               </span>
               <span className={styles.disputeSubhintStrong}>
                 The arbiter should review the evidence and timeline, not the wallet size.
               </span>
-              {externalAdjudicationUrl ? (
-                <span className={styles.disputeSubhint}>
-                  <a
-                    className={styles.timelineLink}
-                    href={buildExternalAdjudicationLink(externalAdjudicationUrl, item.id) ?? undefined}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open external adjudication
-                  </a>
-                </span>
-              ) : null}
               {!isDisputeResolver ? (
                 <span className={styles.disputeSubhint}>
-                  If this is a high-value case, the final answer may wait for the outside review.
+                  If this is a high-value case, external adjudication remains a future routing option, not the default
+                  Phase1 path.
                 </span>
               ) : null}
             </p>
@@ -329,7 +316,7 @@ export function WorkAgreementRow(props: {
                   <div className={styles.disputeEvidenceCard}>
                     <span className={styles.inlinePill}>Requester</span>
                     <p className={styles.disputeEvidenceText}>
-                      {disputeReviewRecord.requesterReason || "No requester challenge saved yet."}
+                      {disputeReviewRecord.requesterReason || "No requester misconduct report saved yet."}
                     </p>
                     {formatEvidenceLink(disputeReviewRecord.requesterEvidenceUri) ? (
                       <div className={styles.issuePreview}>

@@ -28,6 +28,8 @@ export function WorkAgreementActionPanel(props: {
     | "issueDepositEstimates"
     | "disputeReasons"
     | "setDisputeReasons"
+    | "disputeReportTypes"
+    | "setDisputeReportTypes"
     | "disputeEvidenceDrafts"
     | "setDisputeEvidenceDrafts"
     | "resolveClaims"
@@ -90,6 +92,8 @@ export function WorkAgreementActionPanel(props: {
     issueDepositEstimates,
     disputeReasons,
     setDisputeReasons,
+    disputeReportTypes,
+    setDisputeReportTypes,
     disputeEvidenceDrafts,
     setDisputeEvidenceDrafts,
     resolveClaims,
@@ -277,7 +281,31 @@ export function WorkAgreementActionPanel(props: {
       item.creator.toLowerCase() === accountAddress.toLowerCase() ? (
         <>
           <label className={styles.issueField}>
-            <span className={styles.issueLabel}>Support reason</span>
+            <span className={styles.issueLabel}>Requester report type</span>
+            <select
+              className={styles.issueInput}
+              value={disputeReportTypes[item.id] ?? "materially-incomplete"}
+              onChange={(event) =>
+                setDisputeReportTypes((prev) => ({
+                  ...prev,
+                  [item.id]: event.target.value,
+                }))
+              }
+            >
+              <option value="materially-incomplete">Materially incomplete work</option>
+              <option value="no-show">No-show</option>
+              <option value="false-submission">False submission</option>
+              <option value="procedural-failure">Procedural failure</option>
+            </select>
+            <span className={styles.issueHelp}>
+              Use this only for no-show, false submission, materially incomplete work, or repeated procedural failure.
+            </span>
+            <span className={styles.issueHelp}>
+              Do not use this for subjective quality complaints or to punish weak performance on its own.
+            </span>
+          </label>
+          <label className={styles.issueField}>
+            <span className={styles.issueLabel}>Misconduct report reason</span>
             <textarea
               className={styles.issueTextarea}
               value={disputeReasons[item.id] ?? ""}
@@ -290,10 +318,10 @@ export function WorkAgreementActionPanel(props: {
               placeholder="Explain why you disagree with the worker claim"
             />
             <span className={styles.issueHelp}>
-              Opening a dispute temporarily holds part of the payout. Missing details may fail after 48h.
+              Opening this report temporarily holds part of the payout. Missing details may fail after 48h.
             </span>
             <span className={styles.issueHelp}>
-              The goal is to review the evidence fairly. A larger wallet should not decide the outcome.
+              The goal is to review documented misconduct fairly. A larger wallet should not decide the outcome.
             </span>
             {issueDepositEstimates[item.id] ? (
               <>
@@ -365,10 +393,10 @@ export function WorkAgreementActionPanel(props: {
               </div>
             ) : null}
             <span className={styles.issueHelp}>
-              Evidence is optional, but it can increase the maximum refundable amount.
+              Evidence is optional, but it can strengthen a refund or penalty review.
             </span>
             <span className={styles.issueHelp}>
-              Add the clearest evidence you have. The dispute arbiter is expected to judge the record, not the wallet size.
+              Add the clearest evidence you have. This flow is for documented misconduct, not subjective dissatisfaction.
             </span>
           </label>
           {item.status === 5 ? (
@@ -385,7 +413,10 @@ export function WorkAgreementActionPanel(props: {
             onClick={() => handleDisputeIssue(item.id)}
             disabled={isBusy}
           >
-            {actionLabel(`dispute-${item.id}`, item.status === 6 ? "Update dispute" : "Challenge claim")}
+            {actionLabel(
+              `dispute-${item.id}`,
+              item.status === 6 ? "Update misconduct report" : "Challenge / report misconduct"
+            )}
           </button>
         </>
       ) : null}
@@ -439,7 +470,7 @@ export function WorkAgreementActionPanel(props: {
                 />
               </label>
               <label className={styles.issueField}>
-                <span className={styles.issueLabel}>Claim summary</span>
+                <span className={styles.issueLabel}>Claim summary (optional)</span>
                 <textarea
                   className={styles.issueTextarea}
                   value={resolveClaimSummaries[item.id] ?? ""}
@@ -451,10 +482,10 @@ export function WorkAgreementActionPanel(props: {
                   }
                   placeholder="Summarize what the worker is asking for"
                 />
-                <span className={styles.issueHelp}>This becomes part of the on-chain arbiter note.</span>
+                <span className={styles.issueHelp}>Optional note for the audit record.</span>
               </label>
               <label className={styles.issueField}>
-                <span className={styles.issueLabel}>Requester response</span>
+                <span className={styles.issueLabel}>Requester response (optional)</span>
                 <textarea
                   className={styles.issueTextarea}
                   value={resolveRequesterResponses[item.id] ?? ""}
@@ -468,7 +499,7 @@ export function WorkAgreementActionPanel(props: {
                 />
               </label>
               <label className={styles.issueField}>
-                <span className={styles.issueLabel}>Missing evidence / gaps</span>
+                <span className={styles.issueLabel}>Missing evidence / gaps (optional)</span>
                 <textarea
                   className={styles.issueTextarea}
                   value={resolveMissingEvidenceNotes[item.id] ?? ""}
@@ -482,7 +513,7 @@ export function WorkAgreementActionPanel(props: {
                 />
               </label>
               <label className={styles.issueField}>
-                <span className={styles.issueLabel}>Arbiter evidence URL</span>
+                <span className={styles.issueLabel}>Arbiter evidence URL (optional)</span>
                 <input
                   className={`${styles.issueInput} ${styles.issueInputWide}`}
                   value={resolveEvidenceUris[item.id] ?? ""}

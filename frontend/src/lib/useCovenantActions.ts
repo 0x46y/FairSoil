@@ -40,6 +40,7 @@ export function useCovenantActions(params: {
     | "issueDepositEstimates"
     | "setIssueDepositEstimates"
     | "disputeReasons"
+    | "disputeReportTypes"
     | "disputeEvidenceDrafts"
     | "resolveClaims"
     | "resolveIntegrity"
@@ -94,6 +95,7 @@ export function useCovenantActions(params: {
     issueEvidenceDrafts,
     setIssueDepositEstimates,
     disputeReasons,
+    disputeReportTypes,
     disputeEvidenceDrafts,
     resolveClaims,
     resolveIntegrity,
@@ -310,10 +312,12 @@ export function useCovenantActions(params: {
     async (covenantId: number) => {
       if (!covenantAddress || !tokenBAddress) return;
       const reason = disputeReasons[covenantId] ?? "";
+      const reportType = disputeReportTypes[covenantId] ?? "";
+      const prefixedReason = reportType ? `[requester-report:${reportType}] ${reason}`.trim() : reason;
       const evidenceUri = buildEvidenceReference(
         disputeEvidenceDrafts[covenantId] ?? EMPTY_EVIDENCE_DRAFT,
         "creator",
-        reason
+        prefixedReason
       );
       const actionKey = `dispute-${covenantId}`;
       try {
@@ -337,7 +341,7 @@ export function useCovenantActions(params: {
             address: covenantAddr,
             abi: covenantAbi,
             functionName: "disputeIssue",
-            args: [BigInt(covenantId), reason, evidenceUri],
+            args: [BigInt(covenantId), prefixedReason, evidenceUri],
           })
         );
         await postTransactionSync();
@@ -356,6 +360,7 @@ export function useCovenantActions(params: {
       covenantAddress,
       covenants,
       disputeEvidenceDrafts,
+      disputeReportTypes,
       disputeReasons,
       formatTxError,
       getDepositBreakdown,

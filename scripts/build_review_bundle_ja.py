@@ -16,12 +16,40 @@ SOURCES = [
     ("docs/spec_ja.md", REPO_ROOT / "docs" / "spec_ja.md"),
     ("docs/vision_ja.md", REPO_ROOT / "docs" / "vision_ja.md"),
     ("docs/spec_future_ja.md", REPO_ROOT / "docs" / "spec_future_ja.md"),
+    (
+        "docs/phase1_dispute_fairness_ja.md",
+        REPO_ROOT / "docs" / "phase1_dispute_fairness_ja.md",
+    ),
+    (
+        "docs/phase1_minimal_dispute_spec_ja.md",
+        REPO_ROOT / "docs" / "phase1_minimal_dispute_spec_ja.md",
+    ),
+    (
+        "docs/phase1_requester_protection_spec_ja.md",
+        REPO_ROOT / "docs" / "phase1_requester_protection_spec_ja.md",
+    ),
+    (
+        "docs/phase1_minimal_scope_cutlist_ja.md",
+        REPO_ROOT / "docs" / "phase1_minimal_scope_cutlist_ja.md",
+    ),
+    (
+        "docs/adjudication_antipatterns_ja.md",
+        REPO_ROOT / "docs" / "adjudication_antipatterns_ja.md",
+    ),
+    (
+        "docs/dispute_record_publication_ja.md",
+        REPO_ROOT / "docs" / "dispute_record_publication_ja.md",
+    ),
+    (
+        "docs/external_explanation_notes_ja.md",
+        REPO_ROOT / "docs" / "external_explanation_notes_ja.md",
+    ),
 ]
 
 HEADER = """# FairSoil Review Bundle (JA)
 
 このファイルは日本語レビュー用の主要文書まとめです。  
-注意: これは結合生成物です（編集禁止）。修正は各ドキュメント（README_ja.md / docs/spec_ja.md / docs/vision_ja.md / docs/spec_future_ja.md）に行ってください。
+注意: これは結合生成物です（編集禁止）。修正は各ソースドキュメントに行ってください。
 """
 
 

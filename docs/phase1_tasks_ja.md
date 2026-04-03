@@ -3,6 +3,10 @@
 この一覧は「最短でPhase1を固める」順に並べたタスクです。  
 実装対象は最小でOK、Phase2+は除外します。
 
+関連:
+- 最小 dispute 仕様: `docs/phase1_minimal_dispute_spec_ja.md`
+- Scope を削る候補: `docs/phase1_minimal_scope_cutlist_ja.md`
+
 ## 1) ID連携の最小実装（最優先）
 - **目的:** primary address を手動ではなく“認証フロー”で更新できる状態にする
 - **対象:** `contracts/src/FairSoilTokenA.sol`, `frontend/src/app/page.tsx`

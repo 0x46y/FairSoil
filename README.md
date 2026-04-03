@@ -14,6 +14,12 @@ The full Japanese version of this README is in `README_ja.md`.
 - Market vocabulary: `docs/market_vocabulary_en.md`
 - Phase1 identity integration note: `docs/phase1_identity_integration_en.md`
 - Phase1 dispute fairness note: `docs/phase1_dispute_fairness_en.md`
+- Phase1 minimal dispute spec: `docs/phase1_minimal_dispute_spec_en.md`
+- Phase1 requester protection spec: `docs/phase1_requester_protection_spec_en.md`
+- Phase1 minimal scope cut list: `docs/phase1_minimal_scope_cutlist_en.md`
+- Adjudication antipatterns: `docs/adjudication_antipatterns_en.md`
+- Dispute record publication note: `docs/dispute_record_publication_en.md`
+- External explanation note: `docs/external_explanation_notes_en.md`
 - Identity nullifier scope note: `docs/identity_nullifier_scope_en.md`
 - Identity registry note: `docs/identity_registry_notes_en.md`
 - Integrity continuity note: `docs/integrity_continuity_notes_en.md`

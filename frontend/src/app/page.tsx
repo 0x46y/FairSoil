@@ -70,7 +70,6 @@ import {
   hasZkNfcConfig,
   tokenBAddress,
   treasuryAddress,
-  externalAdjudicationUrl,
   auditDisputeThreshold,
   auditTreasuryThreshold,
   auditReserveThresholdA,
@@ -207,7 +206,10 @@ const simplifyAuditTitle = (title: string) => {
     return title.replace("Support accepted on agreement #", "Requester accepted the worker claim on agreement #");
   }
   if (title.startsWith("Support disputed on agreement #")) {
-    return title.replace("Support disputed on agreement #", "Requester challenged the worker claim on agreement #");
+    return title.replace(
+      "Support disputed on agreement #",
+      "Requester challenged the worker claim or reported misconduct on agreement #"
+    );
   }
   if (title.startsWith("Support proposal for agreement #")) {
     return title.replace("Support proposal for agreement #", "Dispute arbiter proposed an outcome for agreement #");
@@ -243,7 +245,7 @@ const nextStepForCovenant = (
   if (item.status === 3) return "Stopped: the requester rejected this submission.";
   if (item.status === 4) return "Stopped: this agreement was cancelled and refunded.";
   if (item.status === 5) {
-    if (isCreator) return "Next: accept the worker claim or challenge it.";
+    if (isCreator) return "Next: accept the worker claim or file a documented misconduct report.";
     if (isWorker) return "Next: wait for the requester response to your help request.";
     return "Next: the requester must respond to the worker claim.";
   }
@@ -280,17 +282,6 @@ const explainDisabledAction = (options: {
   if (options.registryRequired) return "Resource registry is not connected in this environment.";
   if (options.insufficientBalance) return "This wallet does not have enough balance for that reward.";
   return options.label ?? null;
-};
-
-const buildExternalAdjudicationLink = (base: string | undefined, covenantId: number) => {
-  if (!base) return null;
-  try {
-    const url = new URL(base);
-    url.searchParams.set("covenantId", String(covenantId));
-    return url.toString();
-  } catch {
-    return null;
-  }
 };
 
 const formatEvidenceLink = (value: unknown) => {
@@ -411,7 +402,7 @@ const trailMatchesCovenant = (item: TrailItem, covenantId: number) => {
 const disputeReviewLabel = (title: string) => {
   if (title.startsWith("Support requested for agreement #")) return "Worker request";
   if (title.startsWith("Support accepted on agreement #")) return "Requester accepted";
-  if (title.startsWith("Support disputed on agreement #")) return "Requester challenge";
+  if (title.startsWith("Support disputed on agreement #")) return "Requester report";
   if (title.startsWith("Support proposal for agreement #")) return "Arbiter proposal";
   if (title.startsWith("Support resolved: agreement #")) return "Final outcome";
   return "Record";
@@ -5265,7 +5256,6 @@ export default function Home() {
               accountAddress={account.address}
               isDisputeResolver={isDisputeResolver}
               isDisputeFinalizer={isDisputeFinalizer}
-              externalAdjudicationUrl={externalAdjudicationUrl}
               templateById={templateById}
               covenantStatusLabels={covenantStatusLabels}
               covenantTagMap={covenantTagMap}
@@ -5283,7 +5273,6 @@ export default function Home() {
               nextStepForCovenant={nextStepForCovenant}
               getDisputeStage={getDisputeStage}
               disputeStatusLabel={disputeStatusLabel}
-              buildExternalAdjudicationLink={buildExternalAdjudicationLink}
               formatEvidenceLink={formatEvidenceLink}
               formatRelativeTime={formatRelativeTime}
               disputeReviewLabel={disputeReviewLabel}

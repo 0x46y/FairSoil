@@ -3,6 +3,10 @@
 このメモは、FairSoil Phase1 の dispute fairness 方針を整理したものです。  
 特に「低資産層が dispute で不利にならないか」という懸念に対する暫定原則を明文化する。
 
+関連:
+- 最小仕様の整理: `docs/phase1_minimal_dispute_spec_ja.md`
+- 制度上避けたい失敗: `docs/adjudication_antipatterns_ja.md`
+
 ## 背景
 
 Phase1 の近似シミュレーションでは、次が観測された。
