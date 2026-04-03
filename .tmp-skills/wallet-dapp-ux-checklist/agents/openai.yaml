@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wallet dApp UX Checklist"
+  short_description: "Review wallet, tx, retry, and local demo UX"
+  default_prompt: "Use $wallet-dapp-ux-checklist to review this wallet-driven dApp flow for account switching, retry behavior, and local-chain UX failures."

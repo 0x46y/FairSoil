@@ -1,0 +1,4 @@
+interface:
+  display_name: "FairSoil Doc Sync"
+  short_description: "Keep README, docs, and bundles in sync"
+  default_prompt: "Use $fairsol-doc-sync to decide which FairSoil docs must be updated, keep English and Japanese aligned, and regenerate the review bundles only when needed."

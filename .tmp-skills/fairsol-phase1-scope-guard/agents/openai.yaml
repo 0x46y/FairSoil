@@ -1,0 +1,4 @@
+interface:
+  display_name: "FairSoil Phase1 Scope Guard"
+  short_description: "Keep Phase1 UI and flows intentionally small"
+  default_prompt: "Use $fairsol-phase1-scope-guard to review whether this FairSoil change belongs in Phase1 UI, operator-only UI, or docs-only scope."
