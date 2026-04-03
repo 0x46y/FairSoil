@@ -1,6 +1,14 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  isValidElement,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   IDKitRequestWidget,
   orbLegacy,
@@ -182,6 +190,16 @@ const auditCategoryForTitle = (title: string) => {
     return "ubi";
   }
   return "other";
+};
+
+const nodeToPlainText = (node: ReactNode): string => {
+  if (node === null || node === undefined || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map((child) => nodeToPlainText(child)).join("");
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return nodeToPlainText(node.props.children);
+  }
+  return "";
 };
 
 const STATUS_DISPUTED = 6;
@@ -533,6 +551,11 @@ export default function Home() {
   const [txAction, setTxAction] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
   const [txSuccess, setTxSuccess] = useState<string | null>(null);
+  const [transferToken, setTransferToken] = useState<"tokenA" | "tokenB">("tokenB");
+  const [transferRecipient, setTransferRecipient] = useState("");
+  const [transferAmount, setTransferAmount] = useState("");
+  const [transferReason, setTransferReason] = useState<"gift" | "reimbursement" | "direct">("direct");
+  const [transferNote, setTransferNote] = useState("");
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tokenAAddr = tokenAAddress ?? zeroAddress;
@@ -1111,6 +1134,51 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportDisputePacket = () => {
+    const disputeItems = filteredTrailItems.filter(
+      (item) => auditCategoryForTitle(item.title) === "dispute"
+    );
+    const disputedAgreements = covenants
+      .filter((item) => item.status >= 5)
+      .map((item) => ({
+        id: item.id,
+        creator: item.creator,
+        worker: item.worker,
+        status: covenantStatusLabels[item.status] ?? "Unknown",
+        tokenBReward: formatTokenB(item.tokenBReward),
+        integrityPoints: item.integrityPoints.toString(),
+        workerClaimBps: item.issueClaimBps.toString(),
+        proposedWorkerPayoutBps: item.proposedWorkerPayoutBps.toString(),
+        reviewRecord: disputeReviewRecords[item.id] ?? null,
+      }));
+
+    const packet = {
+      exportedAt: new Date().toISOString(),
+      type: "fairsoil-dispute-packet",
+      query: trailQuery,
+      filter: trailFilter,
+      disputeItems: disputeItems.map((item) => ({
+        id: item.id,
+        timestamp: new Date(item.timestamp * 1000).toISOString(),
+        title: item.title,
+        body: nodeToPlainText(item.body).trim(),
+        actorSummary: item.actorSummary ?? null,
+        actorRoleLabel: item.actorRoleLabel ?? null,
+      })),
+      disputedAgreements,
+    };
+
+    const blob = new Blob([JSON.stringify(packet, null, 2)], {
+      type: "application/json;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `dispute-packet-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const totalUnclaimed = useMemo(() => {
     return unclaimedDays.reduce((sum, entry) => sum + entry.amount, 0n);
   }, [unclaimedDays]);
@@ -1154,6 +1222,22 @@ export default function Home() {
     if (tokenBBalance !== undefined) return tokenBBalance;
     return 0n;
   }, [tokenBBalance, tokenBUnlocked]);
+
+  const transferAmountValue = useMemo(() => safeParseUnits(transferAmount, 18), [transferAmount]);
+  const selectedTransferTokenLabel = transferToken === "tokenA" ? "Token A" : "Token B";
+  const selectedTransferTokenAddress = transferToken === "tokenA" ? tokenAAddr : tokenBAddr;
+  const selectedTransferTokenAbi = transferToken === "tokenA" ? tokenAAbi : tokenBAbi;
+  const selectedTransferBalance = transferToken === "tokenA" ? tokenABalance ?? 0n : tokenBAvailable;
+  const hasTransferInsufficientBalance =
+    transferAmountValue !== null && transferAmountValue > selectedTransferBalance;
+  const canTransferDirectly =
+    Boolean(account.address) &&
+    Boolean(isAddress(transferRecipient)) &&
+    transferAmountValue !== null &&
+    transferAmountValue > 0n &&
+    !hasTransferInsufficientBalance &&
+    !missingEnv &&
+    !isBusy;
 
   const selectedPaymentTokenAddress = covenantPayInTokenA ? tokenAAddr : tokenBAddr;
   const selectedPaymentTokenAbi = covenantPayInTokenA ? tokenAAbi : tokenBAbi;
@@ -2592,6 +2676,63 @@ export default function Home() {
     }
   };
 
+  const handleDirectTransfer = async () => {
+    if (!account.address || missingEnv || isBusy) {
+      setTxError(
+        explainDisabledAction({
+          walletConnected: Boolean(account.address),
+          missingEnv,
+          busy: isBusy,
+        })
+      );
+      return;
+    }
+    if (!isAddress(transferRecipient)) {
+      setTxError("Enter a valid recipient address.");
+      return;
+    }
+    if (transferRecipient.toLowerCase() === account.address.toLowerCase()) {
+      setTxError("Recipient must be different from the connected wallet.");
+      return;
+    }
+    if (transferAmountValue === null || transferAmountValue <= 0n) {
+      setTxError("Enter a transfer amount greater than zero.");
+      return;
+    }
+    if (transferAmountValue > selectedTransferBalance) {
+      setTxError(`Not enough ${selectedTransferTokenLabel} available for this transfer.`);
+      return;
+    }
+
+    setTxAction("directTransfer");
+    setTxError(null);
+    setTxStatus("signing");
+    try {
+      const hash = await writeContractAsync({
+        address: selectedTransferTokenAddress,
+        abi: selectedTransferTokenAbi,
+        functionName: "transfer",
+        args: [transferRecipient as `0x${string}`, transferAmountValue],
+      });
+      setTxStatus("confirming");
+      await publicClient?.waitForTransactionReceipt({ hash });
+      await Promise.all([refetchTokenA(), refetchTokenB()]);
+      showSuccess(
+        `${selectedTransferTokenLabel} sent as ${transferReason.replace("-", " ")} to ${safeAddress(
+          transferRecipient
+        )}${transferNote.trim() ? ` · Note: ${transferNote.trim()}` : ""}`
+      );
+      setTransferRecipient("");
+      setTransferAmount("");
+      setTransferNote("");
+    } catch (error) {
+      setTxError(error instanceof Error ? error.message : "Transfer failed.");
+    } finally {
+      setTxStatus("idle");
+      setTxAction(null);
+    }
+  };
+
   const handleSetAppiOracle = async () => {
     if (!treasuryAddress) return;
     const target = appiOracleInput.trim();
@@ -3782,6 +3923,98 @@ export default function Home() {
                   <span>Next claim window: 03:12</span>
                 </div>
               </article>
+              <article className={`${styles.card} ${styles.participantStackWide}`}>
+                <h3>Simple transfer</h3>
+                <p>
+                  Use this for normal transfers that do not need escrow. This is the lightweight path for gifts,
+                  reimbursements, or direct support outside work agreements.
+                </p>
+                <div className={styles.taskForm}>
+                  <div className={styles.taskRow}>
+                    <label className={styles.taskField}>
+                      Transfer type
+                      <select
+                        className={styles.taskInput}
+                        value={transferReason}
+                        onChange={(event) =>
+                          setTransferReason(event.target.value as "gift" | "reimbursement" | "direct")
+                        }
+                      >
+                        <option value="direct">Direct transfer</option>
+                        <option value="gift">Gift</option>
+                        <option value="reimbursement">Reimbursement</option>
+                      </select>
+                    </label>
+                    <label className={styles.taskField}>
+                      Asset
+                      <select
+                        className={styles.taskInput}
+                        value={transferToken}
+                        onChange={(event) => setTransferToken(event.target.value as "tokenA" | "tokenB")}
+                      >
+                        <option value="tokenB">Token B</option>
+                        <option value="tokenA">Token A</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label className={styles.taskField}>
+                    Recipient wallet
+                    <input
+                      className={styles.taskInput}
+                      value={transferRecipient}
+                      onChange={(event) => setTransferRecipient(event.target.value)}
+                      placeholder="0x..."
+                    />
+                  </label>
+                  <div className={styles.taskRow}>
+                    <label className={styles.taskField}>
+                      Amount
+                      <input
+                        className={styles.taskInput}
+                        value={transferAmount}
+                        onChange={(event) => setTransferAmount(event.target.value)}
+                        placeholder="10"
+                      />
+                    </label>
+                    <label className={styles.taskField}>
+                      Note (optional)
+                      <input
+                        className={styles.taskInput}
+                        value={transferNote}
+                        onChange={(event) => setTransferNote(event.target.value)}
+                        placeholder="e.g. lunch reimbursement, direct support"
+                      />
+                    </label>
+                  </div>
+                  <div className={styles.metricBreakdown}>
+                    <span>
+                      Available {selectedTransferTokenLabel}:{" "}
+                      {transferToken === "tokenA" ? formattedTokenA : formattedTokenBUnlocked}
+                    </span>
+                    <span>Escrow is not used in this path.</span>
+                  </div>
+                  <div className={styles.cardActions}>
+                    <button
+                      className={styles.primaryButton}
+                      onClick={handleDirectTransfer}
+                      disabled={!canTransferDirectly}
+                    >
+                      {actionLabel("directTransfer", `Send ${selectedTransferTokenLabel}`)}
+                    </button>
+                  </div>
+                  {!canTransferDirectly ? (
+                    <p className={styles.helperNote}>
+                      {explainDisabledAction({
+                        walletConnected: Boolean(account.address),
+                        missingEnv,
+                        busy: isBusy,
+                        workerRequired: !transferRecipient || !isAddress(transferRecipient),
+                        insufficientBalance: hasTransferInsufficientBalance,
+                      })}
+                    </p>
+                  ) : null}
+                </div>
+              </article>
             </div>
             <article className={styles.card}>
             <h3>Step 2: Collect your daily bonus</h3>
@@ -4182,43 +4415,9 @@ export default function Home() {
                 </div>
             {covenantPayInTokenA ? (
               royaltyBreakdown ? (
-                <div className={styles.metricBreakdown}>
-                  <span>
-                    Base Value:{" "}
-                    {Number(formatUnits(royaltyBreakdown.base, 18)).toFixed(2)} SOILB
-                  </span>
-                  {selectedTemplate && selectedEffectiveRoyaltyBps !== undefined ? (
-                    <span>
-                      Royalty: {formatPercent(selectedTemplate.royaltyBps)}% (Original) →{" "}
-                      {formatPercent(selectedEffectiveRoyaltyBps as bigint)}% (Current)
-                    </span>
-                  ) : null}
-                  <span>
-                    Worker will receive:{" "}
-                    {Number(formatUnits(royaltyBreakdown.worker, 18)).toFixed(2)} SOILB
-                  </span>
-                  <span>
-                    Author will receive:{" "}
-                    {Number(formatUnits(royaltyBreakdown.author, 18)).toFixed(2)} SOILB
-                  </span>
-                  {selectedTemplate ? (
-                    <span className={styles.fieldHint}>
-                      Author: {safeAddress(selectedTemplate.creator)}
-                    </span>
-                  ) : null}
-                  {selectedTemplate ? (
-                    <span className={styles.fieldHint}>
-                      Created at: {formatDate(selectedTemplate.createdAt, locale)} · Public domain on:{" "}
-                      {formatDate(selectedTemplate.createdAt + 730n * 24n * 60n * 60n, locale)}
-                    </span>
-                  ) : null}
-                  <span className={styles.fieldHint}>
-                    Crystallized B (B換算後の価値) を基準にロイヤリティを算出します。
-                  </span>
-                  <span className={styles.fieldHint}>
-                    Base Value = Token A (after fee) converted into SOILB.
-                  </span>
-                </div>
+                <p className={styles.taskHint}>
+                  Template / royalty preview is ready. Open advanced template tools if you need to inspect the split.
+                </p>
               ) : (
                 <p className={styles.taskHint}>
                   {estimatedCrystallizedReward !== null
@@ -4229,62 +4428,216 @@ export default function Home() {
                 </p>
               )
             ) : royaltyBreakdown ? (
-              <div className={styles.metricBreakdown}>
-                <span>
-                  Base Value:{" "}
-                  {Number(formatUnits(royaltyBreakdown.base, 18)).toFixed(2)} SOILB
-                </span>
-                {selectedTemplate && selectedEffectiveRoyaltyBps !== undefined ? (
-                  <span>
-                    Royalty: {formatPercent(selectedTemplate.royaltyBps)}% (Original) →{" "}
-                    {formatPercent(selectedEffectiveRoyaltyBps as bigint)}% (Current)
-                  </span>
-                ) : null}
-                <span>
-                  Worker will receive:{" "}
-                  {Number(formatUnits(royaltyBreakdown.worker, 18)).toFixed(2)} SOILB
-                </span>
-                <span>
-                  Author will receive:{" "}
-                  {Number(formatUnits(royaltyBreakdown.author, 18)).toFixed(2)} SOILB
-                </span>
-                {selectedTemplate ? (
-                  <span className={styles.fieldHint}>
-                    Author: {safeAddress(selectedTemplate.creator)}
-                  </span>
-                ) : null}
-                {selectedTemplate ? (
-                  <span className={styles.fieldHint}>
-                    Created at: {formatDate(selectedTemplate.createdAt, locale)} · Public domain on:{" "}
-                    {formatDate(selectedTemplate.createdAt + 730n * 24n * 60n * 60n, locale)}
-                  </span>
-                ) : null}
-                <span className={styles.fieldHint}>
-                  Royalty is calculated from the Token B reward value.
-                </span>
-                <span className={styles.fieldHint}>
-                  Base Value = Token B reward amount (no crystallization).
-                </span>
-              </div>
-            ) : null}
-            {!templateIdValue ? (
               <p className={styles.taskHint}>
-                Add a Template ID only if you want to reuse a saved template.
+                Template / royalty preview is ready. Open advanced template tools if you need to inspect the split.
               </p>
             ) : null}
-                <div className={styles.taskForm}>
-                  <label className={styles.taskField}>
-                    Template ID (optional)
-                    <input
-                      className={styles.taskInput}
-                      value={covenantTemplateId}
-                      onChange={(event) => setCovenantTemplateId(event.target.value)}
-                      placeholder="0"
-                    />
-                    <span className={styles.fieldHint}>
-                      If set, usage is also recorded in the template library.
+            <div className={styles.taskForm}>
+              <label className={styles.taskField}>
+                Use existing template ID (optional)
+                <input
+                  className={styles.taskInput}
+                  value={covenantTemplateId}
+                  onChange={(event) => setCovenantTemplateId(event.target.value)}
+                  placeholder="0"
+                />
+                <span className={styles.fieldHint}>
+                  Leave this empty for a normal agreement. Add a template ID only if you already know you want reuse.
+                </span>
+              </label>
+            </div>
+            <details className={styles.collapsibleCard}>
+              <summary>
+                <div className={styles.collapsibleTitle}>
+                  <strong>Browse saved templates</strong>
+                  <p>Only open this if you want to reuse an existing template.</p>
+                </div>
+                <span className={styles.collapsibleIndicator}>+</span>
+              </summary>
+              <div className={styles.collapsibleBody}>
+                {templateList.length > 0 ? (
+                  <>
+                    <div className={styles.templateHeader}>
+                      <span>Templates</span>
+                      <input
+                        className={styles.templateSearch}
+                        value={templateFilter}
+                        onChange={(event) => setTemplateFilter(event.target.value)}
+                        placeholder="Filter by URI or creator"
+                        aria-label="Filter templates by URI or creator"
+                        name="templateFilter"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className={styles.templateList}>
+                      {templateList
+                        .filter((item) => {
+                          if (!templateFilter.trim()) return true;
+                          const q = templateFilter.trim().toLowerCase();
+                          return (
+                            item.metadataUri.toLowerCase().includes(q) ||
+                            item.creator.toLowerCase().includes(q)
+                          );
+                        })
+                        .map((item) => {
+                          const metadata = parseTemplateMetadata(item.metadataUri);
+                          return (
+                            <div key={`template-${item.id}`} className={styles.templateRow}>
+                              <div>
+                                <strong>#{item.id}</strong>{" "}
+                                <span>{formatPercent(item.royaltyBps)}% (Original)</span>{" "}
+                                <span>{formatPercent(item.effectiveRoyaltyBps)}% (Current)</span>{" "}
+                                {!templateActiveMap[item.id] ? <span>(inactive)</span> : null}
+                                {metadata.scopeLabel ? (
+                                  <span className={styles.inlinePill}>
+                                    {scopeLabelFor(metadata.scopeLabel)}
+                                  </span>
+                                ) : null}
+                                <div className={styles.templateMeta}>
+                                  <span>Author: {safeAddress(item.creator)}</span>
+                                  <span>
+                                    Created at: {formatDate(item.createdAt, locale)} · Public domain on:{" "}
+                                    {formatDate(item.createdAt + 730n * 24n * 60n * 60n, locale)}
+                                  </span>
+                                  {metadata.sourceUri || item.metadataUri}
+                                  {metadata.expectedMin > 0n || metadata.expectedMax > 0n ? (
+                                    <span>
+                                      Expected range:{" "}
+                                      {Number(formatUnits(metadata.expectedMin, 18)).toFixed(2)}-
+                                      {Number(formatUnits(metadata.expectedMax, 18)).toFixed(2)} SOILB
+                                    </span>
+                                  ) : null}
+                                  {metadata.estimatedHours > 0 ||
+                                  metadata.materialClass ||
+                                  metadata.urgency ? (
+                                    <span>
+                                      Compare by: {urgencyLabelFor(metadata.urgency)} ·{" "}
+                                      {materialLabelFor(metadata.materialClass)} ·{" "}
+                                      {normalizeBand(metadata.estimatedHours)}
+                                    </span>
+                                  ) : null}
+                                  {toQuoteTotal(metadata.breakdown) > 0n ? (
+                                    <span>
+                                      Visible quote: labor {metadata.breakdown.labor || "0"}, materials{" "}
+                                      {metadata.breakdown.materials || "0"}, referral{" "}
+                                      {metadata.breakdown.referral || "0"}, warranty{" "}
+                                      {metadata.breakdown.warranty || "0"}, other{" "}
+                                      {metadata.breakdown.other || "0"}
+                                    </span>
+                                  ) : null}
+                                  {metadata.referralDisclosure ? (
+                                    <span>Referral / intermediary share is explicitly disclosed.</span>
+                                  ) : null}
+                                  {metadata.marketNote ? <span>{metadata.marketNote}</span> : null}
+                                </div>
+                              </div>
+                              <div className={styles.templateActions}>
+                                <button
+                                  className={styles.secondaryButton}
+                                  onClick={() => setCovenantTemplateId(item.id.toString())}
+                                >
+                                  Use template
+                                </button>
+                                <button
+                                  className={styles.ghostButton}
+                                  onClick={() =>
+                                    handleToggleTemplate(item.id, !templateActiveMap[item.id])
+                                  }
+                                >
+                                  {templateActiveMap[item.id] ? "Disable template" : "Enable template"}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </>
+                ) : (
+                  <p className={styles.emptyState}>
+                    No saved templates yet. Create an agreement first, then save a reusable template here if needed.
+                  </p>
+                )}
+              </div>
+            </details>
+            <details className={styles.collapsibleCard}>
+              <summary>
+                <div className={styles.collapsibleTitle}>
+                  <strong>Advanced template tools</strong>
+                  <p>For template authoring, royalty tuning, and library maintenance only.</p>
+                </div>
+                <span className={styles.collapsibleIndicator}>+</span>
+              </summary>
+              <div className={styles.collapsibleBody}>
+                {covenantPayInTokenA ? (
+                  royaltyBreakdown ? (
+                    <div className={styles.metricBreakdown}>
+                      <span>
+                        Base Value: {Number(formatUnits(royaltyBreakdown.base, 18)).toFixed(2)} SOILB
+                      </span>
+                      {selectedTemplate && selectedEffectiveRoyaltyBps !== undefined ? (
+                        <span>
+                          Royalty: {formatPercent(selectedTemplate.royaltyBps)}% (Original) →{" "}
+                          {formatPercent(selectedEffectiveRoyaltyBps as bigint)}% (Current)
+                        </span>
+                      ) : null}
+                      <span>
+                        Worker will receive: {Number(formatUnits(royaltyBreakdown.worker, 18)).toFixed(2)} SOILB
+                      </span>
+                      <span>
+                        Author will receive: {Number(formatUnits(royaltyBreakdown.author, 18)).toFixed(2)} SOILB
+                      </span>
+                      {selectedTemplate ? (
+                        <span className={styles.fieldHint}>Author: {safeAddress(selectedTemplate.creator)}</span>
+                      ) : null}
+                      {selectedTemplate ? (
+                        <span className={styles.fieldHint}>
+                          Created at: {formatDate(selectedTemplate.createdAt, locale)} · Public domain on:{" "}
+                          {formatDate(selectedTemplate.createdAt + 730n * 24n * 60n * 60n, locale)}
+                        </span>
+                      ) : null}
+                      <span className={styles.fieldHint}>
+                        Crystallized B (B換算後の価値) を基準にロイヤリティを算出します。
+                      </span>
+                      <span className={styles.fieldHint}>
+                        Base Value = Token A (after fee) converted into SOILB.
+                      </span>
+                    </div>
+                  ) : null
+                ) : royaltyBreakdown ? (
+                  <div className={styles.metricBreakdown}>
+                    <span>
+                      Base Value: {Number(formatUnits(royaltyBreakdown.base, 18)).toFixed(2)} SOILB
                     </span>
-                  </label>
+                    {selectedTemplate && selectedEffectiveRoyaltyBps !== undefined ? (
+                      <span>
+                        Royalty: {formatPercent(selectedTemplate.royaltyBps)}% (Original) →{" "}
+                        {formatPercent(selectedEffectiveRoyaltyBps as bigint)}% (Current)
+                      </span>
+                    ) : null}
+                    <span>
+                      Worker will receive: {Number(formatUnits(royaltyBreakdown.worker, 18)).toFixed(2)} SOILB
+                    </span>
+                    <span>
+                      Author will receive: {Number(formatUnits(royaltyBreakdown.author, 18)).toFixed(2)} SOILB
+                    </span>
+                    {selectedTemplate ? (
+                      <span className={styles.fieldHint}>Author: {safeAddress(selectedTemplate.creator)}</span>
+                    ) : null}
+                    {selectedTemplate ? (
+                      <span className={styles.fieldHint}>
+                        Created at: {formatDate(selectedTemplate.createdAt, locale)} · Public domain on:{" "}
+                        {formatDate(selectedTemplate.createdAt + 730n * 24n * 60n * 60n, locale)}
+                      </span>
+                    ) : null}
+                    <span className={styles.fieldHint}>
+                      Royalty is calculated from the Token B reward value.
+                    </span>
+                    <span className={styles.fieldHint}>
+                      Base Value = Token B reward amount (no crystallization).
+                    </span>
+                  </div>
+                ) : null}
+                <div className={styles.taskForm}>
                   <label className={styles.taskField}>
                     Save a new template (URI)
                     <input
@@ -4433,14 +4786,16 @@ export default function Home() {
                     {actionLabel("recordTemplateUse", "Record template use")}
                   </button>
                 </div>
-                <div className={styles.stepActions}>
-                  <button className={styles.secondaryButton} onClick={() => setCovenantFormStage(1)}>
-                    Back to main details
-                  </button>
-                  <span className={styles.taskHint}>
-                    This step is optional. It is only for template reuse and creator-share settings.
-                  </span>
-                </div>
+              </div>
+            </details>
+            <div className={styles.stepActions}>
+              <button className={styles.secondaryButton} onClick={() => setCovenantFormStage(1)}>
+                Back to main details
+              </button>
+              <span className={styles.taskHint}>
+                This step is optional. It is only for template reuse and creator-share settings.
+              </span>
+            </div>
               </div>
             )}
             <div className={styles.createAgreementFooter}>
@@ -4484,102 +4839,6 @@ export default function Home() {
                 </p>
               ) : null}
             </div>
-            {templateList.length > 0 ? (
-              <>
-                <div className={styles.templateHeader}>
-                  <span>Templates</span>
-                  <input
-                    className={styles.templateSearch}
-                    value={templateFilter}
-                    onChange={(event) => setTemplateFilter(event.target.value)}
-                    placeholder="Filter by URI or creator"
-                    aria-label="Filter templates by URI or creator"
-                    name="templateFilter"
-                    autoComplete="off"
-                  />
-                </div>
-                <div className={styles.templateList}>
-                  {templateList
-                    .filter((item) => {
-                      if (!templateFilter.trim()) return true;
-                      const q = templateFilter.trim().toLowerCase();
-                      return (
-                        item.metadataUri.toLowerCase().includes(q) ||
-                        item.creator.toLowerCase().includes(q)
-                      );
-                    })
-                    .map((item) => {
-                      const metadata = parseTemplateMetadata(item.metadataUri);
-                      return (
-                      <div key={`template-${item.id}`} className={styles.templateRow}>
-                        <div>
-                          <strong>#{item.id}</strong>{" "}
-                          <span>{formatPercent(item.royaltyBps)}% (Original)</span>{" "}
-                          <span>{formatPercent(item.effectiveRoyaltyBps)}% (Current)</span>{" "}
-                          {!templateActiveMap[item.id] ? <span>(inactive)</span> : null}
-                          {metadata.scopeLabel ? (
-                            <span className={styles.inlinePill}>{scopeLabelFor(metadata.scopeLabel)}</span>
-                          ) : null}
-                          <div className={styles.templateMeta}>
-                            <span>Author: {safeAddress(item.creator)}</span>
-                            <span>
-                              Created at: {formatDate(item.createdAt, locale)} · Public domain on:{" "}
-                              {formatDate(item.createdAt + 730n * 24n * 60n * 60n, locale)}
-                            </span>
-                            {metadata.sourceUri || item.metadataUri}
-                            {metadata.expectedMin > 0n || metadata.expectedMax > 0n ? (
-                              <span>
-                                Expected range:{" "}
-                                {Number(formatUnits(metadata.expectedMin, 18)).toFixed(2)}-
-                                {Number(formatUnits(metadata.expectedMax, 18)).toFixed(2)}{" "}
-                                SOILB
-                              </span>
-                            ) : null}
-                            {metadata.estimatedHours > 0 || metadata.materialClass || metadata.urgency ? (
-                              <span>
-                                Compare by: {urgencyLabelFor(metadata.urgency)} ·{" "}
-                                {materialLabelFor(metadata.materialClass)} ·{" "}
-                                {normalizeBand(metadata.estimatedHours)}
-                              </span>
-                            ) : null}
-                            {toQuoteTotal(metadata.breakdown) > 0n ? (
-                              <span>
-                                Visible quote: labor {metadata.breakdown.labor || "0"}, materials{" "}
-                                {metadata.breakdown.materials || "0"}, referral {metadata.breakdown.referral || "0"},
-                                warranty {metadata.breakdown.warranty || "0"}, other {metadata.breakdown.other || "0"}
-                              </span>
-                            ) : null}
-                            {metadata.referralDisclosure ? (
-                              <span>Referral / intermediary share is explicitly disclosed.</span>
-                            ) : null}
-                            {metadata.marketNote ? (
-                              <span>{metadata.marketNote}</span>
-                            ) : null}
-                          </div>
-                        </div>
-                        <div className={styles.templateActions}>
-                          <button
-                            className={styles.secondaryButton}
-                            onClick={() => setCovenantTemplateId(item.id.toString())}
-                          >
-                            Use template
-                          </button>
-                          <button
-                            className={styles.ghostButton}
-                            onClick={() => handleToggleTemplate(item.id, !templateActiveMap[item.id])}
-                          >
-                            {templateActiveMap[item.id] ? "Disable template" : "Enable template"}
-                          </button>
-                        </div>
-                      </div>
-                    )})}
-                </div>
-              </>
-            ) : (
-              <p className={styles.emptyState}>
-                No saved templates yet. Create an agreement first, then save a reusable template here if needed.
-              </p>
-            )}
             </article>
           </div>
         </section>
@@ -5139,6 +5398,13 @@ export default function Home() {
                 disabled={filteredTrailItems.length === 0}
               >
                 Export activity CSV
+              </button>
+              <button
+                className={styles.secondaryButton}
+                onClick={handleExportDisputePacket}
+                disabled={!filteredTrailItems.some((item) => auditCategoryForTitle(item.title) === "dispute")}
+              >
+                Export dispute packet
               </button>
             </div>
           </div>

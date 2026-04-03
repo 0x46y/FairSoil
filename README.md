@@ -20,6 +20,7 @@ The full Japanese version of this README is in `README_ja.md`.
 - Adjudication antipatterns: `docs/adjudication_antipatterns_en.md`
 - Dispute record publication note: `docs/dispute_record_publication_en.md`
 - External explanation note: `docs/external_explanation_notes_en.md`
+- Release checklist: `docs/release_checklist_en.md`
 - Identity nullifier scope note: `docs/identity_nullifier_scope_en.md`
 - Identity registry note: `docs/identity_registry_notes_en.md`
 - Integrity continuity note: `docs/integrity_continuity_notes_en.md`

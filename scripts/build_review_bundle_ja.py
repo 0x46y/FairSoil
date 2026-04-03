@@ -44,6 +44,10 @@ SOURCES = [
         "docs/external_explanation_notes_ja.md",
         REPO_ROOT / "docs" / "external_explanation_notes_ja.md",
     ),
+    (
+        "docs/release_checklist_ja.md",
+        REPO_ROOT / "docs" / "release_checklist_ja.md",
+    ),
 ]
 
 HEADER = """# FairSoil Review Bundle (JA)

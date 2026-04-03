@@ -69,6 +69,10 @@ SOURCES = [
         REPO_ROOT / "docs" / "external_explanation_notes_en.md",
     ),
     (
+        "docs/release_checklist_en.md",
+        REPO_ROOT / "docs" / "release_checklist_en.md",
+    ),
+    (
         "docs/identity_nullifier_scope_en.md",
         REPO_ROOT / "docs" / "identity_nullifier_scope_en.md",
     ),
