@@ -163,6 +163,9 @@ export function WorkAgreementActionPanel(props: {
                 }))
               }
               placeholder="0"
+              name={`issueClaim-${item.id}`}
+              inputMode="decimal"
+              autoComplete="off"
             />
             <span className={styles.issueHelp}>Percent of the reward the worker says should still be paid.</span>
             {issueDepositEstimates[item.id] ? (
@@ -186,6 +189,7 @@ export function WorkAgreementActionPanel(props: {
                 }))
               }
               placeholder="Explain what problem happened"
+              name={`issueReason-${item.id}`}
             />
           </label>
           <label className={styles.issueField}>
@@ -197,6 +201,10 @@ export function WorkAgreementActionPanel(props: {
                 updateEvidenceDraft(setIssueEvidenceDrafts, item.id, "sourceUrl", event.target.value)
               }
               placeholder="https://…"
+              type="url"
+              name={`issueEvidenceUrl-${item.id}`}
+              autoComplete="url"
+              inputMode="url"
             />
           </label>
           <label className={styles.issueField}>
@@ -208,6 +216,8 @@ export function WorkAgreementActionPanel(props: {
                 updateEvidenceDraft(setIssueEvidenceDrafts, item.id, "title", event.target.value)
               }
               placeholder="Photo set / invoice / log bundle"
+              name={`issueEvidenceTitle-${item.id}`}
+              autoComplete="off"
             />
           </label>
           <label className={styles.issueField}>
@@ -219,6 +229,8 @@ export function WorkAgreementActionPanel(props: {
                 updateEvidenceDraft(setIssueEvidenceDrafts, item.id, "hash", event.target.value)
               }
               placeholder="bafy… / sha256:…"
+              name={`issueEvidenceHash-${item.id}`}
+              autoComplete="off"
             />
           </label>
           <label className={styles.issueField}>
@@ -230,6 +242,7 @@ export function WorkAgreementActionPanel(props: {
                 updateEvidenceDraft(setIssueEvidenceDrafts, item.id, "summary", event.target.value)
               }
               placeholder="What does this evidence prove?"
+              name={`issueEvidenceSummary-${item.id}`}
             />
             {formatEvidenceLink(
               buildEvidenceReference(
@@ -291,6 +304,7 @@ export function WorkAgreementActionPanel(props: {
                   [item.id]: event.target.value,
                 }))
               }
+              name={`disputeReportType-${item.id}`}
             >
               <option value="materially-incomplete">Materially incomplete work</option>
               <option value="no-show">No-show</option>
@@ -316,6 +330,7 @@ export function WorkAgreementActionPanel(props: {
                 }))
               }
               placeholder="Explain why you disagree with the worker claim"
+              name={`disputeReason-${item.id}`}
             />
             <span className={styles.issueHelp}>
               Opening this report temporarily holds part of the payout. Missing details may fail after 48h.
@@ -341,6 +356,10 @@ export function WorkAgreementActionPanel(props: {
                 updateEvidenceDraft(setDisputeEvidenceDrafts, item.id, "sourceUrl", event.target.value)
               }
               placeholder="https://…"
+              type="url"
+              name={`disputeEvidenceUrl-${item.id}`}
+              autoComplete="url"
+              inputMode="url"
             />
           </label>
           <label className={styles.issueField}>
@@ -352,6 +371,8 @@ export function WorkAgreementActionPanel(props: {
                 updateEvidenceDraft(setDisputeEvidenceDrafts, item.id, "title", event.target.value)
               }
               placeholder="Counter evidence bundle"
+              name={`disputeEvidenceTitle-${item.id}`}
+              autoComplete="off"
             />
           </label>
           <label className={styles.issueField}>
@@ -363,6 +384,8 @@ export function WorkAgreementActionPanel(props: {
                 updateEvidenceDraft(setDisputeEvidenceDrafts, item.id, "hash", event.target.value)
               }
               placeholder="bafy… / sha256:…"
+              name={`disputeEvidenceHash-${item.id}`}
+              autoComplete="off"
             />
           </label>
           <label className={styles.issueField}>
@@ -374,6 +397,7 @@ export function WorkAgreementActionPanel(props: {
                 updateEvidenceDraft(setDisputeEvidenceDrafts, item.id, "summary", event.target.value)
               }
               placeholder="Why does this evidence change the payout or integrity outcome?"
+              name={`disputeEvidenceSummary-${item.id}`}
             />
             {formatEvidenceLink(
               buildEvidenceReference(
@@ -438,6 +462,9 @@ export function WorkAgreementActionPanel(props: {
                     }))
                   }
                   placeholder="50"
+                  name={`resolveClaim-${item.id}`}
+                  inputMode="decimal"
+                  autoComplete="off"
                 />
                 <span className={styles.issueHelp}>Percent of the reward that should go to the worker.</span>
               </label>
@@ -453,6 +480,9 @@ export function WorkAgreementActionPanel(props: {
                     }))
                   }
                   placeholder="10"
+                  name={`resolveIntegrity-${item.id}`}
+                  inputMode="numeric"
+                  autoComplete="off"
                 />
               </label>
               <label className={styles.issueField}>
@@ -467,6 +497,9 @@ export function WorkAgreementActionPanel(props: {
                     }))
                   }
                   placeholder="0"
+                  name={`resolveSlashing-${item.id}`}
+                  inputMode="decimal"
+                  autoComplete="off"
                 />
               </label>
               <label className={styles.issueField}>
@@ -481,6 +514,7 @@ export function WorkAgreementActionPanel(props: {
                     }))
                   }
                   placeholder="Summarize what the worker is asking for"
+                  name={`resolveClaimSummary-${item.id}`}
                 />
                 <span className={styles.issueHelp}>Optional note for the audit record.</span>
               </label>
@@ -496,6 +530,7 @@ export function WorkAgreementActionPanel(props: {
                     }))
                   }
                   placeholder="Summarize the requester response and strongest counterpoint"
+                  name={`resolveRequesterResponse-${item.id}`}
                 />
               </label>
               <label className={styles.issueField}>
@@ -510,6 +545,7 @@ export function WorkAgreementActionPanel(props: {
                     }))
                   }
                   placeholder="What is still missing, unclear, or contradictory?"
+                  name={`resolveMissingEvidence-${item.id}`}
                 />
               </label>
               <label className={styles.issueField}>
@@ -524,6 +560,10 @@ export function WorkAgreementActionPanel(props: {
                     }))
                   }
                   placeholder="https://…"
+                  type="url"
+                  name={`resolveEvidenceUrl-${item.id}`}
+                  autoComplete="url"
+                  inputMode="url"
                 />
                 {formatEvidenceLink(resolveEvidenceUris[item.id]) ? (
                   <div className={styles.issuePreview}>{formatEvidenceLink(resolveEvidenceUris[item.id])}</div>

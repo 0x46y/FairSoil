@@ -1,0 +1,315 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - main [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e8]:
+        - paragraph [ref=e9]: FairSoil
+        - paragraph [ref=e10]: Integrity-first economy
+      - navigation [ref=e11]:
+        - generic [ref=e12]: Local MVP
+        - generic [ref=e13]: Wallet disconnected
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]: Phase 1 MVP
+        - generic [ref=e18]:
+          - heading "Connect your wallet, verify it, and begin using FairSoil." [level=1] [ref=e19]
+          - paragraph [ref=e20]: "This page is a working prototype. In plain terms: Token A is your daily bonus, Token B is your work reward, and Integrity is your trust score."
+        - generic [ref=e21]:
+          - paragraph [ref=e22]:
+            - strong [ref=e23]: "What this MVP already does:"
+            - text: daily bonus, reward escrow, approval, dispute flow, manual operator review, and basic treasury checks.
+          - paragraph [ref=e24]:
+            - strong [ref=e25]: "What is still not finished:"
+            - text: full DAO governance, production identity flow, and external dispute arbitration.
+          - paragraph [ref=e26]:
+            - strong [ref=e27]: "What we are still testing:"
+            - text: dispute fairness for low-balance users. Phase 1 keeps a manual arbiter, while Phase 2 is expected to move high-value cases to outside adjudication.
+        - generic [ref=e28]:
+          - button "Claim today's bonus" [disabled] [ref=e29]
+          - button "Connect wallet" [ref=e30]
+        - paragraph [ref=e31]: Connect a wallet first.
+        - generic [ref=e32]:
+          - generic [ref=e33]: "Network: Not connected"
+          - generic [ref=e34]: "Wallet: Not connected"
+          - generic [ref=e35]: Connect a wallet to use the local MVP.
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - paragraph [ref=e38]: Daily bonus (Token A)
+          - paragraph [ref=e39]: "--"
+          - paragraph [ref=e40]: This slowly expires over time, so it is meant for near-term use.
+        - generic [ref=e41]:
+          - paragraph [ref=e42]: Work rewards (Token B)
+          - paragraph [ref=e43]: "--"
+          - generic [ref=e44]:
+            - generic [ref=e45]: "Unlocked: --"
+            - generic [ref=e46]: "Locked: --"
+          - paragraph [ref=e47]: Locked rewards are already reserved inside agreements.
+        - generic [ref=e48]:
+          - paragraph [ref=e49]: Trust score (Integrity)
+          - paragraph [ref=e50]: "--"
+          - generic [ref=e51]:
+            - generic [ref=e52]: "Available: --"
+            - generic [ref=e53]: "Locked: --"
+          - paragraph [ref=e54]: You have not reached the governance threshold yet.
+    - region "Dashboard sections" [ref=e55]:
+      - tablist "Choose dashboard view" [ref=e56]:
+        - tab "Use FairSoil" [selected] [ref=e57]
+        - tab "Run FairSoil" [ref=e58]
+        - tab "Activity" [ref=e59]
+      - paragraph [ref=e60]: "Participant view is the default. It shows the everyday flow: verify, collect bonuses, and create agreements."
+    - generic [ref=e61]:
+      - generic [ref=e62]:
+        - generic [ref=e63]:
+          - generic [ref=e64]: For everyday use
+          - heading "Start using FairSoil" [level=2] [ref=e65]
+        - paragraph [ref=e66]: "If you are new, go from left to right: check what you qualify for, verify this wallet, collect your bonus, then create a work agreement."
+      - generic [ref=e67]:
+        - generic [ref=e68]:
+          - generic [ref=e69]: "1"
+          - generic [ref=e70]:
+            - strong [ref=e71]: Verify your wallet
+            - paragraph [ref=e72]: Unlock daily bonus and identity-based features.
+        - generic [ref=e73]:
+          - generic [ref=e74]: "2"
+          - generic [ref=e75]:
+            - strong [ref=e76]: Collect your bonus
+            - paragraph [ref=e77]: Check recent days, then accrue or claim Token A.
+        - generic [ref=e78]:
+          - generic [ref=e79]: "3"
+          - generic [ref=e80]:
+            - strong [ref=e81]: Create work agreements
+            - paragraph [ref=e82]: Lock a reward first so the worker can submit safely.
+        - generic [ref=e83]:
+          - generic [ref=e84]: "4"
+          - generic [ref=e85]:
+            - strong [ref=e86]: Watch your progress
+            - paragraph [ref=e87]: Token B and Integrity go up after approved work.
+      - generic [ref=e88]:
+        - generic [ref=e89]:
+          - article [ref=e90]:
+            - heading "Can I join voting?" [level=3] [ref=e91]
+            - paragraph [ref=e92]: You can join governance once you hold enough Token B or reach the Integrity threshold. Next draw in 12 hours.
+            - generic [ref=e93]:
+              - generic [ref=e94]: "Min Token B: 1"
+              - generic [ref=e95]: "Min Integrity: 100"
+          - article [ref=e96]:
+            - 'heading "Step 1: Verify this wallet" [level=3] [ref=e97]'
+            - paragraph [ref=e98]: Connect a wallet first to see which verification routes are usable.
+            - generic [ref=e99]:
+              - generic [ref=e100]: "Verification status: Connect wallet"
+              - generic [ref=e101]: "Active route: Temporary operator mock"
+              - generic [ref=e102]: "World ID mode: disabled"
+              - generic [ref=e103]: "ZK-NFC mode: disabled"
+              - generic [ref=e104]: "Operator fallback: Primary path"
+            - generic [ref=e105]:
+              - generic [ref=e106]: Verification is needed for the full bonus flow
+              - generic [ref=e107]: Temporary operator wallet required
+            - generic [ref=e109]:
+              - button "Operator verify (mock)" [disabled] [ref=e110]
+              - paragraph [ref=e111]: Connect a wallet first.
+            - generic [ref=e112]:
+              - strong [ref=e113]: Suggested next step
+              - paragraph [ref=e114]: Connect a wallet, then choose the route that matches this environment.
+            - paragraph [ref=e115]: Connect a wallet first.
+          - article [ref=e116]:
+            - heading "Daily bonus rules" [level=3] [ref=e117]
+            - paragraph [ref=e118]: The daily bonus is 100 Token A. The claim window resets at 00:00 UTC each day.
+            - generic [ref=e120]: "Next claim window: 03:12"
+          - article [ref=e121]:
+            - heading "Simple transfer" [level=3] [ref=e122]
+            - paragraph [ref=e123]: Use this for normal transfers that do not need escrow. This is the lightweight path for gifts, reimbursements, or direct support outside work agreements.
+            - generic [ref=e124]:
+              - generic [ref=e125]:
+                - generic [ref=e126]:
+                  - text: Transfer type
+                  - combobox "Transfer type" [ref=e127]:
+                    - option "Direct transfer" [selected]
+                    - option "Gift"
+                    - option "Reimbursement"
+                - generic [ref=e128]:
+                  - text: Asset
+                  - combobox "Asset" [ref=e129]:
+                    - option "Token B" [selected]
+                    - option "Token A"
+              - generic [ref=e130]:
+                - text: Recipient wallet
+                - textbox "Recipient wallet" [ref=e131]:
+                  - /placeholder: 0x...
+              - generic [ref=e132]:
+                - generic [ref=e133]:
+                  - text: Amount
+                  - textbox "Amount" [ref=e134]:
+                    - /placeholder: "10"
+                - generic [ref=e135]:
+                  - text: Note (optional)
+                  - textbox "Note (optional)" [ref=e136]:
+                    - /placeholder: e.g. lunch reimbursement, direct support
+              - generic [ref=e137]:
+                - generic [ref=e138]: "Available Token B: --"
+                - generic [ref=e139]: Escrow is not used in this path.
+              - button "Send Token B" [disabled] [ref=e141]
+              - paragraph [ref=e142]: Connect a wallet first.
+        - article [ref=e143]:
+          - 'heading "Step 2: Collect your daily bonus" [level=3] [ref=e144]'
+          - paragraph [ref=e145]: First load the days you want, then move them into your claimable balance, then claim. Older Token A slowly expires.
+          - generic [ref=e146]:
+            - generic [ref=e147]: "Current day: --"
+            - generic [ref=e148]: "Total (last 7 days): 0.00 SOILA"
+          - generic [ref=e149]:
+            - generic [ref=e150]:
+              - generic [ref=e151]:
+                - text: From day
+                - textbox "From day" [ref=e152]:
+                  - /placeholder: e.g. 12345
+              - generic [ref=e153]:
+                - text: To day
+                - textbox "To day" [ref=e154]:
+                  - /placeholder: e.g. 12350
+            - generic [ref=e155]:
+              - button "Load last 7 days" [disabled] [ref=e156]
+              - button "Move into claimable balance" [disabled] [ref=e157]
+              - button "Claim selected bonus" [disabled] [ref=e158]
+            - paragraph [ref=e159]: Day number is based on blockchain time. Claiming clears the days you used.
+            - paragraph [ref=e160]: Connect a wallet first.
+      - article [ref=e162]:
+        - 'heading "Step 3: Create a work agreement" [level=3] [ref=e163]'
+        - paragraph [ref=e164]: Set the worker, set the reward, and lock the funds first. That lets both sides see the reward is ready before the work starts.
+        - generic [ref=e165]:
+          - generic [ref=e166]: Main details
+          - generic [ref=e167]: Optional template settings
+        - generic [ref=e168]:
+          - generic [ref=e169]:
+            - generic [ref=e170]:
+              - text: Task type
+              - combobox "Task type A preset can fill common defaults for this kind of work." [ref=e171]:
+                - option "General" [selected]
+                - option "Micro task"
+                - option "Delivery"
+                - option "Audit"
+                - option "Urgent response"
+                - option "Education support"
+              - generic [ref=e172]: A preset can fill common defaults for this kind of work.
+            - generic [ref=e173]:
+              - text: Who will do the work?
+              - textbox "Who will do the work? Wallet address of the worker who will submit the work and receive the reward." [ref=e174]:
+                - /placeholder: 0x…
+              - generic [ref=e175]: Wallet address of the worker who will submit the work and receive the reward.
+            - generic [ref=e176]:
+              - text: Reward type
+              - combobox "Reward type Token A can be converted into Token B with a fee when the agreement is created." [ref=e177]:
+                - option "Token B (Asset)" [selected]
+                - option "Token A (Flow)"
+              - generic [ref=e178]: Token A can be converted into Token B with a fee when the agreement is created.
+            - generic [ref=e179]:
+              - generic [ref=e180]:
+                - text: Reward amount in Token B
+                - textbox "Reward amount in Token B This amount is locked when the agreement is created." [ref=e181]:
+                  - /placeholder: "250"
+                  - text: "250"
+                - generic [ref=e182]: This amount is locked when the agreement is created.
+              - generic [ref=e183]:
+                - text: Trust score reward
+                - textbox "Trust score reward Integrity points the worker will receive after approval." [ref=e184]:
+                  - /placeholder: "50"
+                  - text: "50"
+                - generic [ref=e185]: Integrity points the worker will receive after approval.
+            - generic [ref=e186]:
+              - generic [ref=e187]:
+                - strong [ref=e188]: Visible quote breakdown
+                - generic [ref=e189]: Use this to make labor, materials, and referral costs explicit.
+              - generic [ref=e190]:
+                - generic [ref=e191]:
+                  - generic [ref=e192]:
+                    - text: Labor
+                    - textbox "Labor" [ref=e193]:
+                      - /placeholder: "150"
+                  - generic [ref=e194]:
+                    - text: Materials
+                    - textbox "Materials" [ref=e195]:
+                      - /placeholder: "70"
+                - generic [ref=e196]:
+                  - generic [ref=e197]:
+                    - text: Referral / intermediary
+                    - textbox "Referral / intermediary" [ref=e198]:
+                      - /placeholder: "0"
+                  - generic [ref=e199]:
+                    - text: Warranty / risk buffer
+                    - textbox "Warranty / risk buffer" [ref=e200]:
+                      - /placeholder: "0"
+                - generic [ref=e201]:
+                  - text: Other
+                  - textbox "Other" [ref=e202]:
+                    - /placeholder: "0"
+              - generic [ref=e203]:
+                - generic [ref=e204]: "Visible total: 0.00 SOILB"
+                - generic [ref=e205]: "Reward field: 250.00 SOILB"
+              - button "Use visible total as reward" [disabled] [ref=e207]
+              - paragraph [ref=e208]: If a referral amount is hidden here or left undocumented, the worker and requester cannot compare the quote structure later.
+          - generic [ref=e209]:
+            - button "Open optional template settings" [disabled] [ref=e210]
+            - generic [ref=e211]: Create from this main step if you already know the worker and reward. Template settings are optional.
+        - generic [ref=e212]:
+          - generic [ref=e213]:
+            - generic [ref=e214]: Two wallet confirmations
+            - generic [ref=e215]: Your wallet first allows token use, then confirms the reward lock.
+          - paragraph [ref=e216]: This uses Token B directly, then locks it into the agreement.
+          - button "Create Agreement (approve + lock)" [disabled] [ref=e217]
+          - paragraph [ref=e218]: Connect a wallet first.
+    - generic [ref=e219]:
+      - generic [ref=e220]:
+        - generic [ref=e221]:
+          - generic [ref=e222]: Quick audit view
+          - heading "Recent activity preview" [level=2] [ref=e223]
+          - paragraph [ref=e224]: Keep the main work flow short, then open the full audit trail only when needed.
+        - button "View all activity" [ref=e225] [cursor=pointer]
+      - generic [ref=e227]:
+        - generic [ref=e228]: "--"
+        - generic [ref=e229]:
+          - paragraph [ref=e230]: No recent activity yet
+          - paragraph [ref=e231]: Agreement updates and treasury changes will appear here.
+    - generic [ref=e232]:
+      - generic [ref=e233]:
+        - generic [ref=e234]:
+          - generic [ref=e235]: Main work flow
+          - heading "Work agreements" [level=2] [ref=e236]
+          - paragraph [ref=e237]: See what each agreement is waiting for and who needs to act next.
+        - generic [ref=e238]:
+          - textbox "Filter agreements by tag" [ref=e239]:
+            - /placeholder: Filter by tag…
+          - button "Refresh agreements" [ref=e240] [cursor=pointer]
+      - generic [ref=e241]:
+        - generic [ref=e242]:
+          - generic [ref=e243]: All agreements
+          - generic [ref=e244]: "0"
+        - generic [ref=e245]:
+          - generic [ref=e246]: Still in progress
+          - generic [ref=e247]: "0"
+        - generic [ref=e248]:
+          - generic [ref=e249]: In dispute
+          - generic [ref=e250]: "0"
+        - generic [ref=e251]:
+          - generic [ref=e252]: Need action now
+          - generic [ref=e253]: "0"
+      - generic [ref=e254]:
+        - generic [ref=e255]:
+          - button "All" [pressed] [ref=e256]
+          - button "Needs my action" [ref=e257]
+          - button "Creator" [ref=e258]
+          - button "Worker" [ref=e259]
+          - button "Resolver" [ref=e260]
+          - button "Finalizer" [ref=e261]
+        - paragraph [ref=e262]: Filter by operational role to focus on the next manual step instead of scanning every agreement.
+      - generic [ref=e263]:
+        - generic [ref=e264]:
+          - generic [ref=e265]: "#"
+          - generic [ref=e266]: Worker
+          - generic [ref=e267]: Reward
+          - generic [ref=e268]: Creator share
+          - generic [ref=e269]: Trust score
+          - generic [ref=e270]: Worker claim
+          - generic [ref=e271]: Status
+          - generic [ref=e272]: Actions
+        - generic [ref=e273]: No agreements yet. Create one above to start the work flow.
+  - button "Open Next.js Dev Tools" [ref=e279] [cursor=pointer]:
+    - img [ref=e280]

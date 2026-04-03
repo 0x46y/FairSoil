@@ -67,6 +67,7 @@ import { useCovenantActions } from "../lib/useCovenantActions";
 import { useIdentityFlow } from "../lib/useIdentityFlow";
 import { WorkAgreementsSection } from "../components/WorkAgreementsSection";
 import { WorkAgreementRow } from "../components/WorkAgreementRow";
+import { TopDashboardChrome } from "../components/TopDashboardChrome";
 import {
   activeIdentityRoute,
   covenantAddress,
@@ -118,6 +119,8 @@ type TrailActorContext = {
 };
 
 type DashboardView = "participant" | "operator" | "activity";
+type QueueFilter = "all" | "mine" | "creator" | "worker" | "resolver" | "finalizer";
+type AuditFilterValue = "all" | "treasury" | "covenant" | "dispute" | "ubi";
 
 const shortAddress = (value: string) => `${value.slice(0, 6)}…${value.slice(-4)}`;
 const safeAddress = (value?: string) => (value ? shortAddress(value) : "Unknown");
@@ -167,6 +170,37 @@ const auditFilters = [
   { value: "dispute", label: "Disputes" },
   { value: "ubi", label: "UBI" },
 ] as const;
+
+const expectedLocalChainId = 31337;
+
+const parseDashboardView = (value: string | null): DashboardView =>
+  value === "operator" || value === "activity" ? value : "participant";
+
+const parseQueueFilter = (value: string | null): QueueFilter => {
+  if (
+    value === "mine" ||
+    value === "creator" ||
+    value === "worker" ||
+    value === "resolver" ||
+    value === "finalizer"
+  ) {
+    return value;
+  }
+  return "all";
+};
+
+const parseAuditFilter = (value: string | null): AuditFilterValue => {
+  if (value === "treasury" || value === "covenant" || value === "dispute" || value === "ubi") {
+    return value;
+  }
+  return "all";
+};
+
+const parseActivityPageSize = (value: string | null): 10 | 25 | 50 => {
+  if (value === "25") return 25;
+  if (value === "50") return 50;
+  return 10;
+};
 
 const disputeStatusLabel = (status: number) => {
   if (status === STATUS_RESOLVED) return "The dispute is finished.";
@@ -377,6 +411,14 @@ const formatTxError = (error: unknown) => {
   if (lower.includes("finalizer")) {
     return "This action needs the configured dispute finalizer wallet.";
   }
+  if (
+    lower.includes("returned no data") ||
+    lower.includes("contract code") ||
+    lower.includes("execution reverted") ||
+    lower.includes("call reverted without data")
+  ) {
+    return "This action could not reach the expected contract state. If Anvil was restarted, redeploy the contracts, update frontend/.env.local with the new addresses, and refresh the page before retrying.";
+  }
   return `This transaction failed. Check the connected wallet, balances, and contract setup. Details: ${message}`;
 };
 
@@ -390,6 +432,7 @@ const classifyIdentityError = (message: string | null) => {
 };
 
 const formatRelativeTime = (timestamp: number, nowMs: number, locale: string) => {
+  if (nowMs <= 0) return "--";
   const diffSeconds = Math.max(0, Math.floor(nowMs / 1000 - timestamp));
   if (diffSeconds < 60) return "Just now";
   const minutes = Math.floor(diffSeconds / 60);
@@ -442,10 +485,8 @@ export default function Home() {
   const [covenantTags, setCovenantTags] = useState("general");
   const [covenantTagFilter, setCovenantTagFilter] = useState("");
   const [onlyFlaggedAgreements, setOnlyFlaggedAgreements] = useState(false);
-  const [queueFilter, setQueueFilter] = useState<
-    "all" | "mine" | "creator" | "worker" | "resolver" | "finalizer"
-  >("all");
-  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
+  const [queueFilter, setQueueFilter] = useState<QueueFilter>("all");
+  const [nowSec, setNowSec] = useState(0);
   const [covenantTagMap, setCovenantTagMap] = useState<Record<string, string>>({});
   const [covenantTransparencyMap, setCovenantTransparencyMap] = useState<Record<string, CovenantTransparencyNote>>(
     {}
@@ -515,7 +556,7 @@ export default function Home() {
   const [appiPriceInput, setAppiPriceInput] = useState("");
   const [appiDayInput, setAppiDayInput] = useState("");
   const [trailQuery, setTrailQuery] = useState("");
-  const [trailFilter, setTrailFilter] = useState<(typeof auditFilters)[number]["value"]>("all");
+  const [trailFilter, setTrailFilter] = useState<AuditFilterValue>("all");
   const [dashboardView, setDashboardView] = useState<DashboardView>("participant");
   const [activityPageSize, setActivityPageSize] = useState<10 | 25 | 50>(10);
   const [activityPage, setActivityPage] = useState(1);
@@ -546,9 +587,10 @@ export default function Home() {
   const [unclaimedToDay, setUnclaimedToDay] = useState("");
   const [currentDayIndex, setCurrentDayIndex] = useState<number | null>(null);
   const [trailItems, setTrailItems] = useState<TrailItem[]>([]);
-  const [trailNow, setTrailNow] = useState(() => Date.now());
+  const [trailNow, setTrailNow] = useState(0);
   const [locale, setLocale] = useState("en-US");
   const trailIds = useRef(new Set<string>());
+  const hasHydratedUrlState = useRef(false);
   const [txStatus, setTxStatus] = useState<"idle" | "signing" | "confirming">("idle");
   const [txAction, setTxAction] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
@@ -1077,7 +1119,7 @@ export default function Home() {
     templateList,
     covenantTagFilter,
     covenantTagMap,
-    dashboardView,
+    dashboardView: dashboardView === "activity" ? "participant" : dashboardView,
     onlyFlaggedAgreements,
     covenantTransparencyMap,
     disputeReviewRecords,
@@ -1230,7 +1272,7 @@ export default function Home() {
   }, [defenseQuotaUsed, integrityScore]);
 
   const defenseQuotaResetInfo = useMemo(() => {
-    if (defenseQuotaMonth === undefined) return null;
+    if (defenseQuotaMonth === undefined || nowSec <= 0) return null;
     const currentMonth = Math.floor(nowSec / MONTH_SECONDS);
     const nextResetAt = (currentMonth + 1) * MONTH_SECONDS;
     const remainingSeconds = Math.max(0, nextResetAt - nowSec);
@@ -1246,6 +1288,7 @@ export default function Home() {
     if (tokenBBalance !== undefined) return tokenBBalance;
     return 0n;
   }, [tokenBBalance, tokenBUnlocked]);
+  const isBusy = isWriting || txStatus !== "idle";
 
   const transferAmountValue = useMemo(() => safeParseUnits(transferAmount, 18), [transferAmount]);
   const selectedTransferTokenLabel = transferToken === "tokenA" ? "Token A" : "Token B";
@@ -2393,7 +2436,6 @@ export default function Home() {
     [txAction, txStatus]
   );
 
-  const isBusy = isWriting || txStatus !== "idle";
   const cannotClaimDaily = canPayDailyUbi === false;
   const claimHelperText = useMemo(() => {
     if (!account.address || missingEnv || isBusy) {
@@ -2412,6 +2454,35 @@ export default function Home() {
     }
     return null;
   }, [account.address, cannotClaimDaily, isBusy, txAction, txError]);
+
+  const connectionBadge = useMemo(() => {
+    if (missingEnv) {
+      return {
+        label: "Setup required",
+        detail: "Add contract addresses to frontend/.env.local.",
+        tone: "warning" as const,
+      };
+    }
+    if (!account.address) {
+      return {
+        label: "Wallet disconnected",
+        detail: "Connect a wallet to use the local MVP.",
+        tone: "muted" as const,
+      };
+    }
+    if (account.chainId !== expectedLocalChainId) {
+      return {
+        label: "Wrong network",
+        detail: `Switch the wallet to Local Anvil (${expectedLocalChainId}).`,
+        tone: "warning" as const,
+      };
+    }
+    return {
+      label: "Local Anvil ready",
+      detail: "Wallet and env look usable for this prototype session.",
+      tone: "ready" as const,
+    };
+  }, [account.address, account.chainId]);
 
   const {
     handleSubmitWork,
@@ -2462,6 +2533,40 @@ export default function Home() {
     if (typeof navigator === "undefined") return;
     setLocale(navigator.languages?.[0] ?? navigator.language ?? "en-US");
   }, []);
+
+  useEffect(() => {
+    if (hasHydratedUrlState.current) return;
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    setDashboardView(parseDashboardView(params.get("view")));
+    setQueueFilter(parseQueueFilter(params.get("queue")));
+    setCovenantTagFilter(params.get("agreementTag") ?? "");
+    setTrailFilter(parseAuditFilter(params.get("activityFilter")));
+    setActivityPageSize(parseActivityPageSize(params.get("pageSize")));
+    const pageParam = Number(params.get("page") ?? "1");
+    setActivityPage(Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1);
+    hasHydratedUrlState.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydratedUrlState.current || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (dashboardView === "participant") params.delete("view");
+    else params.set("view", dashboardView);
+    if (queueFilter === "all") params.delete("queue");
+    else params.set("queue", queueFilter);
+    if (!covenantTagFilter.trim()) params.delete("agreementTag");
+    else params.set("agreementTag", covenantTagFilter.trim());
+    if (trailFilter === "all") params.delete("activityFilter");
+    else params.set("activityFilter", trailFilter);
+    if (activityPageSize === 10) params.delete("pageSize");
+    else params.set("pageSize", String(activityPageSize));
+    if (activityPage <= 1) params.delete("page");
+    else params.set("page", String(activityPage));
+    const nextSearch = params.toString();
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
+    window.history.replaceState(window.history.state, "", nextUrl);
+  }, [activityPage, activityPageSize, covenantTagFilter, dashboardView, queueFilter, trailFilter]);
 
   useEffect(() => {
     if (!covenantWorker && account.address) {
@@ -3597,187 +3702,40 @@ export default function Home() {
     <div className={styles.page}>
       <div className={styles.backgroundGlow} aria-hidden="true" />
       <main id="main-content" className={styles.main}>
-        <header className={styles.header}>
-          <div className={styles.brand}>
-            <span className={styles.mark} />
-            <div>
-              <p className={styles.kicker}>FairSoil</p>
-              <p className={styles.caption}>Integrity-first economy</p>
-            </div>
-          </div>
-          <nav className={styles.nav}>
-            <span>Prototype</span>
-            <span className={styles.statusDot}>Live</span>
-          </nav>
-        </header>
-
-        {txError ? (
-          <section className={styles.messageError} role="alert">
-            <strong>Action could not finish</strong>
-            <p>{txError}</p>
-          </section>
-        ) : null}
-        {txSuccess ? (
-          <section className={styles.messageSuccess} role="status" aria-live="polite">
-            <strong>Action completed</strong>
-            <p>{txSuccess}</p>
-          </section>
-        ) : null}
-
-        {missingEnv ? (
-          <section className={styles.warning}>
-            <h2>Setup is incomplete</h2>
-            <p>
-              This page cannot send transactions yet because contract addresses
-              are missing. Set NEXT_PUBLIC_TOKENA_ADDRESS,
-              NEXT_PUBLIC_TOKENB_ADDRESS, NEXT_PUBLIC_TREASURY_ADDRESS, and
-              NEXT_PUBLIC_COVENANT_ADDRESS in frontend/.env.local.
-            </p>
-          </section>
-        ) : null}
-
-        <section className={styles.hero}>
-          <div className={styles.heroCopy}>
-            <p className={styles.badge}>Phase 1 MVP</p>
-            <h1>Connect your wallet, verify it, and begin using FairSoil.</h1>
-            <p className={styles.heroText}>
-              This page is a working prototype. In plain terms: Token A is your
-              daily bonus, Token B is your work reward, and Integrity is your
-              trust score.
-            </p>
-            <div className={styles.phaseNote}>
-              <strong>What this MVP already does:</strong> daily bonus, reward escrow,
-              approval, dispute flow, manual operator review, and basic treasury checks.
-              <br />
-              <strong>What is still not finished:</strong> full DAO governance,
-              production identity flow, and external dispute arbitration.
-              <br />
-              <strong>What we are still testing:</strong> dispute fairness for low-balance
-              users. Phase 1 keeps a manual arbiter, while Phase 2 is expected to move
-              high-value cases to outside adjudication.
-            </div>
-            <div className={styles.heroActions}>
-              <button
-                className={styles.primaryButton}
-                onClick={handleClaim}
-                disabled={!account.address || missingEnv || isBusy || cannotClaimDaily}
-              >
-                {actionLabel("claimUBI", "Claim today's bonus")}
-              </button>
-              {account.address ? (
-                <button className={styles.secondaryButton} onClick={() => disconnect()}>
-                  Disconnect wallet
-                </button>
-              ) : (
-                <button
-                  className={styles.secondaryButton}
-                  onClick={() => connect({ connector: injected() })}
-                >
-                  Connect wallet
-                </button>
-              )}
-            </div>
-            {claimHelperText ? (
-              <p className={styles.helperNote}>
-                {claimHelperText}
-              </p>
-            ) : null}
-            <div className={styles.heroMeta}>
-              <span>Network: Local Anvil (31337)</span>
-              <span>
-                Wallet: {account.address ? account.address.slice(0, 10) : "Not connected"}
-              </span>
-            </div>
-          </div>
-
-          <div className={styles.heroPanel}>
-            <div className={styles.metric}>
-              <p className={styles.metricLabel}>Daily bonus (Token A)</p>
-              <p className={styles.metricValue}>{formattedTokenA}</p>
-              <p className={styles.metricFootnote}>
-                This slowly expires over time, so it is meant for near-term use.
-              </p>
-            </div>
-            <div className={styles.metric}>
-              <p className={styles.metricLabel}>Work rewards (Token B)</p>
-              <p className={styles.metricValue}>{formattedTokenB}</p>
-              <div className={styles.metricBreakdown}>
-                <span>Unlocked: {formattedTokenBUnlocked}</span>
-                <span>Locked: {formattedTokenBLocked}</span>
-              </div>
-              <p className={styles.metricFootnote}>
-                Locked rewards are already reserved inside agreements.
-              </p>
-            </div>
-            <div className={styles.metric}>
-              <p className={styles.metricLabel}>Trust score (Integrity)</p>
-              <p className={styles.metricValue}>{formattedIntegrity}</p>
-              <div className={styles.metricBreakdown}>
-                <span>Available: {formattedAvailableIntegrity}</span>
-                <span>Locked: {formattedLockedIntegrity}</span>
-              </div>
-              <p className={styles.metricFootnote}>
-                {governanceEligible
-                  ? "You can join governance decisions."
-                  : "You have not reached the governance threshold yet."}
-              </p>
-              {defenseQuotaRemaining !== null ? (
-                <p className={styles.metricFootnote}>
-                  Defense quota: {defenseQuotaRemaining}/2 remaining
-                  {defenseQuotaResetInfo ? ` · resets in ${defenseQuotaResetInfo.label}` : ""}
-                </p>
-              ) : null}
-            </div>
-          </div>
-        </section>
-
-        <section className={styles.viewTabs} aria-label="Dashboard sections">
-          <div className={styles.tabList} role="tablist" aria-label="Choose dashboard view">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={dashboardView === "participant"}
-              className={`${styles.tabButton} ${
-                dashboardView === "participant" ? styles.tabButtonActive : ""
-              }`}
-              onClick={() => setDashboardView("participant")}
-            >
-              Use FairSoil
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={dashboardView === "operator"}
-              className={`${styles.tabButton} ${
-                dashboardView === "operator" ? styles.tabButtonActive : ""
-              }`}
-              onClick={() => setDashboardView("operator")}
-            >
-              Run FairSoil
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={dashboardView === "activity"}
-              className={`${styles.tabButton} ${
-                dashboardView === "activity" ? styles.tabButtonActive : ""
-              }`}
-              onClick={() => setDashboardView("activity")}
-            >
-              Activity
-            </button>
-          </div>
-          <p className={styles.tabDescription}>
-            {dashboardView === "participant"
-              ? "Participant view is the default. It shows the everyday flow: verify, collect bonuses, and create agreements."
-              : dashboardView === "activity"
-              ? "Activity view keeps the audit trail separate from the main work flow, with filters, export, and paging."
-              : "Operator view is for the temporary operator wallet, manual reviewers, and the dispute arbiter."}
-          </p>
-        </section>
+        <TopDashboardChrome
+          connectionLabel={connectionBadge.label}
+          connectionDetail={connectionBadge.detail}
+          connectionTone={connectionBadge.tone}
+          chainId={account.chainId}
+          accountAddress={account.address}
+          txError={txError}
+          txSuccess={txSuccess}
+          missingEnv={missingEnv}
+          claimDisabled={!account.address || missingEnv || isBusy || cannotClaimDaily}
+          claimLabel={actionLabel("claimUBI", "Claim today's bonus")}
+          claimHelperText={claimHelperText}
+          onClaim={handleClaim}
+          onDisconnect={() => disconnect()}
+          onConnect={() => connect({ connector: injected() })}
+          formattedTokenA={formattedTokenA}
+          formattedTokenB={formattedTokenB}
+          formattedTokenBUnlocked={formattedTokenBUnlocked}
+          formattedTokenBLocked={formattedTokenBLocked}
+          formattedIntegrity={formattedIntegrity}
+          formattedAvailableIntegrity={formattedAvailableIntegrity}
+          formattedLockedIntegrity={formattedLockedIntegrity}
+          governanceEligible={Boolean(governanceEligible)}
+          defenseQuotaRemaining={defenseQuotaRemaining}
+          defenseQuotaResetLabel={defenseQuotaResetInfo?.label}
+          dashboardView={dashboardView}
+          onSelectDashboardView={setDashboardView}
+        />
 
         {dashboardView === "participant" ? (
-        <section className={`${styles.dashboardSection} ${styles.participantSection}`}>
+        <section
+          id="dashboard-panel-participant"
+          className={`${styles.dashboardSection} ${styles.participantSection}`}
+        >
           <div className={styles.sectionHeading}>
             <div>
               <span className={styles.sectionEyebrow}>For everyday use</span>
@@ -3793,28 +3751,28 @@ export default function Home() {
               <span className={styles.startNumber}>1</span>
               <div>
                 <strong>Verify your wallet</strong>
-                <p>Unlock daily bonus and identity-based features.</p>
+                <p>Unlock daily bonus and identity-based features before using the rest of the flow.</p>
               </div>
             </div>
             <div className={styles.startCard}>
               <span className={styles.startNumber}>2</span>
               <div>
                 <strong>Collect your bonus</strong>
-                <p>Check recent days, then accrue or claim Token A.</p>
+                <p>Load recent days, accrue them, then claim Token A before older days decay further.</p>
               </div>
             </div>
             <div className={styles.startCard}>
               <span className={styles.startNumber}>3</span>
               <div>
                 <strong>Create work agreements</strong>
-                <p>Lock a reward first so the worker can submit safely.</p>
+                <p>Lock the reward upfront so the worker can submit safely and disputes stay bounded.</p>
               </div>
             </div>
             <div className={styles.startCard}>
               <span className={styles.startNumber}>4</span>
               <div>
                 <strong>Watch your progress</strong>
-                <p>Token B and Integrity go up after approved work.</p>
+                <p>Approved work increases Token B and Integrity, which later unlock governance participation.</p>
               </div>
             </div>
           </div>
@@ -4001,6 +3959,9 @@ export default function Home() {
                       value={transferRecipient}
                       onChange={(event) => setTransferRecipient(event.target.value)}
                       placeholder="0x..."
+                      name="transferRecipient"
+                      autoComplete="off"
+                      spellCheck={false}
                     />
                   </label>
                   <div className={styles.taskRow}>
@@ -4011,6 +3972,9 @@ export default function Home() {
                         value={transferAmount}
                         onChange={(event) => setTransferAmount(event.target.value)}
                         placeholder="10"
+                        name="transferAmount"
+                        inputMode="decimal"
+                        autoComplete="off"
                       />
                     </label>
                     <label className={styles.taskField}>
@@ -4075,21 +4039,27 @@ export default function Home() {
               <div className={styles.taskRow}>
                 <label className={styles.taskField}>
                   From day
-                  <input
-                    className={styles.taskInput}
-                    value={unclaimedFromDay}
-                    onChange={(event) => setUnclaimedFromDay(event.target.value)}
-                    placeholder="e.g. 12345"
-                  />
+                      <input
+                        className={styles.taskInput}
+                        value={unclaimedFromDay}
+                        onChange={(event) => setUnclaimedFromDay(event.target.value)}
+                        placeholder="e.g. 12345"
+                        name="unclaimedFromDay"
+                        inputMode="numeric"
+                        autoComplete="off"
+                      />
                 </label>
                 <label className={styles.taskField}>
                   To day
-                  <input
-                    className={styles.taskInput}
-                    value={unclaimedToDay}
-                    onChange={(event) => setUnclaimedToDay(event.target.value)}
-                    placeholder="e.g. 12350"
-                  />
+                      <input
+                        className={styles.taskInput}
+                        value={unclaimedToDay}
+                        onChange={(event) => setUnclaimedToDay(event.target.value)}
+                        placeholder="e.g. 12350"
+                        name="unclaimedToDay"
+                        inputMode="numeric"
+                        autoComplete="off"
+                      />
                 </label>
               </div>
               <div className={styles.unclaimedActions}>
@@ -4199,6 +4169,9 @@ export default function Home() {
                         value={covenantRewardAmount}
                         onChange={(event) => setCovenantRewardAmount(event.target.value)}
                         placeholder="250"
+                        name="covenantRewardAmount"
+                        inputMode="decimal"
+                        autoComplete="off"
                       />
                       <span className={styles.fieldHint}>This amount is locked when the agreement is created.</span>
                     </label>
@@ -4209,6 +4182,9 @@ export default function Home() {
                         value={covenantIntegrityPoints}
                         onChange={(event) => setCovenantIntegrityPoints(event.target.value)}
                         placeholder="50"
+                        name="covenantIntegrityPoints"
+                        inputMode="numeric"
+                        autoComplete="off"
                       />
                       <span className={styles.fieldHint}>
                         Integrity points the worker will receive after approval.
@@ -4231,6 +4207,9 @@ export default function Home() {
                               setQuoteBreakdown((current) => ({ ...current, labor: event.target.value }))
                             }
                             placeholder="150"
+                            name="quoteLabor"
+                            inputMode="decimal"
+                            autoComplete="off"
                           />
                         </label>
                         <label className={styles.taskField}>
@@ -4242,6 +4221,9 @@ export default function Home() {
                               setQuoteBreakdown((current) => ({ ...current, materials: event.target.value }))
                             }
                             placeholder="70"
+                            name="quoteMaterials"
+                            inputMode="decimal"
+                            autoComplete="off"
                           />
                         </label>
                       </div>
@@ -4255,6 +4237,9 @@ export default function Home() {
                               setQuoteBreakdown((current) => ({ ...current, referral: event.target.value }))
                             }
                             placeholder="0"
+                            name="quoteReferral"
+                            inputMode="decimal"
+                            autoComplete="off"
                           />
                         </label>
                         <label className={styles.taskField}>
@@ -4266,6 +4251,9 @@ export default function Home() {
                               setQuoteBreakdown((current) => ({ ...current, warranty: event.target.value }))
                             }
                             placeholder="0"
+                            name="quoteWarranty"
+                            inputMode="decimal"
+                            autoComplete="off"
                           />
                         </label>
                       </div>
@@ -4278,6 +4266,9 @@ export default function Home() {
                             setQuoteBreakdown((current) => ({ ...current, other: event.target.value }))
                           }
                           placeholder="0"
+                          name="quoteOther"
+                          inputMode="decimal"
+                          autoComplete="off"
                         />
                       </label>
                     </div>
@@ -4360,6 +4351,8 @@ export default function Home() {
                       value={covenantTags}
                       onChange={(event) => setCovenantTags(event.target.value)}
                       placeholder="e.g. repair, urgent, onsite"
+                      name="covenantTags"
+                      autoComplete="off"
                     />
                     <span className={styles.fieldHint}>
                       Optional labels for filtering and analytics. These are not part of the on-chain reward logic.
@@ -4882,7 +4875,10 @@ export default function Home() {
         ) : null}
 
         {dashboardView === "operator" ? (
-        <section className={`${styles.dashboardSection} ${styles.operatorSection}`}>
+        <section
+          id="dashboard-panel-operator"
+          className={`${styles.dashboardSection} ${styles.operatorSection}`}
+        >
           <div className={styles.sectionHeading}>
             <div>
               <span className={styles.sectionEyebrow}>For system operators</span>
@@ -5402,7 +5398,7 @@ export default function Home() {
           <div className={styles.timelinePreviewHeader}>
             <div>
               <span className={styles.sectionEyebrow}>Quick audit view</span>
-              <h2>Recent activity preview</h2>
+              <h2>Recent Activity</h2>
               <p>Keep the main work flow short, then open the full audit trail only when needed.</p>
             </div>
             <button
@@ -5453,7 +5449,7 @@ export default function Home() {
         ) : null}
 
         {dashboardView === "activity" ? (
-        <section className={styles.timeline}>
+        <section id="dashboard-panel-activity" className={styles.timeline}>
           <div className={styles.timelineHeader}>
             <div>
               <span className={styles.sectionEyebrow}>What just happened</span>

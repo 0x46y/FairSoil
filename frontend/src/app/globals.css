@@ -1,13 +1,21 @@
+@import "tailwindcss";
+
 :root {
   color-scheme: light;
   --ink-900: #14140f;
+  --ink-800: #222118;
   --ink-700: #3b3a32;
+  --ink-600: #4e4b41;
   --ink-500: #5f5d52;
+  --ink-400: #8b887d;
   --sand-100: #f7f4ee;
   --sand-200: #efe9df;
   --sand-300: #e3d9c7;
+  --clay-900: #4d3920;
+  --soil-700: #6a4b1b;
   --soil-600: #7a5c2b;
   --soil-500: #9b6f2f;
+  --soil-400: #b78543;
   --soil-300: #c49a5a;
   --leaf-500: #4b6f4a;
   --sky-200: #cde2f0;
@@ -15,6 +23,15 @@
   --glass: rgba(255, 255, 255, 0.72);
   --glass-border: rgba(20, 20, 15, 0.12);
   --shadow-soft: 0 18px 40px rgba(30, 26, 16, 0.12);
+}
+
+@theme {
+  --color-fairsoil-ink: var(--ink-900);
+  --color-fairsoil-sand: var(--sand-100);
+  --color-fairsoil-soil: var(--soil-500);
+  --color-fairsoil-leaf: var(--leaf-500);
+  --font-display: var(--font-fraunces);
+  --font-body: var(--font-space-grotesk);
 }
 
 html,

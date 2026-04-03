@@ -63,7 +63,7 @@ export function WorkAgreementsSection(props: {
       <div className={styles.covenantHeader}>
         <div>
           <span className={styles.sectionEyebrow}>Main work flow</span>
-          <h2>Work agreements</h2>
+          <h2>Work Agreements</h2>
           <p>See what each agreement is waiting for and who needs to act next.</p>
         </div>
         <div className={styles.covenantHeaderActions}>
@@ -131,6 +131,7 @@ export function WorkAgreementsSection(props: {
           <button
             type="button"
             className={queueFilter === "all" ? styles.queuePillActive : styles.queuePill}
+            aria-pressed={queueFilter === "all"}
             onClick={() => onQueueFilterChange("all")}
           >
             All
@@ -138,6 +139,7 @@ export function WorkAgreementsSection(props: {
           <button
             type="button"
             className={queueFilter === "mine" ? styles.queuePillActive : styles.queuePill}
+            aria-pressed={queueFilter === "mine"}
             onClick={() => onQueueFilterChange("mine")}
           >
             Needs my action {queueCounts.mine > 0 ? `(${queueCounts.mine})` : ""}
@@ -145,6 +147,7 @@ export function WorkAgreementsSection(props: {
           <button
             type="button"
             className={queueFilter === "creator" ? styles.queuePillActive : styles.queuePill}
+            aria-pressed={queueFilter === "creator"}
             onClick={() => onQueueFilterChange("creator")}
           >
             Creator {queueCounts.creator > 0 ? `(${queueCounts.creator})` : ""}
@@ -152,6 +155,7 @@ export function WorkAgreementsSection(props: {
           <button
             type="button"
             className={queueFilter === "worker" ? styles.queuePillActive : styles.queuePill}
+            aria-pressed={queueFilter === "worker"}
             onClick={() => onQueueFilterChange("worker")}
           >
             Worker {queueCounts.worker > 0 ? `(${queueCounts.worker})` : ""}
@@ -159,6 +163,7 @@ export function WorkAgreementsSection(props: {
           <button
             type="button"
             className={queueFilter === "resolver" ? styles.queuePillActive : styles.queuePill}
+            aria-pressed={queueFilter === "resolver"}
             onClick={() => onQueueFilterChange("resolver")}
           >
             Resolver {queueCounts.resolver > 0 ? `(${queueCounts.resolver})` : ""}
@@ -166,6 +171,7 @@ export function WorkAgreementsSection(props: {
           <button
             type="button"
             className={queueFilter === "finalizer" ? styles.queuePillActive : styles.queuePill}
+            aria-pressed={queueFilter === "finalizer"}
             onClick={() => onQueueFilterChange("finalizer")}
           >
             Finalizer {queueCounts.finalizer > 0 ? `(${queueCounts.finalizer})` : ""}

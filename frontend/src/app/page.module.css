@@ -19,9 +19,10 @@
 .main {
   position: relative;
   z-index: 1;
-  width: min(1520px, 97vw);
+  width: min(1520px, 100%);
+  max-width: 100%;
   margin: 0 auto;
-  padding: 48px 0 88px;
+  padding: 48px clamp(18px, 3vw, 36px) 88px;
   display: flex;
   flex-direction: column;
   gap: 40px;
@@ -92,6 +93,46 @@
   border-radius: 50%;
   background: var(--leaf-500);
   box-shadow: 0 0 0 4px rgba(75, 111, 74, 0.2);
+}
+
+.statusDotWarning {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(155, 111, 47, 0.14);
+  color: var(--soil-600);
+  font-weight: 600;
+}
+
+.statusDotWarning::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--soil-600);
+  box-shadow: 0 0 0 4px rgba(196, 154, 90, 0.18);
+}
+
+.statusDotMuted {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(59, 58, 50, 0.1);
+  color: var(--ink-500);
+  font-weight: 600;
+}
+
+.statusDotMuted::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-500);
+  box-shadow: 0 0 0 4px rgba(95, 93, 82, 0.14);
 }
 
 .hero {
@@ -409,17 +450,18 @@
 
 .startStrip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .startCard {
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  padding: 16px 18px;
+  min-height: 104px;
+  padding: 18px 20px;
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.78);
   border: 1px solid rgba(122, 92, 43, 0.1);
   box-shadow: 0 10px 20px rgba(70, 55, 30, 0.05);
 }
@@ -453,20 +495,20 @@
 
 .participantGrid {
   display: grid;
-  grid-template-columns: minmax(320px, 0.95fr) minmax(480px, 1.35fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: 24px;
   align-items: start;
 }
 
 .participantStack {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  grid-template-columns: 1fr;
+  gap: 20px;
   align-items: start;
 }
 
 .participantStack .card {
-  grid-column: span 1;
+  grid-column: auto;
 }
 
 .participantStackWide {
@@ -621,6 +663,7 @@
 .taskInput {
   border-radius: 14px;
   border: 1px solid var(--sand-200);
+  min-height: 44px;
   padding: 10px 12px;
   font-size: 14px;
   color: var(--ink-900);
@@ -658,6 +701,11 @@
   display: grid;
   gap: 6px;
   min-width: 180px;
+}
+
+.identityRouteBlock button {
+  min-height: 44px;
+  width: 100%;
 }
 
 .identityRouteHint {
@@ -754,6 +802,10 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.cardActions > * {
+  flex: 1 1 12rem;
 }
 
 .quotePanel {
@@ -897,6 +949,24 @@
   align-items: flex-start;
 }
 
+.timelinePreviewHeader h2,
+.timelineHeader h2,
+.covenantHeader h2 {
+  font-family: var(--font-fraunces), serif;
+  font-size: clamp(1.75rem, 2.4vw, 2.2rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.timelinePreviewHeader p,
+.timelineHeader p,
+.covenantHeader p {
+  max-width: 44rem;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--ink-700);
+}
+
 .timelineHeader {
   display: flex;
   flex-wrap: wrap;
@@ -1001,11 +1071,6 @@
   background: rgba(244, 217, 157, 0.4);
   color: var(--ink-900);
   font-size: 11px;
-}
-
-.timeline h2 {
-  font-size: 24px;
-  font-family: var(--font-fraunces), serif;
 }
 
 .timeline p {
@@ -1117,15 +1182,6 @@
   color: var(--ink-800);
 }
 
-.covenantHeader h2 {
-  font-family: var(--font-fraunces), serif;
-  font-size: 24px;
-}
-
-.covenantHeader p {
-  color: var(--ink-700);
-}
-
 .covenantTable {
   display: grid;
   gap: 8px;
@@ -1154,7 +1210,8 @@
   border: 1px solid var(--sand-200);
   background: rgba(255, 255, 255, 0.8);
   color: var(--ink-700);
-  padding: 8px 12px;
+  min-height: 44px;
+  padding: 10px 14px;
   font-size: 12px;
   font-weight: 700;
 }
@@ -1578,7 +1635,8 @@
   min-width: 0;
   border-radius: 12px;
   border: 1px solid var(--sand-200);
-  padding: 6px 8px;
+  min-height: 44px;
+  padding: 10px 12px;
   font-size: 12px;
 }
 
@@ -1590,11 +1648,11 @@
 .issueTextarea {
   width: 100%;
   min-width: 0;
-  min-height: 72px;
+  min-height: 104px;
   border-radius: 12px;
   border: 1px solid var(--sand-200);
-  padding: 8px 10px;
-  font-size: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
   font-family: inherit;
   resize: vertical;
   color: var(--ink-900);
@@ -1625,7 +1683,8 @@
 .covenantActions .primaryButton,
 .covenantActions .secondaryButton,
 .covenantActions .ghostButton {
-  padding: 8px 14px;
+  min-height: 44px;
+  padding: 10px 14px;
   font-size: 12px;
 }
 
@@ -1655,11 +1714,6 @@
 }
 
 @media (max-width: 800px) {
-  .header {
-    flex-direction: column;
-    gap: 12px;
-  }
-
   .main {
     padding: 40px 0 72px;
   }
@@ -1690,9 +1744,12 @@
     grid-template-columns: 1fr;
   }
 
-  .covenantRowHeader,
   .covenantRow {
     grid-template-columns: 1fr;
+  }
+
+  .covenantRowHeader {
+    display: none;
   }
 }
 
